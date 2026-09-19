@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ContentBlocks, PromptCard } from "@/components/content-blocks";
 import { DoneRow, SavedTextarea } from "@/components/save-fields";
@@ -7,12 +8,22 @@ import { weekCompletion, useProgress } from "@/components/progress-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { weeks, weekHref } from "@/lib/course";
 import type { Week } from "@/lib/course/types";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+  { id: "theory", label: "Теория" },
+  { id: "practice", label: "Практика" },
+  { id: "prompts", label: "Промпты" },
+  { id: "artifact", label: "Артефакт" },
+] as const;
+
+type TabId = (typeof tabs)[number]["id"];
 
 export function WeekView({ week }: { week: Week }) {
   const { state } = useProgress();
+  const [tab, setTab] = useState<TabId>("theory");
   const percent = weekCompletion(state.done, week.slug);
   const index = weeks.findIndex((item) => item.slug === week.slug);
   const prev = index > 0 ? weeks[index - 1] : null;
@@ -87,23 +98,35 @@ export function WeekView({ week }: { week: Week }) {
             </div>
           </div>
 
-          <Tabs defaultValue="theory" className="mt-8">
-            <TabsList variant="line" className="h-auto w-full max-w-full flex-wrap justify-start gap-0 rounded-none border-b">
-              <TabsTrigger value="theory" className="px-3">
-                Теория
-              </TabsTrigger>
-              <TabsTrigger value="practice" className="px-3">
-                Практика
-              </TabsTrigger>
-              <TabsTrigger value="prompts" className="px-3">
-                Промпты
-              </TabsTrigger>
-              <TabsTrigger value="artifact" className="px-3">
-                Артефакт
-              </TabsTrigger>
-            </TabsList>
+          <div className="mt-8">
+            <div
+              role="tablist"
+              className="flex flex-wrap gap-1 border-b border-border pb-px"
+            >
+              {tabs.map((item) => {
+                const active = tab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setTab(item.id)}
+                    className={cn(
+                      "relative min-h-10 rounded-t-lg px-3.5 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "text-foreground after:absolute after:inset-x-2 after:bottom-[-1px] after:h-0.5 after:bg-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
 
-            <TabsContent value="theory" className="mt-6 space-y-8">
+            {tab === "theory" ? (
+            <div className="mt-6 space-y-8">
               {week.theory.map((lesson) => (
                 <article
                   key={lesson.id}
@@ -123,9 +146,11 @@ export function WeekView({ week }: { week: Week }) {
                   </div>
                 </article>
               ))}
-            </TabsContent>
+            </div>
+            ) : null}
 
-            <TabsContent value="practice" className="mt-6 space-y-6">
+            {tab === "practice" ? (
+            <div className="mt-6 space-y-6">
               {week.practice.map((exercise, index) => (
                 <Card key={exercise.id} className="rounded-3xl py-5">
                   <CardHeader>
@@ -165,9 +190,11 @@ export function WeekView({ week }: { week: Week }) {
                   </CardContent>
                 </Card>
               ))}
-            </TabsContent>
+            </div>
+            ) : null}
 
-            <TabsContent value="prompts" className="mt-6 space-y-4">
+            {tab === "prompts" ? (
+            <div className="mt-6 space-y-4">
               <p className="text-sm leading-6 text-muted-foreground">
                 Копируй, подставляй свой контекст, не отправляй пустые скобки. Если
                 модель начинает выдумывать факты, останови и докинь источники.
@@ -180,9 +207,11 @@ export function WeekView({ week }: { week: Week }) {
                   text={prompt.text}
                 />
               ))}
-            </TabsContent>
+            </div>
+            ) : null}
 
-            <TabsContent value="artifact" className="mt-6 space-y-5">
+            {tab === "artifact" ? (
+            <div className="mt-6 space-y-5">
               <Card className="rounded-3xl">
                 <CardHeader>
                   <CardTitle>Что должно остаться после недели</CardTitle>
@@ -205,8 +234,9 @@ export function WeekView({ week }: { week: Week }) {
                   />
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </div>
+            ) : null}
+          </div>
 
           <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
             {prev ? (

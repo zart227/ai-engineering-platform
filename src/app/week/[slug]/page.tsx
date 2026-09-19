@@ -28,5 +28,5 @@ export default async function WeekPage({
   const { slug } = await params;
   const week = getWeek(slug);
   if (!week) notFound();
-  return <WeekView week={week} />;
+  return <WeekView key={week.slug} week={week} />;
 }

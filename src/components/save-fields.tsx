@@ -1,7 +1,7 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useProgress } from "@/components/progress-provider";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -18,21 +18,29 @@ export function DoneRow({
   const checked = Boolean(state.done[id]);
 
   return (
-    <label
+    <button
+      type="button"
+      onClick={() => setDone(id, !checked)}
       className={cn(
-        "flex cursor-pointer items-start gap-3 rounded-xl px-1 py-1",
+        "flex w-full cursor-pointer items-start gap-3 rounded-xl px-1 py-2 text-left",
         className
       )}
     >
-      <Checkbox
-        checked={checked}
-        onCheckedChange={(value) => setDone(id, Boolean(value))}
-        className="mt-0.5"
-      />
+      <span
+        className={cn(
+          "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[5px] border",
+          checked
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-input bg-background"
+        )}
+        aria-hidden
+      >
+        {checked ? <Check className="size-3.5" /> : null}
+      </span>
       <span className={cn("text-sm leading-6", checked && "text-muted-foreground")}>
         {children}
       </span>
-    </label>
+    </button>
   );
 }
 
