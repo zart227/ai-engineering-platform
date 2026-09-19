@@ -125,117 +125,7 @@ export function WeekView({ week }: { week: Week }) {
               })}
             </div>
 
-            {tab === "theory" ? (
-            <div className="mt-6 space-y-8">
-              {week.theory.map((lesson) => (
-                <article
-                  key={lesson.id}
-                  className="rounded-3xl border border-border bg-card p-5 sm:p-7"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <h2 className="font-heading text-2xl tracking-tight">
-                      {lesson.title}
-                    </h2>
-                    <Badge variant="outline">{lesson.minutes} мин</Badge>
-                  </div>
-                  <div className="mt-5">
-                    <ContentBlocks blocks={lesson.blocks} />
-                  </div>
-                  <div className="mt-6 border-t border-border pt-4">
-                    <DoneRow id={lesson.id}>Отметить, что прочитал</DoneRow>
-                  </div>
-                </article>
-              ))}
-            </div>
-            ) : null}
-
-            {tab === "practice" ? (
-            <div className="mt-6 space-y-6">
-              {week.practice.map((exercise, index) => (
-                <Card key={exercise.id} className="rounded-3xl py-5">
-                  <CardHeader>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Задание {index + 1} · {exercise.time}
-                    </p>
-                    <CardTitle className="font-heading text-2xl">
-                      {exercise.title}
-                    </CardTitle>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      {exercise.goal}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <p className="mb-2 text-sm font-medium">Как делать</p>
-                      <ol className="space-y-2">
-                        {exercise.steps.map((step, stepIndex) => (
-                          <li key={step} className="flex gap-3 text-sm leading-6">
-                            <span className="w-5 shrink-0 font-heading text-primary">
-                              {stepIndex + 1}.
-                            </span>
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                    <div className="rounded-2xl bg-muted/70 px-4 py-3 text-sm leading-6">
-                      <span className="font-medium">На выходе. </span>
-                      {exercise.output}
-                    </div>
-                    <SavedTextarea
-                      id={exercise.id}
-                      placeholder="Пиши сюда черновик, выводы, ссылки. Сохраняется в браузере."
-                    />
-                    <DoneRow id={exercise.id}>Задание сделано</DoneRow>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            ) : null}
-
-            {tab === "prompts" ? (
-            <div className="mt-6 space-y-4">
-              <p className="text-sm leading-6 text-muted-foreground">
-                Копируй, подставляй свой контекст, не отправляй пустые скобки. Если
-                модель начинает выдумывать факты, останови и докинь источники.
-              </p>
-              {week.prompts.map((prompt) => (
-                <PromptCard
-                  key={prompt.id}
-                  title={prompt.title}
-                  when={prompt.when}
-                  text={prompt.text}
-                />
-              ))}
-            </div>
-            ) : null}
-
-            {tab === "artifact" ? (
-            <div className="mt-6 space-y-5">
-              <Card className="rounded-3xl">
-                <CardHeader>
-                  <CardTitle>Что должно остаться после недели</CardTitle>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    {week.artifact}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-1">
-                    {week.checklist.map((item) => (
-                      <DoneRow key={item.id} id={item.id}>
-                        {item.text}
-                      </DoneRow>
-                    ))}
-                  </div>
-                  <SavedTextarea
-                    id={`${week.slug}-artifact`}
-                    placeholder="Сложи сюда сам артефакт: ссылки, формулировки, таблицу фактов, решение go/kill."
-                    rows={12}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-            ) : null}
+            <WeekPanels tab={tab} week={week} />
           </div>
 
           <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -256,6 +146,130 @@ export function WeekView({ week }: { week: Week }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function WeekPanels({ tab, week }: { tab: TabId; week: Week }) {
+  if (tab === "practice") {
+    return (
+      <div className="mt-6 space-y-6" data-panel="practice">
+        <p className="font-heading text-2xl tracking-tight">Практика</p>
+        {week.practice.map((exercise, index) => (
+          <Card key={exercise.id} className="rounded-3xl py-5">
+            <CardHeader>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Задание {index + 1} · {exercise.time}
+              </p>
+              <CardTitle className="font-heading text-2xl">
+                {exercise.title}
+              </CardTitle>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {exercise.goal}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm font-medium">Как делать</p>
+                <ol className="space-y-2">
+                  {exercise.steps.map((step, stepIndex) => (
+                    <li key={step} className="flex gap-3 text-sm leading-6">
+                      <span className="w-5 shrink-0 font-heading text-primary">
+                        {stepIndex + 1}.
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div className="rounded-2xl bg-muted/70 px-4 py-3 text-sm leading-6">
+                <span className="font-medium">На выходе. </span>
+                {exercise.output}
+              </div>
+              <SavedTextarea
+                id={exercise.id}
+                placeholder="Пиши сюда черновик, выводы, ссылки. Сохраняется в браузере."
+              />
+              <DoneRow id={exercise.id}>Задание сделано</DoneRow>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (tab === "prompts") {
+    return (
+      <div className="mt-6 space-y-4" data-panel="prompts">
+        <p className="font-heading text-2xl tracking-tight">Промпты</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Копируй, подставляй свой контекст, не отправляй пустые скобки. Если
+          модель начинает выдумывать факты, останови и докинь источники.
+        </p>
+        {week.prompts.map((prompt) => (
+          <PromptCard
+            key={prompt.id}
+            title={prompt.title}
+            when={prompt.when}
+            text={prompt.text}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (tab === "artifact") {
+    return (
+      <div className="mt-6 space-y-5" data-panel="artifact">
+        <p className="font-heading text-2xl tracking-tight">Артефакт</p>
+        <Card className="rounded-3xl">
+          <CardHeader>
+            <CardTitle>Что должно остаться после недели</CardTitle>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {week.artifact}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              {week.checklist.map((item) => (
+                <DoneRow key={item.id} id={item.id}>
+                  {item.text}
+                </DoneRow>
+              ))}
+            </div>
+            <SavedTextarea
+              id={`${week.slug}-artifact`}
+              placeholder="Сложи сюда сам артефакт: ссылки, формулировки, таблицу фактов, решение go/kill."
+              rows={12}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 space-y-8" data-panel="theory">
+      <p className="font-heading text-2xl tracking-tight">Теория</p>
+      {week.theory.map((lesson) => (
+        <article
+          key={lesson.id}
+          className="rounded-3xl border border-border bg-card p-5 sm:p-7"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h2 className="font-heading text-2xl tracking-tight">
+              {lesson.title}
+            </h2>
+            <Badge variant="outline">{lesson.minutes} мин</Badge>
+          </div>
+          <div className="mt-5">
+            <ContentBlocks blocks={lesson.blocks} />
+          </div>
+          <div className="mt-6 border-t border-border pt-4">
+            <DoneRow id={lesson.id}>Отметить, что прочитал</DoneRow>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
