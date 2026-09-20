@@ -20,7 +20,7 @@
 Нужны Node 20+ и npm.
 
 ```bash
-cd course
+cd ai-product-process
 npm install
 npm run dev
 ```
@@ -30,7 +30,7 @@ npm run dev
 Сборка:
 
 ```bash
-cd course
+cd ai-product-process
 npm run build
 npm start
 ```

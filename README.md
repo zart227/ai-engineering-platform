@@ -1,9 +1,9 @@
 # Цикл
 
-Курс лежит в папке [`course`](./course).
+Курс про ИИ в продуктовом процессе, от проблемы до аналитики. Лежит в [`ai-product-process`](./ai-product-process).
 
 ```bash
-cd course
+cd ai-product-process
 npm install
 npm run dev
 ```
