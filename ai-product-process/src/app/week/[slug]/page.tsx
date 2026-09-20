@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { WeekView } from "@/components/week-view";
-import { getWeek, weeks } from "@/lib/course";
+import { getWeek, weeks } from "@course";
 
 export function generateStaticParams() {
   return weeks.map((week) => ({ slug: week.slug }));

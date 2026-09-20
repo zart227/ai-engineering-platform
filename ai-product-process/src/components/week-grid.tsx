@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { weekCompletion, useProgress } from "@/components/progress-provider";
-import { weeks, weekHref } from "@/lib/course";
+import { weeks, weekHref } from "@course";
 
 export function WeekGrid() {
   const { state } = useProgress();

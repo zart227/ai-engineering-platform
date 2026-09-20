@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ContinueButton } from "@/components/continue-button";
 import { WeekGrid } from "@/components/week-grid";
-import { courseMeta, weeks } from "@/lib/course";
+import { courseMeta, weeks } from "@course";
 
 export default function HomePage() {
   return (

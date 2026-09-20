@@ -8,8 +8,8 @@ import { weekCompletion, useProgress } from "@/components/progress-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { weeks, weekHref } from "@/lib/course";
-import type { Week } from "@/lib/course/types";
+import { weeks, weekHref } from "@course";
+import type { Week } from "@course/types";
 import { cn } from "@/lib/utils";
 
 const tabs = [

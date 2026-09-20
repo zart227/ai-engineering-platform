@@ -68,10 +68,11 @@ Content is written so a **developer on Cursor** can take it (Artur’s case), no
 /
   README.md                 # points to the app folder
   HANDOFF.md                # this file
-  ai-product-process/       # the Next.js app
-    package.json            # name: ai-product-process
+  ai-product-process/       # the project
+    course/                 # weeks, lessons, exercises, prompts
+    src/                    # Next.js app
+    package.json
     src/app/                # /, /week/[slug], /project
-    src/lib/course/         # week1.ts … week6.ts, types, index
     src/lib/progress.ts
     src/lib/progress-store.ts
     src/components/         # week-view, save-fields, progress-provider, …
@@ -82,7 +83,7 @@ Do not put the app back at repo root. Do not rename the folder to a generic `cou
 
 ### Important files
 
-- Course data: `ai-product-process/src/lib/course/week1.ts` … `week6.ts`
+- Course data: `ai-product-process/course/week1.ts` … `week6.ts`
 - Week UI: `ai-product-process/src/components/week-view.tsx` (`WeekView` + `WeekPanels`)
 - Checkboxes / notes: `ai-product-process/src/components/save-fields.tsx` (`DoneRow` is a plain `<button>`, not shadcn Checkbox)
 - Progress: `ai-product-process/src/lib/progress-store.ts` + `useSyncExternalStore` in `progress-provider.tsx`

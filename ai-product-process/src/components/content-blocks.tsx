@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ContentBlock } from "@/lib/course/types";
+import type { ContentBlock } from "@course/types";
 
 export function ContentBlocks({ blocks }: { blocks: ContentBlock[] }) {
   return (

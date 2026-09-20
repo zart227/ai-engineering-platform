@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { courseCompletion, useProgress } from "@/components/progress-provider";
-import { courseMeta } from "@/lib/course";
+import { courseMeta } from "@course";
 import { cn } from "@/lib/utils";
 
 const links = [

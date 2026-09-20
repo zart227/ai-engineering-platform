@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
-import { weeks } from "@/lib/course";
+import { weeks } from "@course";
 import { type ProgressState, type ProjectState } from "@/lib/progress";
 import {
   getProgressSnapshot,

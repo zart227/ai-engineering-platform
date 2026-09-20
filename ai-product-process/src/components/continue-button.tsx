@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { courseCompletion, useProgress, weekCompletion } from "@/components/progress-provider";
-import { weeks, weekHref } from "@/lib/course";
+import { weeks, weekHref } from "@course";
 
 export function ContinueButton() {
   const { state, ready } = useProgress();

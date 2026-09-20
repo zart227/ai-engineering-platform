@@ -6,7 +6,7 @@ import { SavedTextarea } from "@/components/save-fields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { weeks, weekHref } from "@/lib/course";
+import { weeks, weekHref } from "@course";
 
 export default function ProjectPage() {
   const { state, setProject, reset, ready } = useProgress();
