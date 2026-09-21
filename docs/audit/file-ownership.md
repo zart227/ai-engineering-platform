@@ -27,6 +27,14 @@ course/completion.ts  # исключение Wave 1: passScore принадле�
 общие layout/navigation — Wave 1 chrome принадлежит A; Wave 2 UX не стартует до GATE 1
 ```
 
+## Wave 2
+
+| Agent | Owned files | Shared files | Conflict risk |
+| ----- | ----------- | ------------ | ------------- |
+| E Schema | `course/types.ts`, `course/blocks.ts`, `docs/architecture/content-schema.md`, `tests/quality-contract.test.ts` | `course/types.ts` — единственный owner | Low. Недели не трогать |
+| G UX | `src/components/week-workspace.tsx`, `src/components/week-nav.tsx`, `src/app/week/[slug]/page.tsx` | нет | Low. Не менять `week-label.ts` и тексты уроков |
+| F Assessments | `course/weeks/week-01.ts` … `week-04.ts` | нет | Sequential после E. Не стартовать, пока типы не влиты |
+
 ## Wave 3 preview (не активно)
 
 | Agent | Owned files | Shared files | Conflict risk |
