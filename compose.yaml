@@ -1,0 +1,46 @@
+services:
+  ai-engineering-platform-db:
+    image: postgres:16-alpine
+    container_name: ai-engineering-platform-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aep
+      POSTGRES_PASSWORD: aep_dev_password
+      POSTGRES_DB: ai-engineering-platform
+    volumes:
+      - ai-engineering-platform-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aep -d ai-engineering-platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "5432:5432"
+
+  ai-engineering-platform-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-engineering-platform-app
+    restart: unless-stopped
+    depends_on:
+      ai-engineering-platform-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://aep:aep_dev_password@ai-engineering-platform-db:5432/ai-engineering-platform
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production-use-a-long-random-value}
+      APP_URL: http://127.0.0.1:43127
+      NODE_ENV: production
+      PORT: 43127
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "43127:43127"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:43127/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+
+volumes:
+  ai-engineering-platform-pgdata:

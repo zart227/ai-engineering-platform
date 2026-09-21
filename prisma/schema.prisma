@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions           Session[]
+  settings           UserSettings?
+  notes              Note[]
+  bookmarks          Bookmark[]
+  capstone           CapstoneProject?
+  portfolioProjects  PortfolioProject[]
+  lessonProgress     LessonProgress[]
+  labProgress        LabProgress[]
+  exerciseProgress   ExerciseProgress[]
+  exerciseAnswers    ExerciseAnswer[]
+  artifactProgress   ArtifactProgress[]
+  weekProgress       WeekProgress[]
+  quizAttempts       QuizAttempt[]
+  learningEvents     LearningEvent[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserSettings {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme  String @default("system")
+  locale String @default("ru")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  moduleId  String?
+  weekSlug  String?
+  lessonId  String?
+  tags      String[] @default([])
+  body      String   @default("")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId, weekSlug])
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType String
+  targetId   String
+  title      String
+  href       String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, targetType, targetId])
+}
+
+model CapstoneProject {
+  userId             String   @id
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String   @default("")
+  oneLiner           String   @default("")
+  targetUser         String   @default("")
+  problem            String   @default("")
+  hypothesis         String   @default("")
+  valueProposition   String   @default("")
+  assumptions        String   @default("")
+  competitors        String   @default("")
+  prd                String   @default("")
+  architecture       String   @default("")
+  stack              String   @default("")
+  githubUrl          String   @default("")
+  demoUrl            String   @default("")
+  analytics          String   @default("")
+  notes              String   @default("")
+  updatedAt          DateTime @updatedAt
+}
+
+model PortfolioProject {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug        String
+  title       String
+  description String   @default("")
+  status      String   @default("planned")
+  stack       String[] @default([])
+  skills      String[] @default([])
+  githubUrl   String   @default("")
+  demoUrl     String   @default("")
+  readme      String   @default("")
+  weekSlug    String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, slug])
+}
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  weekSlug    String
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, lessonId])
+  @@index([userId, weekSlug])
+}
+
+model LabProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  labId       String
+  weekSlug    String
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, labId])
+}
+
+model ExerciseProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId     String
+  weekSlug       String
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  hintsUsed      Int       @default(0)
+  solutionViewed Boolean   @default(false)
+
+  @@unique([userId, exerciseId])
+}
+
+model ExerciseAnswer {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String
+  weekSlug  String
+  body      String   @default("")
+  githubUrl String   @default("")
+  resultUrl String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, exerciseId])
+}
+
+model ArtifactProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekSlug  String
+  completed Boolean  @default(false)
+  githubUrl String   @default("")
+  demoUrl   String   @default("")
+  notes     String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekSlug])
+}
+
+model WeekProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekSlug    String
+  percent     Int       @default(0)
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, weekSlug])
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekSlug  String
+  answers   Json
+  score     Int
+  passed    Boolean
+  createdAt DateTime @default(now())
+
+  @@index([userId, weekSlug])
+}
+
+model LearningEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  weekSlug  String?
+  lessonId  String?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, type])
+}

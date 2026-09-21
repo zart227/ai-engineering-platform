@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+coverage
+playwright-report
+test-results
+agent-tools
+assets
+*.tsbuildinfo

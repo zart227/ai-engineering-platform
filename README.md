@@ -1,50 +1,123 @@
 # AI Engineering Platform
 
-Приложение и репозиторий называются одинаково: `ai-engineering-platform`.
+Репозиторий и приложение называются одинаково: `ai-engineering-platform`.
 
-Самостоятельный курс на 6 недель: как встроить ИИ в работу от проблемы до аналитики. Теория, практика, готовые промпты и место, куда складывать свой проект.
+Интерактивная платформа самостоятельной программы:
 
-В репозитории два слоя:
+**AI Engineer & Automation Developer**
 
-- `course/` — программа: недели, уроки, задания, промпты
-- `src/` — код приложения, которое это показывает
+От основ LLM и автоматизации до RAG, MCP, AI-агентов, multi-agent систем и production AI-продуктов.
 
-Программа недель повторяет публичную структуру курса [AI для продуктовых дизайнеров](https://faang.careers/ai-course): фундамент, discovery, ideation, валидация, выкат, аналитика. Материалы внутри написаны заново. Это не официальная программа FAANG+ Careers.
+Это не маркетинговый лендинг и не официальный курс FAANG+ Careers. Это учебник для разработчика: TypeScript/Node.js, практика 65-70%, каждая неделя заканчивается артефактом.
 
 ## Что внутри
 
-1. **Фундамент.** Модели, контекст, бриф, правила для Cursor, экономика токенов.
-2. **Discovery.** Узкая проблема, журнал фактов, короткий PRD.
-3. **Ideation.** 15 идей, 3 направления, совет агентов, выбор.
-4. **Валидация.** Прототип ключевого пути, одна рубрика для людей и модели.
-5. **Имплементация.** Живой URL, срезы в Cursor, ревью, деплой.
-6. **Аналитика.** События, маленькая воронка, кейс.
+- 18 модулей, 32 недели и capstone
+- Module 1 (недели 1-4) написан полностью
+- Недели 5-32 и capstone имеют обзор, уроки, лабу, практику, промпт, квиз и артефакт. Теория будет углубляться по модулям
+- Аккаунты, PostgreSQL, заметки с автосохранением, прогресс, квизы, журнал проекта, портфолио, глоссарий, карта треков, экспорт JSON
+- Docker Compose: приложение + Postgres на порту `43127`
 
-Прогресс и заметки хранятся в браузере. На сервер ничего не уходит.
+## Стек
 
-## Запуск
+Next.js 16 App Router, React 19, TypeScript, Tailwind 4, Prisma, PostgreSQL, Docker.
 
-Нужны Node 20+ и npm. Из корня репозитория, не из вложенной папки:
+Контент курса лежит в Git (`course/`). Пользовательские данные в Postgres.
+
+## Архитектура
+
+```
+Browser → ai-engineering-platform (Next.js :43127)
+              → PostgreSQL (ai-engineering-platform-db)
+```
+
+Modular monolith. Redis, pgvector, очереди, n8n, MCP и AI Tutor появляются, когда у платформы есть реальная задача. Документация: `docs/architecture/PLATFORM.md`.
+
+Карта 32 недель: `docs/curriculum/32-week-map.md`.
+
+## Docker
 
 ```bash
+cp .env.example .env
+docker compose up -d
+```
+
+Сервисы:
+
+- `ai-engineering-platform-app`
+- `ai-engineering-platform-db`
+
+Откройте http://127.0.0.1:43127
+
+Образ собирается с `DOCKER_BUILD=1`, чтобы Next.js отдал `output: "standalone"`. Локальный `npm start` работает без standalone.
+
+## Локальная разработка без Compose
+
+Нужны Node 20+ и PostgreSQL.
+
+```bash
+cp .env.example .env
+# поправьте DATABASE_URL при необходимости
 npm install
+npx prisma migrate dev
 npm run dev
 ```
 
-Открой [http://127.0.0.1:43127](http://127.0.0.1:43127).
-
-Если репозиторий уже склонирован:
-
-```bash
-cd ~/Projects/personal/ai-engineering-platform
-git pull
-```
-
-После обновления папки `ai-product-process/` больше нет. `course/` и `src/` лежат в корне.
-
-Сборка:
+Порт `43127`. В некоторых cloud VM `next dev` плохо гидрирует. Тогда:
 
 ```bash
 npm run build
 npm start
 ```
+
+## Переменные окружения
+
+См. `.env.example`.
+
+- `DATABASE_URL` - Postgres
+- `AUTH_SECRET` - длинная случайная строка для cookie-подписи
+- `APP_URL` - публичный URL. Если начинается с `https://`, cookie ставится как Secure
+- `COOKIE_SECURE` - опционально `true`/`false`, перекрывает вывод из `APP_URL`
+
+Секреты не коммитятся. Ключи LLM в эту платформу в MVP не входят: студенты вызывают модели в своих репозиториях.
+
+## Auth
+
+Регистрация, вход, выход, httpOnly-сессия, scrypt для пароля, лимит попыток. Смена пароля из сессии. Email-recovery нет: нет SMTP.
+
+## Как добавить Module / Week / Lesson
+
+1. Типы в `course/types.ts`
+2. Неделя в `course/weeks/`
+3. Подключить в `course/index.ts` и модуль в `course/curriculum.ts`
+4. Глоссарий в `course/glossary.ts` при новых терминах
+5. `npm test` и `npm run typecheck`
+
+Не кладите учебный текст в Postgres без причины.
+
+## Persistence и backup
+
+Источник истины: PostgreSQL. Черновики textarea коротко живут в `localStorage` ключом `aep-draft:*`, пока сервер не подтвердил Saved.
+
+Экспорт: Настройки → скачать JSON, или `GET /api/export` из сессии.
+Импорт: Настройки → файл, схема валидируется Zod.
+
+Бэкап БД: обычный `pg_dump` тома `ai-engineering-platform-pgdata`.
+
+## Тесты
+
+```bash
+npm test
+npx playwright test
+```
+
+E2E: регистрация → курс → неделя → заметка → лаба → квиз/артефакт → выход → вход.
+
+## Production
+
+- `output: "standalone"`
+- non-root user в образе
+- healthcheck `/api/health`
+- не логируются пароли, cookie, API keys
+
+Дежурному: `docs/architecture/PLATFORM.md`.
