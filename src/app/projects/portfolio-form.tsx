@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { savePortfolioAction } from "@/app/actions/learn";
+import { weekLabel } from "@/lib/week-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -43,19 +44,21 @@ export function PortfolioForm({
                 githubUrl: String(formData.get("githubUrl") ?? ""),
                 demoUrl: String(formData.get("demoUrl") ?? ""),
               });
-              setStatus("Saved");
+              setStatus("Сохранено");
             }}
           >
-            <p className="text-xs text-muted-foreground">Неделя {project.week}</p>
+            <p className="text-xs text-muted-foreground">
+              {weekLabel({ slug: project.slug, id: project.week })}
+            </p>
             <h2 className="font-heading text-2xl">{project.title}</h2>
             <select
               name="status"
               defaultValue={saved?.status ?? "planned"}
               className="rounded-lg border border-input bg-card px-2 py-1 text-sm"
             >
-              <option value="planned">planned</option>
-              <option value="in-progress">in-progress</option>
-              <option value="done">done</option>
+              <option value="planned">план</option>
+              <option value="in-progress">в работе</option>
+              <option value="done">готово</option>
             </select>
             <textarea
               name="description"

@@ -3,6 +3,7 @@ import { modules, weeks, weekHref, courseMeta } from "@course";
 import { getSession } from "@/server/auth";
 import { coursePercent, currentWeek, loadLearningState, summarizeWeeks } from "@/server/progress";
 import { Button } from "@/components/ui/button";
+import { weekLabel } from "@/lib/week-label";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -53,11 +54,11 @@ export default async function HomePage() {
       <p className="text-sm font-medium text-primary">Прогресс курса · {percent}%</p>
       <h1 className="mt-3 font-heading text-4xl tracking-tight">Продолжить обучение</h1>
       <p className="mt-3 max-w-2xl text-base leading-7 text-foreground/80">
-        Сейчас: {moduleRow?.title}. Неделя {next.id}. {next.short}.
+        Сейчас: {moduleRow?.title}. {weekLabel(next)}. {next.short}.
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Button size="lg" render={<Link href={weekHref(next)} />}>
-          Continue Learning
+          Продолжить
         </Button>
         <Button variant="outline" render={<Link href="/project" />}>
           Журнал проекта
@@ -92,7 +93,7 @@ export default async function HomePage() {
                     className="rounded-3xl border border-border bg-card p-5 hover:border-primary/30"
                   >
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Неделя {row.week.id}</span>
+                      <span>{weekLabel(row.week)}</span>
                       <span>{row.percent}%</span>
                     </div>
                     <p className="mt-2 font-heading text-xl">{row.week.short}</p>

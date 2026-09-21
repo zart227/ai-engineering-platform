@@ -31,7 +31,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </label>
         ) : null}
         <label className="block text-sm" htmlFor="auth-email">
-          Email
+          Почта
           <Input id="auth-email" name="email" type="email" required className="mt-1" autoComplete="email" />
         </label>
         <label className="block text-sm" htmlFor="auth-password">

@@ -7,7 +7,7 @@ export function DecisionCardView({ card }: { card: DecisionCardType }) {
       <h3 className="mt-2 font-heading text-2xl tracking-tight">{card.title}</h3>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-muted/70 p-4">
-          <p className="text-sm font-medium">Use {card.optionA} when</p>
+          <p className="text-sm font-medium">Когда выбрать {card.optionA}</p>
           <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
             {card.useA.map((item) => (
               <li key={item}>{item}</li>
@@ -15,7 +15,7 @@ export function DecisionCardView({ card }: { card: DecisionCardType }) {
           </ul>
         </div>
         <div className="rounded-2xl bg-muted/70 p-4">
-          <p className="text-sm font-medium">Use {card.optionB} when</p>
+          <p className="text-sm font-medium">Когда выбрать {card.optionB}</p>
           <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
             {card.useB.map((item) => (
               <li key={item}>{item}</li>
@@ -24,11 +24,11 @@ export function DecisionCardView({ card }: { card: DecisionCardType }) {
         </div>
       </div>
       <p className="mt-4 text-sm leading-6">
-        <span className="font-medium">Trade-offs. </span>
+        <span className="font-medium">Компромиссы. </span>
         {card.tradeoffs}
       </p>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        <span className="font-medium text-foreground">Typical mistake. </span>
+        <span className="font-medium text-foreground">Типичная ошибка. </span>
         {card.mistake}
       </p>
     </section>
