@@ -23,9 +23,17 @@ import { week19 } from "./weeks/week-19";
 import { week20 } from "./weeks/week-20";
 import { week21 } from "./weeks/week-21";
 import { week22 } from "./weeks/week-22";
-import { weeks23to24 } from "./weeks/weeks-20-24";
-import { weeks25to27 } from "./weeks/weeks-25-27";
-import { weeks28to33 } from "./weeks/weeks-28-32";
+import { week23 } from "./weeks/week-23";
+import { week24 } from "./weeks/week-24";
+import { week25 } from "./weeks/week-25";
+import { week26 } from "./weeks/week-26";
+import { week27 } from "./weeks/week-27";
+import { week28 } from "./weeks/week-28";
+import { week29 } from "./weeks/week-29";
+import { week30 } from "./weeks/week-30";
+import { week31 } from "./weeks/week-31";
+import { week32 } from "./weeks/week-32";
+import { week33 } from "./weeks/week-33";
 
 export { courseMeta } from "./types";
 export { modules, getModule, moduleByWeekSlug } from "./curriculum";
@@ -66,9 +74,17 @@ export const weeks: Week[] = [
   week20,
   week21,
   week22,
-  ...weeks23to24,
-  ...weeks25to27,
-  ...weeks28to33,
+  week23,
+  week24,
+  week25,
+  week26,
+  week27,
+  week28,
+  week29,
+  week30,
+  week31,
+  week32,
+  week33,
 ].sort((a, b) => a.id - b.id);
 
 export function getWeek(slug: string) {

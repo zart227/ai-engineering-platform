@@ -46,6 +46,9 @@ export const glossary: GlossaryTerm[] = [
   { id: "spec-driven", term: "Specification-driven development", definition: "Сначала контракт поведения и тесты, потом патч агента.", weekSlug: "professional-ai-coding", related: ["agents-md"] },
   { id: "agents-md", term: "AGENTS.md", definition: "Файл инструкций репозитория для coding agents. Короткий, в git, с командами и запретами. Продукты читают его по-разному и обрезают длинный текст.", weekSlug: "professional-ai-coding", related: ["spec-driven"] },
   { id: "inference", term: "Inference", definition: "Прогон уже обученной модели. В курсе вы почти всегда здесь, не в обучении весов.", weekSlug: "how-llms-work", related: ["llm"] },
+  { id: "checkpoint", term: "Checkpoint", definition: "Сделанные узлы плана, которые при срыве не исполняют заново. Хвост пересобирают отдельно.", weekSlug: "planning", related: ["workflow"] },
+  { id: "held-out", term: "Held-out", definition: "Часть набора оценки, которую не используют, чтобы подгонять промпт. По ней считают порог.", weekSlug: "evals", related: ["golden-set"] },
+  { id: "runbook", term: "Runbook", definition: "Страница дежурства: секреты, копия данных, лимит, что сказать человеку при 429 и как откатить выкладку.", weekSlug: "production-ai", related: ["trace"] },
 ];
 
 export function getGlossaryTerm(id: string) {
