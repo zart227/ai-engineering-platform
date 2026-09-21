@@ -32,6 +32,7 @@ export const glossary: GlossaryTerm[] = [
   { id: "hit-rate", term: "Hit-rate@k", definition: "Доля вопросов, у которых нужный чанк попал в первые k. Метрика выборки, не текста ответа.", weekSlug: "advanced-rag", related: ["golden-set", "rag"] },
   { id: "mcp", term: "MCP", definition: "Протокол JSON-RPC между host и server: tools, resources, prompts. Ревизия 2026-07-28 без initialize, с server/discover.", weekSlug: "mcp", related: ["tool-calling"] },
   { id: "agent-sdk", term: "Agent SDK", definition: "Чужой раннер цикла: инструменты, лимит шагов, иногда сессии и trace. Лимит из документации по умолчанию сверяют со своим потолком.", weekSlug: "agent-frameworks", related: ["agent-loop"] },
+  { id: "handoff", term: "Handoff", definition: "Следующий ход ведёт другой агент. Ему передают узкий пакет, не весь черновик и не секреты.", weekSlug: "multi-agent-fundamentals", related: ["agent-loop"] },
   { id: "hitl", term: "Human-in-the-loop", definition: "Опасное действие ждёт человека. Проверка в runtime, не только в промпте.", weekSlug: "human-in-the-loop", related: ["audit-log"] },
   { id: "audit-log", term: "Audit log", definition: "Кто что предложил и кто одобрил, с временем, без секретов в открытую.", weekSlug: "human-in-the-loop", related: ["hitl"] },
   { id: "eval", term: "Eval", definition: "Прогон фиксированного набора с метриками и порогом регресса. Тест для вероятностного кода.", weekSlug: "evals", related: ["golden-set"] },

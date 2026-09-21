@@ -20,7 +20,9 @@ import { week16 } from "./weeks/week-16";
 import { week17 } from "./weeks/week-17";
 import { week18 } from "./weeks/week-18";
 import { week19 } from "./weeks/week-19";
-import { weeks20to24 } from "./weeks/weeks-20-24";
+import { week20 } from "./weeks/week-20";
+import { week21 } from "./weeks/week-21";
+import { weeks22to24 } from "./weeks/weeks-20-24";
 import { weeks25to27 } from "./weeks/weeks-25-27";
 import { weeks28to33 } from "./weeks/weeks-28-32";
 
@@ -60,7 +62,9 @@ export const weeks: Week[] = [
   week17,
   week18,
   week19,
-  ...weeks20to24,
+  week20,
+  week21,
+  ...weeks22to24,
   ...weeks25to27,
   ...weeks28to33,
 ].sort((a, b) => a.id - b.id);

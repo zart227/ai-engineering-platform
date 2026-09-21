@@ -2,55 +2,6 @@ import { compactWeek, type CompactWeek } from "./compact";
 
 const rest: CompactWeek[] = [
   {
-    id: 20, slug: "multi-agent-fundamentals", moduleId: "m09", title: "Фундамент multi-agent", short: "Multi-agent", track: "engineering", hours: 10,
-    goal: "Паттерны координации и цена ошибок каскада.",
-    technologies: ["supervisor", "handoff", "router"],
-    why: "Несколько агентов умножают стоимость и точки отказа. Нужна причина, не мода.",
-    prerequisites: ["свой цикл", "tools"], productionUse: ["research", "сложные пайплайны с ролями"], previousKnowledge: ["single agent", "budget"],
-    lessons: [
-      { title: "Паттерны", minutes: 16, objectives: ["supervisor, router, handoff, agents-as-tools"], paragraphs: ["Supervisor держит цель и раздаёт. Router выбирает одного специалиста. Handoff передаёт контекст. Agents-as-tools: специалист выглядит как tool. Shared state vs изолированный контекст: общее быстрее грязнится."] },
-      { title: "Каскад ошибок и касса", minutes: 16, objectives: ["Посчитать вызовы"], paragraphs: ["5 агентов по 8 шагов это до 40 вызовов. Ошибка факта у исследователя размножается. Нужен fact checker не «для красоты», а как клапан.", "Если задачу решает один агент с 3 tools, multi-agent вреден."] },
-      { title: "Single vs multi", minutes: 12, objectives: ["Decision card"], paragraphs: ["Multi уместен при разных правах, разных корпусах, разных рубриках качества. Не уместен при одном JSON из письма."] },
-    ],
-    lab: { title: "Router на трёх", goal: "billing/bug/research специалисты.", setup: ["три system prompt, один router"], steps: [{ title: "Route", body: "Только один специалист на запрос.", expected: "Лог выбранного." }, { title: "Wrong route", body: "Случай, где router ошибается, и как ловите.", expected: "Заметка." }], reflection: ["Дешевле ли было одно structured classify + один агент?"] },
-    practice: { title: "Задача, которую multi ухудшает", time: "1.5 часа", context: "Покажите регрессия от координации.", requirements: ["метрика: шаги, токены, качество", "вывод"], constraints: ["Честный проигрыш"], acceptance: ["Числа, не ощущение"], tests: ["два прогона записаны"], hints: [{ title: "Подсказка 1", text: "Возьмите извлечение полей." }, { title: "Подсказка 2", text: "Сравните latency." }, { title: "Подсказка 3", text: "Посчитайте кассу." }], solution: "Таблица single vs multi на одной задаче." },
-    prompt: { title: "Router", purpose: "Выбор специалиста", when: "Входе запроса", placeholders: ["{{goal}}", "{{agents}}"], text: `Выбери одного агента из списка. JSON {"agent":string,"reason":string}. Не вызывай всех.\nЦель: {{goal}}\nАгенты: {{agents}}`, explanation: "Один, не комитет.", limitations: "Router тоже ошибается. Нужен eval." },
-    quiz: [
-      { prompt: "5 агентов всегда умнее одного:", options: ["Да", "Нет, часто дороже и каскад ошибок", "Только на GPU", "Только с n8n"], answer: 1, kind: "conceptual", explanation: "Координация стоит денег." },
-      { prompt: "Agents-as-tools значит:", options: ["Удалить tools", "Специалист вызывается как функция с контрактом", "Нет supervisor", "Нет схемы"], answer: 1, kind: "architecture", explanation: "Интерфейс tool." },
-      { prompt: "Shared scratchpad без правил:", options: ["Идеально", "Pollution и утечка прав", "Требование MCP", "Дешевле всегда"], answer: 1, kind: "debugging", explanation: "Изолируйте чувствительное." },
-      { prompt: "Когда single agent:", options: ["Никогда после этой недели", "Одна роль, один корпус, простая цель", "Только CLI", "Только Python"], answer: 1, kind: "scenario", explanation: "Decision card." },
-    ],
-    artifactResult: "Каталог паттернов + эксперимент router vs single.",
-    checklist: ["паттерны описаны", "числа стоимости", "пример вредного multi"],
-    decisionCard: { title: "Single vs multi-agent", optionA: "Single", optionB: "Multi", useA: ["одна роль", "ясная цель", "бюджет"], useB: ["разные права/корпуса/рубрики", "нужен независимый фактчек"], tradeoffs: "Multi дороже в evals и деньгах.", mistake: "Комитет агентов на FAQ." },
-    recall: [{ fromWeek: "agent-loop", question: "Зачем max steps?", answer: "Касса и антицикл. В multi умножайте лимиты." }],
-  },
-  {
-    id: 21, slug: "multi-agent-architecture", moduleId: "m09", title: "Multi-agent Deep Research", short: "Deep Research", track: "engineering", hours: 14,
-    goal: "Supervisor + specialists + fact checker + critic. Цитаты, trace, cost.",
-    technologies: ["research pipeline", "citations", "evals"],
-    why: "Исследование это продукт с источниками, не эссе модели.",
-    prerequisites: ["неделя 20", "RAG цитаты"], productionUse: ["аналитика рынка", "внутренний research"], previousKnowledge: ["router", "abstain"],
-    lessons: [
-      { title: "Роли", minutes: 16, objectives: ["Схема команды"], paragraphs: ["Researcher ищет. Analyst структурирует. Specialist узкий. Fact checker сверяет утверждение с источником. Critic ищет дыры. Finalizer собирает. Supervisor не пишет роман сам."] },
-      { title: "Цитаты и враньё ссылок", minutes: 16, objectives: ["Проверяемый URL/id"], paragraphs: ["Fact checker отклоняет утверждение без источника из retrieved/fetched. Выдуманный URL это провал, его ловят HEAD/GET или allowlist.", "Cost: логируйте токены по роли."] },
-      { title: "Eval исследования", minutes: 14, objectives: ["Рубрика"], paragraphs: ["Покрытие вопроса, источник, противоречия, честный «не нашли». Не «красивый текст»."] },
-    ],
-    lab: { title: "Скелет системы", goal: "Один вопрос, citations, trace ролей.", setup: ["ограниченный корпус или web с ручной проверкой"], steps: [{ title: "Run", body: "Прогон с логом ролей.", expected: "Trace файл." }, { title: "Fake URL", body: "Fact checker ловит.", expected: "Тест." }], reflection: ["Какая роль съела больше токенов?"] },
-    practice: { title: "Deep Research System v1", time: "6 часов", context: "Репозиторий с README, eval 5 вопросов, cost report.", requirements: ["цитаты", "fact check", "trace", "стоимость"], constraints: ["Нельзя отключить fact checker «для скорости» в отчёте"], acceptance: ["выдуманная ссылка не проходит"], tests: ["fixture fake url"], hints: [{ title: "Подсказка 1", text: "Сначала корпус из файлов, не весь интернет." }, { title: "Подсказка 2", text: "Лимит шагов на роль." }, { title: "Подсказка 3", text: "Finalizer только по approved claims." }], solution: "graph ролей в коде, не обязательно фреймворк." },
-    prompt: { title: "Fact checker", purpose: "Клапан истины", when: "После researcher", placeholders: ["{{claim}}", "{{sources}}"], text: `Утверждение: {{claim}}\nИсточники: {{sources}}\nJSON {"ok":boolean,"reason":string,"source_id":string|null}. ok=true только если источник прямо поддерживает.`, explanation: "Строгий клапан.", limitations: "Не заменяет юриста." },
-    quiz: [
-      { prompt: "Finalizer без fact checker:", options: ["Быстрее и достаточно", "Риск красивой лжи", "Требование HTTP", "Нужно для Docker"], answer: 1, kind: "scenario", explanation: "Клапан обязателен в этом проекте." },
-      { prompt: "Стоимость считается:", options: ["Никак", "По ролям и суммарно", "Только GPU аренда офиса", "Только Figma"], answer: 1, kind: "cost" as "conceptual", explanation: "Наблюдаемость денег." },
-      { prompt: "Critic должен:", options: ["Хвалить", "Искать дыры и пропуски", "Вызывать n8n", "Писать CSS"], answer: 1, kind: "conceptual", explanation: "Роль." },
-      { prompt: "Источник «как все знают»:", options: ["Ок", "Не источник", "Достаточно для citation", "Заменяет URL"], answer: 1, kind: "debugging", explanation: "Нужен проверяемый id." },
-    ],
-    artifactResult: "Multi-Agent Deep Research System с citations, fact check, trace, cost.",
-    checklist: ["роли", "фейковый URL пойман", "cost report", "eval 5"],
-    recall: [{ fromWeek: "rag", question: "Почему citation должен быть из retrieved?", answer: "Иначе галлюцинация ссылок." }],
-  },
-  {
     id: 22, slug: "planning", moduleId: "m10", title: "Planning и replanning", short: "Planning", track: "engineering", hours: 10,
     goal: "Декомпозиция цели в DAG, checkpoint, перепланирование при срыве.",
     technologies: ["DAG", "state machine", "checkpoints"],
@@ -124,4 +75,4 @@ const rest: CompactWeek[] = [
   },
 ];
 
-export const weeks20to24 = rest.map(compactWeek);
+export const weeks22to24 = rest.map(compactWeek);
