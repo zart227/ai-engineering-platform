@@ -49,3 +49,6 @@ next-env.d.ts
 /agent-tools
 /assets
 __pycache__/
+
+# isolated agent worktrees
+.worktrees/
