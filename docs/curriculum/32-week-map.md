@@ -354,31 +354,34 @@
 ### Week 20. Multi-Agent Fundamentals
 
 - **Slug:** `multi-agent-fundamentals`
-- **Goal:** паттерны и цена координации.
+- **Goal:** вызвать одного специалиста и посчитать верхнюю границу вызовов.
 - **Hours:** 10
 - **Lessons:**
-  1. Supervisor, router, handoff, agents-as-tools
-  2. Shared state vs isolated context
-  3. Стоимость и каскад ошибок
-  4. Single vs multi-agent
-- **Lab:** router на 3 специалиста.
-- **Practice:** задача, которую multi-agent ухудшает.
-- **Artifact:** pattern catalog.
-- **Decision card:** single vs multi-agent.
+  1. Один специалист за запрос
+  2. Четыре способа передать работу
+  3. Общая доска пачкается
+  4. Касса умножается
+  5. Одного часто хватает
+- **Lab:** маршрут billing, bug, research, остальные не стартуют.
+- **Practice:** задача, где один вызов лучше комитета, с числами.
+- **Artifact:** каталог координации и сравнение двух прогонов.
+- **Decision card:** один агент или несколько.
 
 ### Week 21. Multi-Agent Architecture
 
 - **Slug:** `multi-agent-architecture`
-- **Goal:** Deep Research с фактчеком и цитатами.
+- **Goal:** финал только из утверждений, сверенных с id источника этого прогона.
 - **Hours:** 14
 - **Lessons:**
-  1. Supervisor + Researcher + Analyst + Fact Checker + Critic + Finalizer
-  2. Citations и source validation
-  3. Trace и cost measurement
-  4. Evaluation исследовательского ответа
-- **Lab:** система отвечает на вопрос со списком источников.
-- **Practice:** fact checker ловит выдуманную ссылку.
-- **Artifact:** **Multi-Agent Deep Research System**.
+  1. Кто не пишет финал
+  2. Источник этого прогона
+  3. Клапан и критик
+  4. Цена по ролям
+  5. Пять вопросов
+- **Lab:** свой file id проходит, чужой id не доходит до финала.
+- **Practice:** журнал вызовов по ролям и вопрос вне корпуса.
+- **Artifact:** **система исследования** с клапаном цитат и отчётом цены.
+- **Decision card:** две роли или весь комитет.
 
 ---
 
