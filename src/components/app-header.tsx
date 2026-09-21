@@ -75,7 +75,7 @@ export function AppHeader({
           </button>
           {email ? (
             <form action={logoutAction}>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" type="submit">
                 Выйти
               </Button>
             </form>
