@@ -7,12 +7,13 @@ import { BookmarkButton } from "@/components/bookmark-button";
 import { ContentBlocks, PromptCard } from "@/components/content-blocks";
 import { DecisionCardView } from "@/components/decision-card";
 import { SaveField } from "@/components/save-field";
+import { WeekNav } from "@/components/week-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { weekLabel, weekPosition } from "@/lib/week-label";
-import { adjacentWeeks, weekHref, weeks } from "@course";
+import { adjacentWeeks, weekHref, weekModule } from "@course";
 import type { Week } from "@course/types";
 import {
   markHintAction,
@@ -66,33 +67,9 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Программа
-          </p>
-          <nav className="mt-3 max-h-[70vh] space-y-1 overflow-y-auto pr-1">
-            {weeks.map((item) => {
-              const active = item.slug === week.slug;
-              return (
-                <Link
-                  key={item.slug}
-                  href={weekHref(item)}
-                  className={cn(
-                    "block rounded-xl px-3 py-2 text-sm transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <span className="block text-xs opacity-80">{weekLabel(item)}</span>
-                  <span className="block font-medium">{item.short}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
-
+      <WeekBreadcrumb week={week} />
+      <div className="mt-6 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <WeekNav week={week} />
         <div>
           <p className="text-sm text-muted-foreground">
             {weekPosition(week)}
@@ -127,7 +104,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
           </div>
 
           <div className="mt-8">
-            <div role="tablist" className="flex flex-wrap gap-1 border-b border-border pb-px">
+            <div role="tablist" aria-label="Разделы недели" className="flex flex-wrap gap-1 border-b border-border pb-px">
               {tabs.map((item) => {
                 if (item.id === "recall" && week.recall.length === 0) return null;
                 const active = tab === item.id;
@@ -306,6 +283,27 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
         </div>
       </div>
     </div>
+  );
+}
+
+function WeekBreadcrumb({ week }: { week: Week }) {
+  const courseModule = weekModule(week);
+  return (
+    <nav aria-label="Хлебные крошки">
+      <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+        <li>
+          <Link href="/" className="transition-colors hover:text-foreground">
+            Курс
+          </Link>
+        </li>
+        <li aria-hidden="true">→</li>
+        <li>{courseModule.title}</li>
+        <li aria-hidden="true">→</li>
+        <li aria-current="page" className="text-foreground">
+          {weekLabel(week)}
+        </li>
+      </ol>
+    </nav>
   );
 }
 
