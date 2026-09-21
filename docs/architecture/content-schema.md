@@ -41,7 +41,7 @@ Artifact is mandatory. Checking lessons only cannot yield 100%.
 
 1. Add metadata in `course/curriculum.ts` if new.
 2. Create `course/weeks/week-NN-slug.ts` exporting `Week`.
-3. Register in `course/weeks/index.ts`.
+3. Register the week in the `weeks` array in `course/index.ts`.
 4. Add glossary terms if you introduce new words.
 5. Add recall questions that point at previous week ids.
 6. Run `npm test` and `npm run typecheck`.

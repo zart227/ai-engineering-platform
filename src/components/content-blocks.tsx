@@ -104,7 +104,7 @@ function Block({ block }: { block: ContentBlock }) {
   if (block.type === "reading") {
     return (
       <div>
-        <p className="text-sm font-medium">Additional reading</p>
+        <p className="text-sm font-medium">Дополнительно</p>
         <ul className="mt-2 space-y-2">
           {block.items.map((item) => (
             <li key={item.url} className="text-sm leading-6">

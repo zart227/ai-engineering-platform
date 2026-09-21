@@ -1,6 +1,7 @@
 "use client";
 
 import { SaveField } from "@/components/save-field";
+import { weekLabel } from "@/lib/week-label";
 import { saveProjectAction } from "@/app/actions/learn";
 import { Input } from "@/components/ui/input";
 
@@ -71,7 +72,7 @@ export function ProjectForm({
             const artifact = artifacts.find((item) => item.weekSlug === week.slug);
             return (
               <div key={week.slug} className="rounded-2xl border border-border p-4">
-                <p className="text-xs text-muted-foreground">Неделя {week.id}</p>
+                <p className="text-xs text-muted-foreground">{weekLabel(week)}</p>
                 <p className="font-medium">{week.short}</p>
                 <p className="text-sm text-muted-foreground">{week.artifact}</p>
                 {artifact?.githubUrl ? (

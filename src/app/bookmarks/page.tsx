@@ -2,6 +2,13 @@ import Link from "next/link";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db";
 
+const typeLabels: Record<string, string> = {
+  lesson: "урок",
+  glossary: "глоссарий",
+  prompt: "промпт",
+  decision: "карточка",
+};
+
 export default async function BookmarksPage() {
   const user = await requireUser();
   const bookmarks = await prisma.bookmark.findMany({
@@ -21,7 +28,9 @@ export default async function BookmarksPage() {
         ) : null}
         {bookmarks.map((item) => (
           <article key={item.id} className="rounded-2xl border border-border p-4">
-            <p className="text-xs uppercase text-muted-foreground">{item.targetType}</p>
+            <p className="text-xs uppercase text-muted-foreground">
+              {typeLabels[item.targetType] ?? item.targetType}
+            </p>
             <Link href={item.href} className="font-medium hover:text-primary">
               {item.title}
             </Link>

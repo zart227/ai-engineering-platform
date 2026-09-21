@@ -3,6 +3,7 @@ import { WeekWorkspace } from "@/components/week-workspace";
 import { getWeek, weeks } from "@course";
 import { requireUser } from "@/server/auth";
 import { loadLearningState, summarizeWeeks } from "@/server/progress";
+import { weekLabel } from "@/lib/week-label";
 
 export function generateStaticParams() {
   return weeks.map((week) => ({ slug: week.slug }));
@@ -16,7 +17,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const week = getWeek(slug);
   if (!week) return { title: "Неделя не найдена" };
-  return { title: `Неделя ${week.id}. ${week.short}`, description: week.goal };
+  return { title: `${weekLabel(week)}. ${week.short}`, description: week.goal };
 }
 
 export default async function WeekPage({
