@@ -34,7 +34,8 @@ export const glossary: GlossaryTerm[] = [
   { id: "dlq", term: "Dead-letter queue", definition: "Место для сообщений, которые исчерпали retry. Их смотрит человек.", weekSlug: "event-driven-automation", related: ["idempotency"] },
   { id: "guardrail", term: "Guardrail", definition: "Слой ограничения: вход, policy tools, выход, sandbox. Один промпт не guardrail.", weekSlug: "ai-security", related: ["prompt-injection"] },
   { id: "least-privilege", term: "Least privilege", definition: "Модель и tools получают минимум прав. ADMIN модели не выдаём.", weekSlug: "tool-calling", related: ["hitl"] },
-  { id: "spec-driven", term: "Specification-driven development", definition: "Сначала контракт поведения и тесты, потом патч агента.", weekSlug: "professional-ai-coding", related: ["eval"] },
+  { id: "spec-driven", term: "Specification-driven development", definition: "Сначала контракт поведения и тесты, потом патч агента.", weekSlug: "professional-ai-coding", related: ["agents-md"] },
+  { id: "agents-md", term: "AGENTS.md", definition: "Файл инструкций репозитория для coding agents. Короткий, в git, с командами и запретами. Продукты читают его по-разному и обрезают длинный текст.", weekSlug: "professional-ai-coding", related: ["spec-driven"] },
   { id: "inference", term: "Inference", definition: "Прогон уже обученной модели. В курсе вы почти всегда здесь, не в обучении весов.", weekSlug: "how-llms-work", related: ["llm"] },
 ];
 

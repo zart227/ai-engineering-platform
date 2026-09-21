@@ -5,7 +5,9 @@ import { week01 } from "./weeks/week-01";
 import { week02 } from "./weeks/week-02";
 import { week03 } from "./weeks/week-03";
 import { week04 } from "./weeks/week-04";
-import { weeks05to08 } from "./weeks/weeks-05-08";
+import { week05 } from "./weeks/week-05";
+import { week06 } from "./weeks/week-06";
+import { weeks07to08 } from "./weeks/weeks-07-08";
 import { weeks09to10 } from "./weeks/weeks-09-10";
 import { weeks11to12 } from "./weeks/weeks-11-12";
 import { weeks13to16 } from "./weeks/weeks-13-16";
@@ -35,7 +37,9 @@ export const weeks: Week[] = [
   week02,
   week03,
   week04,
-  ...weeks05to08,
+  week05,
+  week06,
+  ...weeks07to08,
   ...weeks09to10,
   ...weeks11to12,
   ...weeks13to16,

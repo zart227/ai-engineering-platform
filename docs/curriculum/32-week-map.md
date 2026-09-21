@@ -86,13 +86,15 @@
 - **Goal:** spec-driven работа с coding agents, не «напиши функцию».
 - **Hours:** 10
 - **Lessons:**
-  1. Assistant vs agent vs IDE agent (ChatGPT, Cursor, Claude Code, Codex)
-  2. Repository context: AGENTS.md, rules, что класть в контекст
-  3. Specification-driven development и декомпозиция
-  4. Ограничения агентов: hallucinated APIs, scope creep
-- **Lab:** маленькая фича платформы через spec → plan → diff → review.
-- **Practice:** написать AGENTS.md и правило для своего репозитория.
-- **Artifact:** задокументированный workflow + PR с ревью человека.
+  1. Чат, assistant и coding agent
+  2. Инструкции репозитория: AGENTS.md, Cursor rules, CLAUDE.md, бюджет
+  3. Specification-driven цикл и декомпозиция
+  4. Большой репозиторий и бюджет контекста
+  5. Ограничения агента, зависимости, human oversight
+- **Lab:** маленькая фича через spec → карта путей → план → diff → review.
+- **Practice:** написать AGENTS.md и пару слабый/сильный запрос.
+- **Artifact:** ветка со спекой, узким патчем и AGENTS.md.
+- **Decision card:** чат или coding agent.
 
 ### Week 6. AI Debugging, Testing & Review
 
@@ -100,13 +102,15 @@
 - **Goal:** не принимать код модели пока нет теста, ревью и проверки зависимостей.
 - **Hours:** 10
 - **Lessons:**
-  1. Hypothesis-driven debugging
-  2. Тесты, которые пишет человек, агент дополняет
-  3. Code review и security review с AI
-  4. Human oversight: что нельзя делегировать
-- **Lab:** сломанный агентный патч: найти ложный API, починить, закрыть тестом.
-- **Practice:** чеклист review для любого AI-диффа.
-- **Artifact:** playbook AI-assisted development.
+  1. Гипотеза раньше патча
+  2. Тест, которым владеет человек
+  3. Ревью диффа и зависимости
+  4. Security review агентного патча
+  5. Playbook и граница делегирования
+- **Lab:** учебный сломанный патч: выдуманный API, порча данных, снятая проверка. Красный тест, потом фикс.
+- **Practice:** PLAYBOOK.md на одну-две страницы.
+- **Artifact:** playbook и след красного/зелёного теста.
+- **Decision card:** сразу патч или сначала гипотеза.
 
 ---
 
