@@ -1,12 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { changePasswordAction, importLearningAction } from "@/app/actions/learn";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { changePasswordAction, importLearningAction, previewImportAction } from "@/app/actions/learn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+const countLabels: Record<string, string> = {
+  capstone: "Капстоун",
+  settings: "Настройки",
+  portfolio: "Портфолио",
+  notes: "Заметки",
+  bookmarks: "Закладки",
+  lessons: "Уроки",
+  labs: "Лабораторные",
+  exercises: "Упражнения",
+  answers: "Ответы",
+  artifacts: "Артефакты",
+  weekProgress: "Прогресс недель",
+  quizAttempts: "Попытки квизов",
+  learningEvents: "События обучения",
+};
+
+type ImportPreview = {
+  counts: Record<string, number>;
+  warnings: string[];
+};
+
 export function SettingsForm({ exportJson }: { exportJson: string }) {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
+  const [pending, setPending] = useState<unknown>(null);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [busy, setBusy] = useState(false);
 
   return (
     <div className="mt-8 space-y-8">
@@ -50,21 +77,86 @@ export function SettingsForm({ exportJson }: { exportJson: string }) {
       </section>
       <section>
         <h2 className="font-heading text-2xl">Импорт</h2>
-        <input
-          type="file"
-          accept="application/json"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            const text = await file.text();
-            try {
-              const result = await importLearningAction(JSON.parse(text));
-              setMessage(result.ok ? "Импорт готов" : result.error);
-            } catch {
-              setMessage("Файл не JSON");
-            }
-          }}
-        />
+        <p className="mt-1 text-sm text-muted-foreground">
+          Выберите файл, проверьте состав, затем нажмите «Импортировать». Сам выбор файла ничего не записывает.
+        </p>
+        <label className="mt-3 block text-sm">
+          Файл экспорта
+          <input
+            ref={fileRef}
+            className="mt-2 block w-full text-sm"
+            type="file"
+            accept="application/json,.json"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              setPending(null);
+              setPreview(null);
+              if (!file) return;
+              let parsed: unknown;
+              try {
+                parsed = JSON.parse(await file.text());
+              } catch {
+                setMessage("Файл не JSON");
+                return;
+              }
+              let result: Awaited<ReturnType<typeof previewImportAction>>;
+              try {
+                result = await previewImportAction(parsed);
+              } catch {
+                setMessage("Не удалось прочитать файл.");
+                return;
+              }
+              if (!result.ok) {
+                setMessage(result.error);
+                return;
+              }
+              setPending(parsed);
+              setPreview({ counts: result.counts, warnings: result.warnings });
+              setMessage("Проверьте состав файла и подтвердите импорт.");
+            }}
+          />
+        </label>
+        {preview ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm">Будет импортировано:</p>
+            <ul className="space-y-1 text-sm">
+              {Object.entries(preview.counts).map(([key, count]) => (
+                <li key={key}>
+                  {countLabels[key] ?? key}: {count}
+                </li>
+              ))}
+            </ul>
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {preview.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+            <Button
+              type="button"
+              disabled={busy || pending == null}
+              onClick={async () => {
+                if (pending == null) return;
+                setBusy(true);
+                try {
+                  const result = await importLearningAction(pending);
+                  setMessage(result.ok ? "Импорт готов" : result.error);
+                  if (result.ok) {
+                    setPending(null);
+                    setPreview(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                    router.refresh();
+                  }
+                } catch {
+                  setMessage("Не удалось импортировать данные.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Импортировать
+            </Button>
+          </div>
+        ) : null}
       </section>
       {message ? <p className="text-sm">{message}</p> : null}
     </div>
