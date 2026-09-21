@@ -122,13 +122,15 @@
 - **Goal:** отличить script, workflow, AI workflow, agent.
 - **Hours:** 10
 - **Lessons:**
-  1. Trigger, action, state, branching, events
-  2. Cron и скрипты: когда этого достаточно
-  3. Deterministic vs probabilistic systems
-  4. Decision card: workflow или agent
-- **Lab:** Node-скрипт + cron-эквивалент, идемпотентный прогон.
-- **Practice:** разобрать свою рабочую рутину на типы автоматизации.
-- **Artifact:** decision card + карта процессов.
+  1. Пять форм: script, cron, workflow, AI workflow, agent
+  2. Trigger, действие, состояние
+  3. Cron, лок и двойной запуск
+  4. Детерминированная граница
+  5. Карта рутин
+- **Lab:** идемпотентный прогон с фазами reserved и done.
+- **Practice:** карта пяти рутин.
+- **Artifact:** таблица рутин и скрипт с одним side effect на ключ.
+- **Decision card:** workflow или агент.
 
 ### Week 8. n8n
 
@@ -136,14 +138,16 @@
 - **Goal:** понять n8n как движок, не как конструктор кликов.
 - **Hours:** 10
 - **Lessons:**
-  1. Nodes, credentials, executions
-  2. Expressions, variables, loops, sub-workflows
-  3. Webhooks, schedules, error workflows
-  4. Когда n8n хуже кода
-- **Lab:** workflow с webhook, ветвлением и error path.
-- **Practice:** вынести кусок логики в Code node vs отдельный сервис.
-- **Artifact:** экспортированный workflow + README.
-- **Decision card:** n8n vs code.
+  1. Workflow, item, execution, credentials
+  2. Выражения, ветки и Code node
+  3. Под-workflow
+  4. Расписание, webhook и error workflow
+  5. Когда граф хуже репозитория
+- **Lab:** webhook, ветка, Stop And Error, Error Trigger.
+- **Practice:** тот же маршрут графом и функцией route.
+- **Artifact:** экспорт без секретов и сравнение с кодом.
+- **Decision card:** n8n или код.
+- **Актуально на:** 2026-09-21 (docs.n8n.io).
 
 ### Week 9. APIs, Webhooks & Integrations
 
@@ -151,13 +155,15 @@
 - **Goal:** надёжно говорить с чужими системами.
 - **Hours:** 10
 - **Lessons:**
-  1. REST, auth, pagination, rate limits
-  2. OAuth vs API keys
-  3. Webhook signatures, retries, replay
-  4. Контракты и версионирование интеграций
-- **Lab:** приём webhook с проверкой подписи и идемпотентностью.
-- **Practice:** клиент с retry/backoff и бюджетом запросов.
-- **Artifact:** integration module + тесты подписи.
+  1. Клиент чужого API: таймаут, курсор, лимит
+  2. API key и OAuth
+  3. HMAC по сырому телу и replay
+  4. Ответ 2xx, ретрай, когда ещё не нужна очередь
+  5. Контракт интеграции и фикстуры
+- **Lab:** приём с подписью, окном времени и одним side effect на event id.
+- **Practice:** клиент страниц с потолком и без ретрая на 400.
+- **Artifact:** модуль приёма и клиент.
+- **Decision card:** ключ приложения или OAuth.
 
 ### Week 10. AI Automation
 
@@ -165,13 +171,15 @@
 - **Goal:** вставить LLM в детерминированный пайплайн с валидацией и fallback.
 - **Hours:** 10
 - **Lessons:**
-  1. Classification, extraction, summarization, routing
-  2. Structured output внутри workflow
-  3. Validation, fallback, human review
-  4. Стоимость массовой обработки
-- **Lab:** входящее письмо/тикет → класс → JSON → маршрут.
-- **Practice:** 20 примеров, метрика ошибок классификации.
-- **Artifact:** **AI Office Automation** v1.
+  1. Класс, поля, маршрут
+  2. Схема на выходе шага
+  3. Fallback и человек
+  4. Цена пачки
+  5. Проект AI Office Automation
+- **Lab:** конвейер на фиктивной модели.
+- **Practice:** 20 примеров, инъекции, порог для крона.
+- **Artifact:** **AI Office Automation** v1. Маршрут в коде, письмо клиенту само не уходит.
+- **Decision card:** шаг модели или агент.
 
 ---
 
