@@ -115,7 +115,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
           </div>
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
-              <span>Прогресс недели</span>
+              <span>Прогресс</span>
               <span className="tabular-nums">{state.percent}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">

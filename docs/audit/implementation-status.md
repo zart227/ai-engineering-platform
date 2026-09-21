@@ -9,21 +9,21 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | -- | ----------- | ------ | -------- | ----- | ------------ | ------ |
 | W0-RECON | R1–R6 read-only audit vs `839f135` | DONE | Этот каталог, контракты агентов | Orchestrator | — | Закрыто |
 | W0-DOCS | Audit control docs | DONE | `docs/audit/*` | Orchestrator | W0-RECON | Закрыто |
-| P0-EXPORT | Полный backup learner state | PARTIAL | `src/server/export.ts`: есть notes, capstone, progress, bookmarks, settings в payload; нет PortfolioProject, WeekProgress, QuizAttempt, LearningEvent; bookmarks и settings не импортируются | Agent B | — | Export v2 |
-| P0-IMPORT | Validate → version → migrate → preview → transaction → result | PARTIAL | Zod + `$transaction` есть; preview, migration v1→v2 и отчёт по сущностям отсутствуют. Импорт сразу пишет | Agent B | P0-EXPORT | Пайплайн + тесты |
+| P0-EXPORT | Полный backup learner state | DONE | `buildExport` пишет formatVersion 2: settings, portfolio, bookmarks, week progress, quiz attempts, learning events. Секретов нет | Agent B | — | Закрыто в Wave 1 |
+| P0-IMPORT | Validate → version → migrate → preview → transaction → result | DONE | `migrateExport`, `previewImport`, `$transaction`. v1 не удаляет квизы и события | Agent B | P0-EXPORT | Закрыто в Wave 1 |
 | P0-SECRETS | Не экспортировать password hash и session token | DONE | `buildExport` отдаёт только email/name | — | — | Сохранить инвариант в v2 |
-| P0-IDOR | Portfolio update только своего пользователя | NOT_STARTED | `savePortfolioAction` обновляет по `id` без `userId` (`src/app/actions/learn.ts`) | Agent B | — | `where: { id, userId }` |
-| P0-DOCS | Архитектурные документы = текущий код | PARTIAL | `docs/architecture/PLATFORM.md` всё ещё описывает 6-недельный localStorage snapshot `127ddb5`. `content-schema.md` ссылается на несуществующий `course/weeks/index.ts` | Agent A | — | Отделить history от current |
-| P0-CAPSTONE-UI | 32 недели + отдельный Capstone, без семантики «Неделя 33» | PARTIAL | Контент: `id: 33`, `slug: capstone`. UI пишет «Неделя 33». Шапка: «32 недели» | Agent A | — | Подпись Capstone в UI |
-| P0-I18N | Русские подписи интерфейса | PARTIAL | Остатки: Continue Learning, Saved, Setup, Prerequisites, planned/in-progress/done | Agent A | — | Хром UI, не тексты уроков |
-| P0-DEAD | Подтверждённый мёртвый код | PARTIAL | `course/weeks/compact.ts` нигде не импортируется. `course/legacy/` исключён из tsconfig | Agent A | — | Удалить `compact.ts`, legacy пометить архивом |
+| P0-IDOR | Portfolio update только своего пользователя | DONE | `updateMany` where `{ id, userId }` | Agent B | — | Закрыто |
+| P0-DOCS | Архитектурные документы = текущий код | DONE | `PLATFORM.md` §A описывает текущий стек. Снимок `127ddb5` подписан как история. Регистрация недель в `course/index.ts` | Agent A | — | Закрыто |
+| P0-CAPSTONE-UI | 32 недели + отдельный Capstone, без семантики «Неделя 33» | DONE | `weekLabel`: capstone → «Финальный проект». Глоссарий использует тот же helper | Agent A | — | Закрыто |
+| P0-I18N | Русские подписи интерфейса | DONE | Хром: «Продолжить», «Сохранено», «Подготовка», «Что уже нужно», статусы портфолио по-русски. Названия модулей в curriculum не переводились | Agent A | — | Закрыто |
+| P0-DEAD | Подтверждённый мёртвый код | DONE | `compact.ts` удалён. `course/legacy/README.md` помечает архив | Agent A | — | Закрыто |
 | P0-RATELIMIT | In-memory rate limit не production-safe для нескольких инстансов | PARTIAL | `src/server/rate-limit.ts`, только login/register | Wave 6 | Доказанный use case | Не добавлять Redis в Wave 1 |
 | P0-PROXY | Cookie presence = UX gate, сессия проверяется на сервере | DONE | `src/proxy.ts` смотрит cookie; `getSession()` проверяет hash и срок | — | — | Оставить границу явной в доке |
 | P0-DEEPLINK | `?next=` после логина | NOT_STARTED | `proxy.ts` ставит `next`, auth его игнорирует | Wave 2 UX | — | Не в Wave 1, если не ломает data |
-| C-W1 | Week 1: streaming vs normal, TTFT и total latency, retries в lab | PARTIAL | Теория есть, lab с `stream: false`, без измерения | Agent C | — | Эталонный lab |
-| C-W2 | Week 2: RU/EN/JSON/code tokens, temperature, top-p, variance | PARTIAL | Temperature grid есть; язык, top-p и явная дисперсия — нет | Agent C | — | Эксперимент с таблицей |
+| C-W1 | Week 1: streaming vs normal, TTFT и total latency, retries в lab | DONE | Lab: stream false/true, TTFT, total, retry 429, без retry 401 | Agent C | — | Закрыто для Wave 1. Финальный проход ещё в C1 |
+| C-W2 | Week 2: RU/EN/JSON/code tokens, temperature, top-p, variance | DONE | Студент измеряет четыре формы, temperature, top-p и пять повторов | Agent C | — | Закрыто для Wave 1 |
 | C-W3 | Week 3: Prompt A vs B на dataset | DONE | Golden set, accuracy и cost в `week-03.ts`. Нет decision card и sources | Agent C | — | Добить card + source, не переписывать |
-| C-W4 | Week 4: plain JSON vs schema-constrained, parse/schema/latency/tokens | PARTIAL | Zod/repair есть, сравнительного замера нет | Agent C | — | A/B lab |
+| C-W4 | Week 4: plain JSON vs schema-constrained, parse/schema/latency/tokens | DONE | A/B: prompt JSON vs `json_schema` strict, таблица отказов и токенов | Agent C | — | Закрыто для Wave 1 |
 | C-SCHEMA | Course Quality Contract | NOT_STARTED | Поля живут в prose/`ContentBlock`, не в типах | Agent E | GATE 1 | Wave 2, shared `course/types.ts` |
 | C-RUBRIC | ArtifactRubric first-class | NOT_STARTED | Только checklist | Agent E | C-SCHEMA | Wave 2 |
 | C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | PARTIAL | 5 MCQ, pass 70%. `scoreQuiz` хардкодит 70, action берёт `passScore` | Agent F / D | C-SCHEMA для расширения; drift чинится в D | Не ломать старый progress |
@@ -33,9 +33,9 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | C-BUDGET | AgentBudget | PARTIAL | max steps/tokens/timeout в week 12; нет maxCost/toolBudget | C6 | GATE 2 | Wave 3 |
 | C-DIST | at-most-once / exactly-once illusion названы | PARTIAL | at-least-once и DLQ есть в week 27 | C8 | GATE 2 | Wave 3 |
 | C-MISSING | Local models, serving, fine-tune, routing, privacy taxonomy | NOT_STARTED | Почти нет в `course/` | M1–M5 | GATE 3 | Встраивать в существующие недели |
-| T-CI | PR: typecheck, lint, test, build | NOT_STARTED | Скрипты в `package.json` есть, `.github/workflows` нет | Agent D | — | Wave 1 |
-| T-CONTRACT | Unique ids/slugs, refs, no TODO/placeholder | PARTIAL | Уникальные slugs и плотность контента в `tests/platform.test.ts` | Agent D | — | `curriculum-integrity` |
-| T-EXPORT | Тесты export/import | PARTIAL | Один негативный кейс `version: 2` | Agent B | P0-IMPORT | Round-trip схемы |
+| T-CI | PR: typecheck, lint, test, build | DONE | `.github/workflows/ci.yml` | Agent D | — | Закрыто |
+| T-CONTRACT | Unique ids/slugs, refs, no TODO/placeholder | DONE | `tests/curriculum-integrity.test.ts` | Agent D | — | Закрыто |
+| T-EXPORT | Тесты export/import | DONE | `tests/export.test.ts`: v1→v2, секреты, preview. Запись в БД не покрыта интеграционным тестом | Agent B | P0-IMPORT | Схема закрыта |
 | UX-NAV | Sidebar tree, breadcrumbs, mobile week nav | PARTIAL | Плоский список `hidden lg:block`, breadcrumbs нет | Agent G | GATE 1 capstone labels | Wave 2 |
 | UX-NEXT | Где я и что дальше внутри недели | PARTIAL | Dashboard знает current week; вкладки без статуса | Agent G | — | Wave 2 |
 | P1-ANALYTICS | Funnel по LearningEvent | NOT_STARTED | События пишутся, не читаются | Wave 5 | — | После curriculum |

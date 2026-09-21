@@ -71,7 +71,7 @@ GATE 0  audit docs + ownership
   - Подтверждённые английские chrome-строки из R6 переведены
   - `course/weeks/compact.ts` удалён только если импортов нет
   - Curriculum weeks не изменены
-- STATUS: NOT_STARTED
+- STATUS: DONE
 
 ### B — Data backup and import
 
@@ -93,7 +93,7 @@ GATE 0  audit docs + ownership
   - Результат с количествами
   - Portfolio update фильтрует `userId`
   - Тесты на схему, миграцию, preview и отсутствие секретов
-- STATUS: NOT_STARTED
+- STATUS: DONE
 
 ### C — Foundation curriculum
 
@@ -112,7 +112,7 @@ GATE 0  audit docs + ownership
   - Week 3: сохранить dataset A vs B; добавить decision card и официальный source
   - Week 4: plain JSON vs schema-constrained; parse failures, schema failures, latency, tokens
   - Нет TODO/placeholder. Существующие рабочие уроки не выхолощены
-- STATUS: NOT_STARTED
+- STATUS: DONE
 
 ### D — Testing and CI
 
@@ -129,7 +129,7 @@ GATE 0  audit docs + ownership
   - CI: typecheck, lint, test, build
   - Тесты: unique week ids и slugs, module refs, quiz answer bounds, нет TODO/placeholder в ready weeks, glossary related refs
   - `scoreQuiz` уважает `passScore`, а не зашитые 70
-- STATUS: NOT_STARTED
+- STATUS: DONE
 
 ## Later waves (не запускать до gate)
 

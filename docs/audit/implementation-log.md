@@ -61,6 +61,71 @@ Next Wave:
 
 - Wave 1: A docs, B data, C weeks 1–4, D tests/CI. Параллельно, разные файлы.
 
+## Wave 1
+
+Agents:
+
+- A Documentation and UI terminology (`cursor/wave1-docs-df0e`)
+- B Export/import (`cursor/wave1-data-df0e`)
+- C Weeks 1–4 (`cursor/wave1-foundation-df0e`)
+- D Tests and CI (`cursor/wave1-testing-df0e`)
+- Reviewers A, B, C after merge
+
+Parallel tasks:
+
+- Docs, backup, foundation weeks, and CI on separate worktrees. No shared-file edits.
+
+Completed:
+
+- Architecture docs match the Postgres app. Capstone in the UI is «Финальный проект».
+- Export formatVersion 2 covers settings, portfolio, bookmarks, week progress, quiz attempts, and learning events. Secrets stay out.
+- Import previews, then writes in one transaction. A v1 file does not delete quiz attempts or learning events. A v2 file replaces them.
+- Portfolio update requires the owner's userId.
+- Weeks 1–4 measure streaming latency, tokenization, prompt A/B, and schema-constrained output.
+- CI runs typecheck, lint, test, and build. Curriculum integrity tests cover ids, slugs, module refs, and quiz bounds.
+
+Changed files:
+
+- See merge `d432361` plus the integration fixes: glossary label, `scoreQuiz` passScore wiring, v1 history preservation.
+
+Tests:
+
+- `npm test`: 37 passed
+- `npm run typecheck`: pass
+- `npm run lint`: pass
+- `npm run build`: pass
+- Browser: register, dashboard, capstone page, week 1 lab, settings import copy, glossary
+
+Review findings:
+
+- MAJOR: glossary still printed «Неделя {id}». Fixed with `weekLabel`.
+- MAJOR found by integration: v1 import would delete quiz and event history. Fixed with `importReplacesHistory`.
+- MINOR: `submitQuizAction` ignored `scoreQuiz` passScore. Wired through.
+- Reviewers A and B: no BLOCKER/MAJOR remaining.
+- Redis not added.
+
+Fixes:
+
+- Glossary capstone label, history replace only for formatVersion 2, quiz pass threshold uses one function.
+
+Integration:
+
+- Fast-forward of the four branches onto `cursor/platform-quality-waves-df0e`.
+
+Remaining:
+
+- Course Quality Contract, deeper assessments, sidebar/breadcrumbs. Not Redis.
+
+Next Wave:
+
+- Wave 2.
+
+## Gate 1
+
+PASS.
+
+Foundation is green, docs describe the current app, backup/import was reviewed, weeks 1–4 meet the measurement bar.
+
 ## Gate 0
 
 PASS.

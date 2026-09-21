@@ -4,6 +4,7 @@ import { weekHref, getWeek } from "@course";
 import { getSession } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { BookmarkButton } from "@/components/bookmark-button";
+import { weekLabel } from "@/lib/week-label";
 
 export default async function GlossaryPage() {
   const session = await getSession();
@@ -39,7 +40,7 @@ export default async function GlossaryPage() {
               <p className="mt-2 text-sm leading-6">{term.definition}</p>
               {week ? (
                 <Link className="mt-2 inline-block text-sm text-primary" href={weekHref(week)}>
-                  Неделя {week.id}. {week.short}
+                  {weekLabel(week)}. {week.short}
                 </Link>
               ) : null}
             </article>

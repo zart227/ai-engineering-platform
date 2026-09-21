@@ -306,6 +306,14 @@ const CAPSTONE_KEYS = new Set<string>(capstoneFields);
 const REPLACE_WARNING =
   "Попытки квизов и события обучения будут заменены данными из файла. Если в файле их нет, текущие записи этого типа удалятся.";
 
+const KEEP_HISTORY_WARNING =
+  "Файл версии 1 не содержит попытки квизов и события обучения. Они останутся как есть.";
+
+/** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
+export function importReplacesHistory(raw: unknown): boolean {
+  return isRecord(raw) && raw.formatVersion === 2;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -427,7 +435,10 @@ export function previewImport(
       quizAttempts: data.quizAttempts.length,
       learningEvents: data.learningEvents.length,
     },
-    warnings: [REPLACE_WARNING, ...collectStripWarnings(raw)],
+    warnings: [
+      importReplacesHistory(raw) ? REPLACE_WARNING : KEEP_HISTORY_WARNING,
+      ...collectStripWarnings(raw),
+    ],
   };
 }
 
@@ -436,7 +447,12 @@ function jsonInput(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNu
   return value as Prisma.InputJsonValue;
 }
 
-async function persistImport(tx: Prisma.TransactionClient, userId: string, data: ExportPayloadV2) {
+async function persistImport(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  data: ExportPayloadV2,
+  replaceHistory: boolean
+) {
   const capstone = pickCapstone(data.capstone);
   if (Object.keys(capstone).length > 0) {
     await tx.capstoneProject.upsert({
@@ -603,31 +619,33 @@ async function persistImport(tx: Prisma.TransactionClient, userId: string, data:
       },
     });
   }
-  await tx.quizAttempt.deleteMany({ where: { userId } });
-  if (data.quizAttempts.length > 0) {
-    await tx.quizAttempt.createMany({
-      data: data.quizAttempts.map((item) => ({
-        userId,
-        weekSlug: item.weekSlug,
-        answers: jsonInput(item.answers),
-        score: item.score,
-        passed: item.passed,
-        createdAt: new Date(item.createdAt),
-      })),
-    });
-  }
-  await tx.learningEvent.deleteMany({ where: { userId } });
-  if (data.learningEvents.length > 0) {
-    await tx.learningEvent.createMany({
-      data: data.learningEvents.map((item) => ({
-        userId,
-        type: item.type,
-        weekSlug: item.weekSlug,
-        lessonId: item.lessonId,
-        payload: jsonInput(item.payload),
-        createdAt: new Date(item.createdAt),
-      })),
-    });
+  if (replaceHistory) {
+    await tx.quizAttempt.deleteMany({ where: { userId } });
+    if (data.quizAttempts.length > 0) {
+      await tx.quizAttempt.createMany({
+        data: data.quizAttempts.map((item) => ({
+          userId,
+          weekSlug: item.weekSlug,
+          answers: jsonInput(item.answers),
+          score: item.score,
+          passed: item.passed,
+          createdAt: new Date(item.createdAt),
+        })),
+      });
+    }
+    await tx.learningEvent.deleteMany({ where: { userId } });
+    if (data.learningEvents.length > 0) {
+      await tx.learningEvent.createMany({
+        data: data.learningEvents.map((item) => ({
+          userId,
+          type: item.type,
+          weekSlug: item.weekSlug,
+          lessonId: item.lessonId,
+          payload: jsonInput(item.payload),
+          createdAt: new Date(item.createdAt),
+        })),
+      });
+    }
   }
 }
 
@@ -759,10 +777,10 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
 export async function importExport(userId: string, raw: unknown) {
   const parsed = parseExport(raw);
   if (!parsed.ok) return { ok: false as const, error: parsed.error };
-  const imported = previewImport(parsed.data).counts;
+  const imported = previewImport(parsed.data, raw).counts;
   try {
     await prisma.$transaction(async (tx) => {
-      await persistImport(tx, userId, parsed.data);
+      await persistImport(tx, userId, parsed.data, importReplacesHistory(raw));
     });
   } catch {
     return { ok: false as const, error: "Не удалось импортировать данные." };

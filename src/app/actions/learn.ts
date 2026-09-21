@@ -203,8 +203,8 @@ export async function submitQuizAction(weekSlug: string, answers: number[]) {
   const week = getWeek(weekSlug);
   if (!week) return { ok: false as const, error: "Неделя не найдена." };
   const correct = week.quiz.questions.map((item) => item.answer);
-  const result = scoreQuiz(answers, correct);
-  const passed = result.score >= week.quiz.passScore;
+  const result = scoreQuiz(answers, correct, week.quiz.passScore);
+  const passed = result.passed;
   await prisma.quizAttempt.create({
     data: {
       userId: user.id,

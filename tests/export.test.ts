@@ -207,6 +207,7 @@ describe("previewImport", () => {
     const text = preview.warnings.join(" ");
     assert.match(text, /секрет/i);
     assert.match(text, /неизвестн/i);
-    assert.match(text, /замен/i);
+    assert.match(text, /останутся/i);
+    assert.doesNotMatch(text, /будут заменены/i);
   });
 });
