@@ -2,30 +2,6 @@ import { compactWeek, type CompactWeek } from "./compact";
 
 const rest: CompactWeek[] = [
   {
-    id: 22, slug: "planning", moduleId: "m10", title: "Planning и replanning", short: "Planning", track: "engineering", hours: 10,
-    goal: "Декомпозиция цели в DAG, checkpoint, перепланирование при срыве.",
-    technologies: ["DAG", "state machine", "checkpoints"],
-    why: "Реактивный цикл тупит на многошаговых целях. План даёт проверяемые узлы.",
-    prerequisites: ["agent loop"], productionUse: ["долгие задачи", "codegen пайплайны"], previousKnowledge: ["spec decomposition недели 5"],
-    lessons: [
-      { title: "Goal vs task graph", minutes: 16, objectives: ["Зависимости"], paragraphs: ["Цель «сделать отчёт» не исполняется. Задачи: собрать источники, проверить, написать, прогнать critic. DAG: нельзя писать до источников. Циклы в графе задач почти всегда ошибка дизайна."] },
-      { title: "Execute, verify, replan", minutes: 16, objectives: ["Checkpoint"], paragraphs: ["После узла verify. Fail → replan хвоста, не всего с нуля, если checkpoint есть. State machine честнее свободного агента, когда состояния конечны."] },
-      { title: "Стоп", minutes: 12, objectives: ["Не перепланировать вечно"], paragraphs: ["Лимит replan. Человек после k срывов. Иначе планировщик это тот же бесконечный loop в галстуке."] },
-    ],
-    lab: { title: "План из 6 шагов", goal: "Шаг 3 падает, replan хвоста.", setup: ["фикстура fail на шаге 3"], steps: [{ title: "DAG", body: "Опишите зависимости.", expected: "Картинка/список." }, { title: "Replan", body: "Хвост новый, голова не пересчитывается.", expected: "Лог checkpoint." }], reflection: ["Что нельзя чекпоинтить (деньги уже ушли)?"] },
-    practice: { title: "Planner module", time: "3 часа", context: "Код: plan, execute node, verify, replan.", requirements: ["лимит replan", "тест срыва шага", "trace"], constraints: ["Не нужен LLM на каждый микрошаг, часть узлов детерминированы"], acceptance: ["вечный replan невозможен"], tests: ["fail node 3"], hints: [{ title: "Подсказка 1", text: "Узлы с типом llm|code." }, { title: "Подсказка 2", text: "id узла стабильный." }, { title: "Подсказка 3", text: "Сериализуйте план в JSON." }], solution: "planner.ts + graph.json." },
-    prompt: { title: "Декомпозитор", purpose: "Черновик DAG", when: "Новая цель", placeholders: ["{{goal}}"], text: `Разбей цель на 5-9 задач. JSON {id, dependsOn[], type: "code"|"llm"|"human"}. Не делай циклов. Отметь verify узлы.\nЦель: {{goal}}`, explanation: "Черновик, человек правит.", limitations: "Модель плохо знает ваши реальные зависимости кода." },
-    quiz: [
-      { prompt: "Цикл в DAG задач:", options: ["Нормально", "Скорее ошибка дизайна", "Требование агента", "Нужен для HMAC"], answer: 1, kind: "architecture", explanation: "Ацикличность." },
-      { prompt: "Verify после узла:", options: ["Лишняя бюрократия всегда", "Ловит срыв до финала", "Заменяет тесты продукта", "Пишет CSS"], answer: 1, kind: "conceptual", explanation: "Клапан." },
-      { prompt: "Бесконечный replan:", options: ["Настойчивость", "Нужен лимит и HITL", "Лучшая стратегия", "Дешевле"], answer: 1, kind: "scenario", explanation: "Бюджет." },
-      { prompt: "Все узлы через LLM:", options: ["Обязательно", "Нет, код дешевле и стабильнее где можно", "Запрещено иметь код", "Только Python"], answer: 1, kind: "cost" as "architecture", explanation: "Принцип курса." },
-    ],
-    artifactResult: "Planner/replanner с checkpoint и лимитом.",
-    checklist: ["DAG", "fail step 3", "replan cap", "trace"],
-    recall: [{ fromWeek: "professional-ai-coding", question: "Чем spec отличается от плана?", answer: "Spec это что и зачем. План это граф как." }],
-  },
-  {
     id: 23, slug: "human-in-the-loop", moduleId: "m11", title: "Human-in-the-loop", short: "HITL", track: "engineering", hours: 10,
     goal: "Approve, pause/resume, permissions, audit для опасных действий.",
     technologies: ["permission model", "audit log"],
@@ -75,4 +51,4 @@ const rest: CompactWeek[] = [
   },
 ];
 
-export const weeks22to24 = rest.map(compactWeek);
+export const weeks23to24 = rest.map(compactWeek);
