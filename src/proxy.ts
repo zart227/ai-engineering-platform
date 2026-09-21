@@ -28,6 +28,6 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const proxyConfig = {
+export const config = {
   matcher: ["/((?!_next/static|_next/image|.*\\.svg$).*)"],
 };

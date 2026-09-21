@@ -9,7 +9,9 @@ export const SESSION_COOKIE = "aep_session";
 const SESSION_DAYS = 30;
 
 function cookieSecure() {
-  return process.env.NODE_ENV === "production";
+  if (process.env.COOKIE_SECURE === "true") return true;
+  if (process.env.COOKIE_SECURE === "false") return false;
+  return (process.env.APP_URL ?? "").startsWith("https://");
 }
 
 export async function createSession(userId: string) {

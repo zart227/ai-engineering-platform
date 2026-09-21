@@ -75,8 +75,9 @@ npm start
 См. `.env.example`.
 
 - `DATABASE_URL` - Postgres
-- `AUTH_SECRET` - длинная случайная строка для production cookie-среды
-- `APP_URL` - публичный URL
+- `AUTH_SECRET` - длинная случайная строка для cookie-подписи
+- `APP_URL` - публичный URL. Если начинается с `https://`, cookie ставится как Secure
+- `COOKIE_SECURE` - опционально `true`/`false`, перекрывает вывод из `APP_URL`
 
 Секреты не коммитятся. Ключи LLM в эту платформу в MVP не входят: студенты вызывают модели в своих репозиториях.
 

@@ -25,18 +25,26 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       </p>
       <form action={formAction} className="mt-8 space-y-4">
         {mode === "register" ? (
-          <label className="block text-sm">
+          <label className="block text-sm" htmlFor="auth-name">
             Имя
-            <Input name="name" required minLength={2} className="mt-1" />
+            <Input id="auth-name" name="name" required minLength={2} className="mt-1" autoComplete="name" />
           </label>
         ) : null}
-        <label className="block text-sm">
+        <label className="block text-sm" htmlFor="auth-email">
           Email
-          <Input name="email" type="email" required className="mt-1" />
+          <Input id="auth-email" name="email" type="email" required className="mt-1" autoComplete="email" />
         </label>
-        <label className="block text-sm">
+        <label className="block text-sm" htmlFor="auth-password">
           Пароль
-          <Input name="password" type="password" required minLength={8} className="mt-1" />
+          <Input
+            id="auth-password"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            className="mt-1"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+          />
         </label>
         {state && !state.ok ? (
           <p className="text-sm text-destructive">{state.error}</p>

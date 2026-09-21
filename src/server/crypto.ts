@@ -24,5 +24,6 @@ export function createSessionToken() {
 }
 
 export function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+  const pepper = process.env.AUTH_SECRET ?? "";
+  return createHash("sha256").update(`${pepper}:${token}`).digest("hex");
 }
