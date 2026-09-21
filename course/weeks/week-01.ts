@@ -770,6 +770,45 @@ main();
       1,
       "Метаданные вызова полезны. Секреты нет."
     ),
+    q(
+      "w1-q6",
+      "architecture",
+      "Чат рисует ответ только после закрытия стрима. Какое измерение проигнорировано?",
+      [
+        "UI ждёт total и не отдаёт первый токен по TTFT",
+        "Tokenizer режет UUID",
+        "401 надо повторять до успеха",
+        "Ключ надо положить в NEXT_PUBLIC_",
+      ],
+      0,
+      "TTFT полезен, только если первый чанк уходит в UI сразу. Иначе пользователь ждёт total, как при stream false."
+    ),
+    q(
+      "w1-q7",
+      "debugging",
+      "В строке stream true TTFT ms совпал с total ms. Что проверить первым?",
+      [
+        "Таймер первого токена стоит на закрытии тела, а не на первом delta",
+        "Сменить модель на более дорогую",
+        "Добавить 401 в список retry",
+        "Напечатать process.env в stdout",
+      ],
+      0,
+      "TTFT это время до первого токена. Если старт и стоп на одном событии, колонка врёт."
+    ),
+    q(
+      "w1-q8",
+      "scenario",
+      "Провайдер дважды вернул 429, затем 200. maxAttempts равен 3. Сколько запросов сделает верный клиент?",
+      [
+        "Один: 429 не повторяют",
+        "Три: две паузы и успех",
+        "Пятьдесят без паузы",
+        "Ноль: 429 это тот же случай, что 401",
+      ],
+      1,
+      "429 в списке повторов, потолок 3. Третий ответ 200 останавливает цикл. 401 и 400 в этот список не входят."
+    ),
   ]),
   artifact: artifact({
     result: "Репозиторий с CLI и/или HTTP LLM-клиентом на TypeScript.",
@@ -810,4 +849,80 @@ main();
       mistake: "Демо на Vercel с ключом в клиенте «на час». Час превращается в прод.",
     }),
   ],
+  learningObjectives: [
+    "Держать API-ключ только на сервере: не в бандле, не в README, не в логе.",
+    "Повторять 429, 5xx и сеть с потолком попыток; 400 и 401 не повторять.",
+    "На одном prompt записать mode, TTFT ms, total ms и output tokens для stream false и stream true.",
+    "Печатать usage или unknown и оценку стоимости, не выдумывая числа.",
+  ],
+  experiments: [
+    {
+      id: "environment-llm-api-exp-stream",
+      question: "Как stream false и stream true меняют TTFT и total latency на одном prompt?",
+      method:
+        "Один system и user. Сначала stream false, потом stream true. Записать mode, TTFT ms, total ms, output tokens. Нет usage значит unknown.",
+      metrics: ["TTFT ms", "total ms", "output tokens"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "environment-llm-api-f1",
+      symptom: "401 уходит вторым запросом после паузы.",
+      cause: "401 попал в список retry.",
+      check: "В логе попыток на неверный ключ ровно один запрос, без backoff.",
+    },
+    {
+      id: "environment-llm-api-f2",
+      symptom: "В stderr или JSON-логе виден ключ.",
+      cause: "В лог попали Authorization, apiKey или dump env.",
+      check: "Прогон с неверным ключом: в stderr нет sk- и нет process.env.",
+    },
+  ],
+  metrics: [
+    { name: "TTFT ms", how: "До первого токена. У stream false это время до полного тела." },
+    { name: "total ms", how: "До конца ответа, включая последний чанк." },
+    { name: "output tokens", how: "usage.completion_tokens. Нет поля значит unknown." },
+    { name: "prompt tokens", how: "usage.prompt_tokens после вызова. До вызова только грубая оценка." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "environment-llm-api-r1",
+        name: "Секреты",
+        weight: 25,
+        evidence: ".env не в git. В README и логах нет ключа и dump env.",
+      },
+      {
+        id: "environment-llm-api-r2",
+        name: "Ошибки и retry",
+        weight: 25,
+        evidence: "В клиенте 400 и 401 без повтора, 429 и 5xx с backoff и потолком попыток.",
+      },
+      {
+        id: "environment-llm-api-r3",
+        name: "Таблица потока",
+        weight: 25,
+        evidence: "В README две строки stream false и true: mode, TTFT ms, total ms, output tokens.",
+      },
+      {
+        id: "environment-llm-api-r4",
+        name: "Usage и стоимость",
+        weight: 25,
+        evidence: "CLI печатает токены или unknown и оценку стоимости одного запроса.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "OpenAI Chat Completions",
+      url: "https://platform.openai.com/docs/api-reference/chat",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Ключ только на сервере. В лог не пишите apiKey, Authorization и process.env."],
+  privacyNotes: ["В лог не кладите полный PII: достаточно requestId, модели, latency и счётчиков токенов."],
+  costNotes: ["Каждый retry тратит новые токены. Стоимость берите из usage и прайса, не из длины строки."],
 });
