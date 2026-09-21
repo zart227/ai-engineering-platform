@@ -2,31 +2,6 @@ import { compactWeek, type CompactWeek } from "./compact";
 
 const rest: CompactWeek[] = [
   {
-    id: 18, slug: "mcp", moduleId: "m07", title: "Model Context Protocol", short: "MCP", track: "engineering", hours: 12,
-    goal: "Свой MCP server на TypeScript по актуальной спецификации.",
-    technologies: ["MCP", "TypeScript SDK", "stdio / Streamable HTTP"],
-    why: "MCP стандартизует, как агент видит tools/resources/prompts. Без spec вы выучите один SDK-миф.",
-    prerequisites: ["tools", "агент"], productionUse: ["IDE agents", "внутренние tool-серверы"], previousKnowledge: ["JSON-RPC как идея", "least privilege"],
-    asOf: "2026-09-21",
-    lessons: [
-      { title: "Архитектура MCP", minutes: 18, objectives: ["Host, client, server", "data vs transport"], paragraphs: ["Актуально на 2026-09-21, спецификация 2026-07-28: https://modelcontextprotocol.io/specification/2026-07-28 . Host это LLM-приложение. Client внутри host. Server даёт tools, resources, prompts.", "Слой данных: JSON-RPC. Транспорт: stdio или Streamable HTTP. Ядро стало stateless: запрос несёт protocolVersion и capabilities в _meta. Discovery: server/discover. Sampling на клиенте deprecated в этой ревизии, elicitation остаётся.", "Не выдумывайте initialize-сессию по старым туториалам 2025 года без сверки."] },
-      { title: "Примитивы и безопасность", minutes: 18, objectives: ["tools/resources/prompts", "consent"], paragraphs: ["Tools это вызовы с побочными эффектами. Resources это данные для контекста. Prompts это шаблоны. Описания tool с чужого сервера недоверенные. Host должен спрашивать согласие на tool.", "HTTP: OAuth/токены, заголовки Mcp-Method и Mcp-Name в Streamable HTTP. Не открывайте filesystem tool без корня-песочницы."] },
-      { title: "Свой сервер", minutes: 14, objectives: ["2 tools, 1 resource, 1 prompt"], paragraphs: ["Официальный TypeScript SDK сверяйте с репозиторием протокола. Учебный сервер: notes.read, notes.write в каталоге-песочнице, resource списка файлов, prompt «суммируй заметку»."] },
-    ],
-    lab: { title: "MCP server", goal: "Сервер поднимается и отвечает на list tools.", setup: ["актуальный SDK, дата в README"], steps: [{ title: "Scaffold", body: "Пакет, два tool, песочница path.", expected: "Inspector или клиент видит tools." }, { title: "Deny path", body: "Запись вне корня запрещена.", expected: "Тест traversal." }], reflection: ["Чем MCP server отличается от вашего tool runtime недели 11?"] },
-    practice: { title: "Подключить к IDE agent", time: "2 часа", context: "Документируйте шаги подключения без привязки к одному вендору навсегда.", requirements: ["README as-of date", "security notes", "пример вызова"], constraints: ["Не требовать секреты в git"], acceptance: ["Чужой поднимает по README"], tests: ["path traversal"], hints: [{ title: "Подсказка 1", text: "Сверьтесь со spec, не с случайным gist." }, { title: "Подсказка 2", text: "stdio для локалки, HTTP для удалённого." }, { title: "Подсказка 3", text: "Логи без содержимого секретных файлов." }], solution: "packages/notes-mcp + README + tests." },
-    prompt: { title: "Ревью MCP server", purpose: "Security pass", when: "Перед публикацией", placeholders: ["{{code}}"], text: `Ищи path traversal, избыточные tools, отсутствие consent, логи секретов, доверие к чужим tool annotations.\n{{code}}`, explanation: "Красная команда по коду сервера.", limitations: "Spec могла обновиться после as-of." },
-    quiz: [
-      { prompt: "MCP server в модели 2026-07-28 обязан помнить session как в 2024?", options: ["Да, initialize обязателен всегда как раньше", "Ядро stateless, версия в _meta запроса", "Сессий нет в HTTP никогда исторически", "MCP отменён"], answer: 1, kind: "conceptual", explanation: "Сверяйте текущую spec." },
-      { prompt: "Tool annotations с чужого сервера:", options: ["Доверенны", "Недоверенны, нужен consent", "Заменяют ACL", "Пишутся в DNS"], answer: 1, kind: "scenario", explanation: "Spec security principles." },
-      { prompt: "Resources vs tools:", options: ["Одно и то же", "Resources данные, tools действия", "Resources всегда пишут БД", "Tools нельзя на TypeScript"], answer: 1, kind: "architecture", explanation: "Разные примитивы." },
-      { prompt: "Filesystem tool без корня:", options: ["Удобно", "Риск чтения .env хоста", "Требование протокола", "Нужно для cosine"], answer: 1, kind: "debugging", explanation: "Песочница." },
-    ],
-    artifactResult: "MCP Server на TypeScript + security notes, as-of дата spec.",
-    checklist: ["tools/resources/prompts", "sandbox path", "as-of spec", "README"],
-    recall: [{ fromWeek: "tool-calling", question: "Почему описания tools пишет инженер?", answer: "Иначе poisoning." }],
-  },
-  {
     id: 19, slug: "agent-frameworks", moduleId: "m08", title: "Agent SDK и фреймворки", short: "Frameworks", track: "engineering", hours: 10,
     goal: "Понять, что фреймворк делает за вас, и портировать свой цикл на один SDK.",
     technologies: ["один актуальный Agent SDK на выбор"],
@@ -53,4 +28,4 @@ const rest: CompactWeek[] = [
   },
 ];
 
-export const weeks18to19 = rest.map(compactWeek);
+export const weeks19 = rest.map(compactWeek);

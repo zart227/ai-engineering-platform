@@ -30,7 +30,7 @@ export const glossary: GlossaryTerm[] = [
   { id: "pgvector", term: "pgvector", definition: "Расширение PostgreSQL: тип vector(n) и расстояния. <=> это косинусное расстояние, меньшее ближе.", weekSlug: "pgvector", related: ["embedding", "hnsw"] },
   { id: "hnsw", term: "HNSW", definition: "Приближённый графовый индекс. Быстрее точного перебора и может пропустить истинного соседа.", weekSlug: "pgvector", related: ["pgvector"] },
   { id: "hit-rate", term: "Hit-rate@k", definition: "Доля вопросов, у которых нужный чанк попал в первые k. Метрика выборки, не текста ответа.", weekSlug: "advanced-rag", related: ["golden-set", "rag"] },
-  { id: "mcp", term: "MCP", definition: "Model Context Protocol: стандарт tools/resources/prompts между host и server. Сверяйте текущую spec.", weekSlug: "mcp", related: ["tool-calling"] },
+  { id: "mcp", term: "MCP", definition: "Протокол JSON-RPC между host и server: tools, resources, prompts. Ревизия 2026-07-28 без initialize, с server/discover.", weekSlug: "mcp", related: ["tool-calling"] },
   { id: "hitl", term: "Human-in-the-loop", definition: "Опасное действие ждёт человека. Проверка в runtime, не только в промпте.", weekSlug: "human-in-the-loop", related: ["audit-log"] },
   { id: "audit-log", term: "Audit log", definition: "Кто что предложил и кто одобрил, с временем, без секретов в открытую.", weekSlug: "human-in-the-loop", related: ["hitl"] },
   { id: "eval", term: "Eval", definition: "Прогон фиксированного набора с метриками и порогом регресса. Тест для вероятностного кода.", weekSlug: "evals", related: ["golden-set"] },
