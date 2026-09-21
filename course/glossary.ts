@@ -16,6 +16,7 @@ export const glossary: GlossaryTerm[] = [
   { id: "episodic-memory", term: "Episodic memory", definition: "Журнал событий сессии со временем. Хранит деталь, которую сжатие может выкинуть.", weekSlug: "agent-memory", related: ["semantic-memory"] },
   { id: "semantic-memory", term: "Semantic memory", definition: "Короткий факт с типом, пользователем и сроком. В контекст попадает после фильтра, не весь архив.", weekSlug: "agent-memory", related: ["episodic-memory", "rag"] },
   { id: "workflow", term: "Workflow", definition: "Заранее описанный граф шагов. Может содержать LLM-шаг, но ветки ваши.", weekSlug: "automation-fundamentals", related: ["agent-loop", "n8n"] },
+  { id: "dag", term: "DAG", definition: "Направленный граф без цикла. Узел стартует, когда все dependsOn уже сделаны. Цикл в таком графе это ошибка плана, план не запускают.", weekSlug: "planning", related: ["workflow", "agent-loop"] },
   { id: "n8n", term: "n8n", definition: "Движок workflow: граф узлов, отдельный execution, credentials отдельно от экспорта. Error workflow начинается с Error Trigger.", weekSlug: "n8n", related: ["workflow", "webhook"] },
   { id: "script", term: "Script", definition: "Одноразовый или по cron прогон без графа состояний GUI.", weekSlug: "automation-fundamentals", related: ["workflow"] },
   { id: "idempotency", term: "Idempotency", definition: "Повтор того же события не создаёт второй side effect.", weekSlug: "automation-fundamentals", related: ["webhook"] },
@@ -45,6 +46,9 @@ export const glossary: GlossaryTerm[] = [
   { id: "spec-driven", term: "Specification-driven development", definition: "Сначала контракт поведения и тесты, потом патч агента.", weekSlug: "professional-ai-coding", related: ["agents-md"] },
   { id: "agents-md", term: "AGENTS.md", definition: "Файл инструкций репозитория для coding agents. Короткий, в git, с командами и запретами. Продукты читают его по-разному и обрезают длинный текст.", weekSlug: "professional-ai-coding", related: ["spec-driven"] },
   { id: "inference", term: "Inference", definition: "Прогон уже обученной модели. В курсе вы почти всегда здесь, не в обучении весов.", weekSlug: "how-llms-work", related: ["llm"] },
+  { id: "checkpoint", term: "Checkpoint", definition: "Сделанные узлы плана, которые при срыве не исполняют заново. Хвост пересобирают отдельно.", weekSlug: "planning", related: ["workflow"] },
+  { id: "held-out", term: "Held-out", definition: "Часть набора оценки, которую не используют, чтобы подгонять промпт. По ней считают порог.", weekSlug: "evals", related: ["golden-set"] },
+  { id: "runbook", term: "Runbook", definition: "Страница дежурства: секреты, копия данных, лимит, что сказать человеку при 429 и как откатить выкладку.", weekSlug: "production-ai", related: ["trace"] },
 ];
 
 export function getGlossaryTerm(id: string) {
