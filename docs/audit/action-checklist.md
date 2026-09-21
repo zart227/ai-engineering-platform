@@ -44,14 +44,14 @@
 
 ## WAVE 2 — Quality System
 
-- [ ] Agent E: Course Quality Contract, Experiment, Metric, FailureMode, ArtifactRubric, source/version
-- [ ] Agent F: assessments глубже, без поломки старого progress
-- [ ] Agent G: sidebar, breadcrumbs, 32+Capstone, navigation/a11y
-- [ ] Shared course schema меняет только Integration
-- [ ] Weeks 1–4 мигрированы на contract
-- [ ] Contract tests
-- [ ] Independent review
-- [ ] GATE 2
+- [x] Agent E: Course Quality Contract, Experiment, Metric, FailureMode, ArtifactRubric, source/version
+- [x] Agent F: недели 1–4, 8 вопросов, passScore 70 сохранён
+- [x] Agent G: sidebar по модулям, breadcrumbs, mobile disclosure, a11y name
+- [x] Shared course schema меняет только Integration
+- [x] Weeks 1–4 мигрированы на contract
+- [x] Contract tests
+- [x] Independent review
+- [x] GATE 2
 
 ## WAVE 3 — Curriculum Deepening
 

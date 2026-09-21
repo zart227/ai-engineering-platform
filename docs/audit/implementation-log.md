@@ -126,6 +126,67 @@ PASS.
 
 Foundation is green, docs describe the current app, backup/import was reviewed, weeks 1–4 meet the measurement bar.
 
+## Wave 2
+
+Agents:
+
+- E Course quality schema (`cursor/wave2-schema-df0e`)
+- G Learning UX (`cursor/wave2-ux-df0e`)
+- F Weeks 1–4 contract and quizzes (`cursor/wave2-assess-df0e`), после схемы
+- Read-only reviewer после слияния
+
+Parallel tasks:
+
+- Схема и UX одновременно, разные файлы. Оценки недель 1–4 стартовали после вливания типов.
+
+Completed:
+
+- Опциональный контракт: objectives, experiments, failure modes, metrics, rubric, sources, contentVersion, lastReviewedAt, security/privacy/cost notes.
+- Тест: если рубрика есть, веса суммируются в 100; источники https.
+- Недели 1–4 заполнены. Квиз по 8 вопросов. Порог 70 не менялся.
+- Навигация недели группирует модули, показывает крошки и компактный список на узком экране.
+
+Changed files:
+
+- `course/types.ts`, `docs/architecture/content-schema.md`, `tests/quality-contract.test.ts`
+- `src/components/week-nav.tsx`, `src/components/week-workspace.tsx`
+- `course/weeks/week-01.ts` … `week-04.ts`
+
+Tests:
+
+- `npm test` после схемы и UX: 40 passed
+- Контракт и integrity после недель 1–4: passed
+- typecheck и lint: passed
+- Авторизованный HTML `/week/environment-llm-api`: «Курс», «Неделя 1», «Финальный проект», ноль «Неделя 33», `aria-label="Программа"`, класс `lg:hidden`
+
+Review findings:
+
+- Независимый просмотр: BLOCKER/MAJOR/MINOR нет.
+
+Fixes:
+
+- Нет.
+
+Integration:
+
+- Три ветки влиты в `cursor/platform-quality-waves-df0e`.
+
+Remaining:
+
+- Недели 5–33 без полей контракта и с квизом из 5 вопросов.
+- Глубокие темы RAG, MCP, агентов, автоматизации, продукта.
+- Платформенные фичи: аналитика, интервальное повторение, поиск, MCP, очередь, тьютор. Redis не добавлялся.
+
+Next Wave:
+
+- Wave 3: непересекающиеся диапазоны недель, только после этого gate.
+
+## Gate 2
+
+PASS.
+
+Схема стабильна и необязательна, недели 1–4 на контракте, тесты есть, документ обновлён. Массовая миграция недель 5–33 разрешена и не начата в этом проходе.
+
 ## Gate 0
 
 PASS.

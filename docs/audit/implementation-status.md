@@ -24,9 +24,9 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | C-W2 | Week 2: RU/EN/JSON/code tokens, temperature, top-p, variance | DONE | Студент измеряет четыре формы, temperature, top-p и пять повторов | Agent C | — | Закрыто для Wave 1 |
 | C-W3 | Week 3: Prompt A vs B на dataset | DONE | Golden set, accuracy и cost в `week-03.ts`. Нет decision card и sources | Agent C | — | Добить card + source, не переписывать |
 | C-W4 | Week 4: plain JSON vs schema-constrained, parse/schema/latency/tokens | DONE | A/B: prompt JSON vs `json_schema` strict, таблица отказов и токенов | Agent C | — | Закрыто для Wave 1 |
-| C-SCHEMA | Course Quality Contract | NOT_STARTED | Поля живут в prose/`ContentBlock`, не в типах | Agent E | GATE 1 | Wave 2, shared `course/types.ts` |
-| C-RUBRIC | ArtifactRubric first-class | NOT_STARTED | Только checklist | Agent E | C-SCHEMA | Wave 2 |
-| C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | PARTIAL | 5 MCQ, pass 70%. `scoreQuiz` хардкодит 70, action берёт `passScore` | Agent F / D | C-SCHEMA для расширения; drift чинится в D | Не ломать старый progress |
+| C-SCHEMA | Course Quality Contract | DONE | Опциональные поля на `Week`. Обязательными не стали. Документ: `content-schema.md` | Agent E | GATE 1 | Закрыто |
+| C-RUBRIC | ArtifactRubric first-class | PARTIAL | Тип есть. Недели 1–4 имеют 4 критерия по 25%. Недели 5–33 ещё на checklist | Agent F | C-SCHEMA | Волна 3 переносит остальные |
+| C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | PARTIAL | Недели 1–4: 8 вопросов. `passScore` оставлен 70, чтобы не пересчитать старые попытки. Остальные недели: 5 вопросов | Agent F | C-SCHEMA | Волна 3 |
 | C-SR | Spaced repetition | NOT_STARTED | Recall внутри недели, без `nextReviewAt` | Wave 5 P2 | — | Не считать recall scheduler-ом |
 | C-RAG | Глубина RAG ingestion/chunking/eval | PARTIAL | Weeks 13–16 ready, ingestion в основном markdown | C4 | GATE 2 | Wave 3 |
 | C-MCP | MCP threat model | PARTIAL | Week 18: host/client/server; каталог угроз тонкий | C5 | GATE 2 | Wave 3 |
@@ -36,7 +36,7 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | T-CI | PR: typecheck, lint, test, build | DONE | `.github/workflows/ci.yml` | Agent D | — | Закрыто |
 | T-CONTRACT | Unique ids/slugs, refs, no TODO/placeholder | DONE | `tests/curriculum-integrity.test.ts` | Agent D | — | Закрыто |
 | T-EXPORT | Тесты export/import | DONE | `tests/export.test.ts`: v1→v2, секреты, preview. Запись в БД не покрыта интеграционным тестом | Agent B | P0-IMPORT | Схема закрыта |
-| UX-NAV | Sidebar tree, breadcrumbs, mobile week nav | PARTIAL | Плоский список `hidden lg:block`, breadcrumbs нет | Agent G | GATE 1 capstone labels | Wave 2 |
+| UX-NAV | Sidebar tree, breadcrumbs, mobile week nav | DONE | `WeekNav`: модули, крошки «Курс → модуль → неделя», disclosure ниже lg | Agent G | GATE 1 | Закрыто |
 | UX-NEXT | Где я и что дальше внутри недели | PARTIAL | Dashboard знает current week; вкладки без статуса | Agent G | — | Wave 2 |
 | P1-ANALYTICS | Funnel по LearningEvent | NOT_STARTED | События пишутся, не читаются | Wave 5 | — | После curriculum |
 | P4-MCP | Platform MCP server | NOT_STARTED | Нет | Wave 5 | Курс MCP | Не раньше |
