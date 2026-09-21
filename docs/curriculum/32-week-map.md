@@ -224,60 +224,66 @@
 ### Week 13. Embeddings
 
 - **Slug:** `embeddings`
-- **Goal:** семантический поиск руками, без «магии вектора».
+- **Goal:** посчитать близость самим кодом и оставить точный идентификатор в SQL.
 - **Hours:** 10
 - **Lessons:**
-  1. Векторы, размерности, cosine, dot product
-  2. Как считается embedding
-  3. Nearest neighbours, brute force
-  4. Когда семантика врёт
-- **Lab:** свой cosine search по 50 чанкам.
-- **Practice:** найти ложноположительные соседи и объяснить.
-- **Artifact:** mini semantic-search CLI.
+  1. Вектор фиксированной длины
+  2. Три меры близости
+  3. Перебор ближайших
+  4. Ложные соседи
+  5. Точный ключ остаётся в SQL
+- **Lab:** поиск по 50 чанкам и один ложный сосед.
+- **Practice:** три удачных попадания и два ложных с цитатой механизма.
+- **Artifact:** CLI семантического поиска и отчёт.
+- **Decision card:** SQL и полнотекст или вектор.
 
 ### Week 14. PostgreSQL + pgvector
 
 - **Slug:** `pgvector`
-- **Goal:** хранить векторы рядом с реляционными данными.
+- **Goal:** хранить вектор рядом с tenant_id и понимать, что ANN приближает ответ.
 - **Hours:** 10
 - **Lessons:**
-  1. vector types, indexes (IVFFlat/HNSW на концепте)
-  2. metadata filtering
-  3. SQL vs full-text vs vector
-  4. Производительность и размер индекса
-- **Lab:** таблица documents + embedding, k-NN запрос.
-- **Practice:** гибридный фильтр metadata + similarity.
-- **Artifact:** миграция pgvector + бенчмарк на 1k строк.
-- **Decision card:** SQL vs FTS vs vector; pgvector vs dedicated DB.
+  1. Колонка vector и оператор
+  2. Чужой тенант не попадает в контекст
+  3. Сначала точный план
+  4. HNSW и IVFFlat
+  5. Второй движок по замеру
+- **Lab:** k-NN с фильтром tenant_id.
+- **Practice:** замер на 1000 строк против точного плана.
+- **Artifact:** миграция, фильтр и замер.
+- **Decision card:** pgvector или отдельный движок.
 
 ### Week 15. RAG
 
 - **Slug:** `rag`
-- **Goal:** собрать полный пайплайн RAG самостоятельно.
+- **Goal:** собрать путь от файла до ответа с цитатой или отказом.
 - **Hours:** 12
 - **Lessons:**
-  1. Parse, clean, chunk
-  2. Embed + store
-  3. Retrieve + context window
-  4. Answer with citations
-- **Lab:** 5 документов → ответ со ссылками на chunk id.
-- **Practice:** вопрос вне корпуса должен отказываться, а не выдумывать.
-- **Artifact:** RAG service v1.
-- **Decision card:** RAG vs long context.
+  1. Пять стадий
+  2. Окно нарезки
+  3. Контекст из выборки
+  4. Цитата из списка id
+  5. Пустая опора
+- **Lab:** пять файлов, вопрос внутри корпуса и вопрос снаружи.
+- **Practice:** POST /ask с citations и abstain.
+- **Artifact:** сервис вопросов v1.
+- **Decision card:** весь документ в окно или RAG.
 
 ### Week 16. Advanced RAG
 
 - **Slug:** `advanced-rag`
-- **Goal:** поднять качество retrieval и измерить его.
+- **Goal:** измерить hit-rate и добавить один приём, только если число выросло.
 - **Hours:** 12
 - **Lessons:**
-  1. Hybrid search, query rewriting, multi-query
-  2. Reranking, contextual retrieval
-  3. Retrieval eval vs answer eval
-  4. Снижение галлюцинаций
-- **Lab:** golden set из 20 вопросов, hit-rate@5.
-- **Practice:** один плохой документ не должен отравлять ответы.
-- **Artifact:** **AI Knowledge Platform** (Docker + README + eval).
+  1. Золотые вопросы
+  2. Перефраз запроса
+  3. Полнотекст рядом с вектором
+  4. Перестановка кандидатов
+  5. Платформа знаний
+- **Lab:** hit-rate@5 до и после одного приёма на 20 вопросах.
+- **Practice:** черновик и чужой tenant не попадают в выдачу.
+- **Artifact:** **AI Knowledge Platform** (compose, eval, README).
+- **Decision card:** наивная выборка или ещё один этап.
 
 ---
 
