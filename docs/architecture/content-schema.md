@@ -37,6 +37,29 @@ weekComplete = all of the above are done
 
 Artifact is mandatory. Checking lessons only cannot yield 100%.
 
+## Optional quality contract
+
+These `Week` fields are optional. A week that omits them still typechecks and still loads. Do not add them as required fields.
+
+- `learningObjectives?: string[]`
+- `experiments?: ExperimentSpec[]`
+- `failureModes?: FailureMode[]`
+- `metrics?: MetricSpec[]`
+- `artifactRubric?: ArtifactRubric`
+- `sources?: CourseSource[]`
+- `contentVersion?: string`
+- `lastReviewedAt?: string`
+- `securityNotes?: string[]`
+- `privacyNotes?: string[]`
+- `costNotes?: string[]`
+- `productionNotes?: string[]`
+
+When `artifactRubric` is present, its `criteria` weights are positive numbers and should sum to 100.
+
+`sources` use `CourseSource`: `title`, `url`, `kind` (`official-docs`, `paper`, or `reference`), and `checkedAt`.
+
+Weeks are still registered in the `weeks` array in `course/index.ts`.
+
 ## Adding a week
 
 1. Add metadata in `course/curriculum.ts` if new.
