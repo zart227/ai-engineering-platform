@@ -333,16 +333,19 @@
 ### Week 19. Agent SDKs & Frameworks
 
 - **Slug:** `agent-frameworks`
-- **Goal:** понять, что фреймворк делает за вас, и когда он не нужен.
+- **Goal:** назвать, что SDK забирает у своего цикла, и не снимать лимит шагов.
 - **Hours:** 10
+- **As-of:** 2026-09-21, страницы OpenAI Agents JS и AI SDK ToolLoopAgent.
 - **Lessons:**
-  1. Сравнение подходов (SDK vs graph vs workflow-with-LLM)
-  2. Agent, Runner, Tools, Sessions, Handoffs
-  3. Guardrails, tracing, MCP adapters, HITL
-  4. Портирование своего цикла на один SDK
-- **Lab:** тот же Personal Agent на одном актуальном SDK.
-- **Practice:** таблица «сделали сами / получил от SDK».
-- **Artifact:** comparison note + working port.
+  1. Три полки
+  2. Что раннер уже написал
+  3. Лимит не отдают молча
+  4. Таблица переноса
+  5. Маленький цикл остаётся своим
+- **Lab:** один сценарий notes.search и таблица из четырёх строк.
+- **Practice:** записка с решением взять SDK или оставить свой цикл.
+- **Artifact:** COMPARE.md и тест, что лимит шагов включён.
+- **Decision card:** свой цикл или SDK.
 
 ---
 
