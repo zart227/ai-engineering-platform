@@ -49,7 +49,7 @@ docker compose up -d
 
 Откройте http://127.0.0.1:43127
 
-Миграции выполняются при старте контейнера (`prisma migrate deploy`). Seed не создаёт фейковый прогресс.
+Образ собирается с `DOCKER_BUILD=1`, чтобы Next.js отдал `output: "standalone"`. Локальный `npm start` работает без standalone.
 
 ## Локальная разработка без Compose
 

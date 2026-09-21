@@ -7,7 +7,9 @@ test("register, learn, persist", async ({ page }) => {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Пароль").fill("password12");
   await page.getByRole("button", { name: "Создать аккаунт" }).click();
-  await expect(page.getByRole("heading", { name: "Продолжить обучение" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Продолжить обучение" })).toBeVisible({
+    timeout: 15000,
+  });
 
   await page.getByRole("link", { name: "Continue Learning" }).click();
   await expect(

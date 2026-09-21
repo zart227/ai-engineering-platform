@@ -49,7 +49,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         {state && !state.ok ? (
           <p className="text-sm text-destructive">{state.error}</p>
         ) : null}
-        <Button type="submit" disabled={pending} className="w-full">
+        <Button type="submit" nativeButton disabled={pending} className="w-full">
           {pending ? "Секунду…" : mode === "login" ? "Войти" : "Создать аккаунт"}
         </Button>
       </form>
