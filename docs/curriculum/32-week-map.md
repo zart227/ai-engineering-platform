@@ -188,31 +188,34 @@
 ### Week 11. Tool Calling
 
 - **Slug:** `tool-calling`
-- **Goal:** модель выбирает инструмент, код его исполняет, схема валидируется.
+- **Goal:** принять имя инструмента и аргументы, проверить схемой и правами и только потом выполнить.
 - **Hours:** 12
 - **Lessons:**
-  1. Tool schema, JSON Schema, permissions
-  2. Execution, results, errors, retries
-  3. Parallel tools и побочные эффекты
-  4. Least privilege для инструментов
-- **Lab:** 3 tools: search, calculator, notes. Логировать каждый вызов.
-- **Practice:** отказать в опасном tool без исключения из схемы.
-- **Artifact:** tool runtime + audit log.
+  1. Предложение, не исполнение
+  2. Схема аргументов
+  3. Результат, ошибка, повтор
+  4. Несколько вызовов сразу
+  5. Allowlist и журнал
+- **Lab:** search, calculator, notes.write и журнал каждого вызова.
+- **Practice:** отказ в delete до switch, идемпотентный notes.write.
+- **Artifact:** tool runtime, allowlist и audit log.
+- **Decision card:** чтение параллельно или всё по очереди.
 
 ### Week 12. Agent Loop from Scratch
 
 - **Slug:** `agent-loop`
-- **Goal:** написать цикл агента без фреймворка.
+- **Goal:** собрать цикл цель, модель, инструмент, наблюдение и состояние без фреймворка.
 - **Hours:** 12
 - **Lessons:**
-  1. Goal → LLM → Decision → Tool → Observation → State → Next
-  2. Stopping conditions, budgets, infinite loops
-  3. State, trace, tool failures
-  4. Когда агент хуже workflow
-- **Lab:** Personal AI Agent: файлы/заметки/поиск, max 8 шагов.
-- **Practice:** сломать агента циклом и починить бюджет.
-- **Artifact:** **Personal AI Agent** + trace viewer (текст).
-- **Decision card:** workflow vs agent.
+  1. Один цикл на экране
+  2. Почему цикл обязан умереть
+  3. Состояние и trace
+  4. Инструмент сломался
+  5. Personal AI Agent
+- **Lab:** цикл с потолком 8 шагов и фиктивным decide.
+- **Practice:** сломать цикл повтором и не писать «записано» без notes.write ok.
+- **Artifact:** **Personal AI Agent** и текстовый trace с причиной выхода.
+- **Decision card:** один вызов или цикл.
 
 ---
 
