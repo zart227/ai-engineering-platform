@@ -37,4 +37,16 @@ describe("curriculum", () => {
     const slugs = weeks.map((week) => week.slug);
     assert.equal(new Set(slugs).size, slugs.length);
   });
+
+  it("ships module 2 as full weeks", () => {
+    for (const slug of ["professional-ai-coding", "ai-debug-test-review"]) {
+      const week = weeks.find((item) => item.slug === slug);
+      assert.ok(week);
+      assert.equal(week.status, "ready");
+      assert.ok(week.lessons.length >= 5);
+      assert.ok(week.prompts.length >= 2);
+      assert.equal(week.decisionCards.length, 1);
+      assert.ok(week.recall.length >= 2);
+    }
+  });
 });
