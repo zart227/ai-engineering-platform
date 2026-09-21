@@ -15,6 +15,7 @@ const links = [
   { href: "/projects", label: "Проекты" },
   { href: "/notes", label: "Заметки" },
   { href: "/glossary", label: "Справочник" },
+  { href: "/bookmarks", label: "Закладки" },
   { href: "/search", label: "Поиск" },
   { href: "/settings", label: "Настройки" },
 ];

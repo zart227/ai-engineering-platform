@@ -41,9 +41,10 @@ export function ProjectForm({
   return (
     <div className="mt-8 space-y-6">
       {fields.map(([key, label]) => (
-        <label key={key} className="block text-sm">
+        <label key={key} className="block text-sm" htmlFor={`project-${key}`}>
           {label}
           <Input
+            id={`project-${key}`}
             className="mt-1"
             defaultValue={value(key)}
             onBlur={(event) => {

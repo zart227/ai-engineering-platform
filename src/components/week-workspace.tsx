@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BookmarkButton } from "@/components/bookmark-button";
 import { ContentBlocks, PromptCard } from "@/components/content-blocks";
 import { DecisionCardView } from "@/components/decision-card";
 import { SaveField } from "@/components/save-field";
@@ -154,6 +155,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
               <Theory
                 week={week}
                 completed={state.completedLessons}
+                bookmarks={state.bookmarks}
                 onToggle={(id, value) => {
                   startTransition(async () => {
                     await toggleLessonAction(id, week.slug, value);
@@ -210,6 +212,15 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
                 <p className="font-heading text-2xl tracking-tight">Промпты</p>
                 {week.prompts.map((prompt) => (
                   <div key={prompt.id} className="space-y-2">
+                    <div className="flex justify-end">
+                      <BookmarkButton
+                        targetType="prompt"
+                        targetId={prompt.id}
+                        title={prompt.title}
+                        href={`/week/${week.slug}`}
+                        initial={state.bookmarks.includes(prompt.id)}
+                      />
+                    </div>
                     <PromptCard title={prompt.title} when={prompt.when} text={prompt.text} />
                     <p className="text-sm leading-6 text-muted-foreground">{prompt.explanation}</p>
                     <p className="text-xs text-muted-foreground">Ограничения: {prompt.limitations}</p>
@@ -263,7 +274,16 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
           {week.decisionCards.length > 0 && tab === "overview" ? (
             <div className="mt-8 space-y-4">
               {week.decisionCards.map((card) => (
-                <DecisionCardView key={card.id} card={card} />
+                <div key={card.id} className="space-y-2">
+                  <DecisionCardView card={card} />
+                  <BookmarkButton
+                    targetType="decision"
+                    targetId={card.id}
+                    title={card.title}
+                    href={`/week/${week.slug}`}
+                    initial={state.bookmarks.includes(card.id)}
+                  />
+                </div>
               ))}
             </div>
           ) : null}
@@ -321,10 +341,12 @@ function Meta({ title, items }: { title: string; items: string[] }) {
 function Theory({
   week,
   completed,
+  bookmarks,
   onToggle,
 }: {
   week: Week;
   completed: string[];
+  bookmarks: string[];
   onToggle: (id: string, value: boolean) => void;
 }) {
   return (
@@ -334,7 +356,16 @@ function Theory({
         <article key={lesson.id} className="rounded-3xl border border-border bg-card p-5 sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h2 className="font-heading text-2xl tracking-tight">{lesson.title}</h2>
-            <Badge variant="outline">{lesson.minutes} мин</Badge>
+            <div className="flex items-center gap-2">
+              <BookmarkButton
+                targetType="lesson"
+                targetId={lesson.id}
+                title={lesson.title}
+                href={`/week/${week.slug}`}
+                initial={bookmarks.includes(lesson.id)}
+              />
+              <Badge variant="outline">{lesson.minutes} мин</Badge>
+            </div>
           </div>
           <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
             {lesson.objectives.map((item) => (
