@@ -292,17 +292,18 @@
 ### Week 17. Agent Memory
 
 - **Slug:** `agent-memory`
-- **Goal:** память агента: рабочая, эпизодическая, семантическая, забвение.
+- **Goal:** разделить черновик цикла, журнал эпизодов и короткие факты. Забвение удаляет строку.
 - **Hours:** 12
 - **Lessons:**
-  1. Типы памяти и зачем они
-  2. Summarization vs retrieval
-  3. Forgetting, privacy, relevance
-  4. Local vs persistent
-- **Lab:** добавить persistent memory Personal Agent.
-- **Practice:** сценарий «пользователь попросил забыть».
-- **Artifact:** memory module + политика хранения.
-- **Decision card:** local vs persistent memory.
+  1. Три слоя
+  2. Сжатие и выборка
+  3. Забвение удаляет строку
+  4. Секрет не становится фактом
+  5. Один прогон или база
+- **Lab:** remember и forget, секрет не получает id.
+- **Practice:** политика памяти и тесты visible.
+- **Artifact:** модуль памяти Personal Agent и политика хранения.
+- **Decision card:** память процесса или база.
 
 ---
 

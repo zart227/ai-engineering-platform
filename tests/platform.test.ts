@@ -38,6 +38,16 @@ describe("curriculum", () => {
     assert.equal(new Set(slugs).size, slugs.length);
   });
 
+  it("ships module 6 as full weeks", () => {
+    const week = weeks.find((item) => item.slug === "agent-memory");
+    assert.ok(week);
+    assert.equal(week.status, "ready");
+    assert.ok(week.lessons.length >= 5);
+    assert.ok(week.prompts.length >= 2);
+    assert.equal(week.decisionCards.length, 1);
+    assert.ok(week.recall.length >= 2);
+  });
+
   it("ships module 5 as full weeks", () => {
     for (const slug of ["embeddings", "pgvector", "rag", "advanced-rag"]) {
       const week = weeks.find((item) => item.slug === slug);
