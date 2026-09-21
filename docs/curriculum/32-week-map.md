@@ -312,17 +312,19 @@
 ### Week 18. Model Context Protocol
 
 - **Slug:** `mcp`
-- **Goal:** свой MCP server на TypeScript по актуальной спецификации.
+- **Goal:** сервер заметок по ревизии 2026-07-28, путь не выходит из корня.
 - **Hours:** 12
-- **As-of:** 2026-07-28 spec (stateless core, tools/resources/prompts, Streamable HTTP, elicitation; sampling deprecated).
+- **As-of:** 2026-09-21, спецификация 2026-07-28.
 - **Lessons:**
-  1. Host / client / server, data layer vs transport
-  2. Tools, resources, prompts
-  3. Transports: stdio и Streamable HTTP, authorization
-  4. Security: untrusted tool descriptions, consent, least privilege
-- **Lab:** MCP server: 2 tools, 1 resource, 1 prompt.
-- **Practice:** подключить сервер к IDE agent и снять trace.
-- **Artifact:** репозиторий MCP server + security notes.
+  1. Три роли
+  2. Запрос несёт версию сам
+  3. Три примитива сервера
+  4. stdio и один POST
+  5. Описание инструмента недоверенно
+- **Lab:** discover, tools/list, отказ на путь вне корня.
+- **Practice:** два tool, resource, prompt, тест traversal.
+- **Artifact:** репозиторий MCP-сервера и заметка, чем он отличается от runtime недели 11.
+- **Decision card:** allowlist в процессе или MCP-сервер.
 
 ---
 
