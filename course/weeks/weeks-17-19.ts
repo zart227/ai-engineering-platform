@@ -2,31 +2,6 @@ import { compactWeek, type CompactWeek } from "./compact";
 
 const rest: CompactWeek[] = [
   {
-    id: 17, slug: "agent-memory", moduleId: "m06", title: "Память агента", short: "Memory", track: "engineering", hours: 12,
-    goal: "Добавить persistent memory с типами, забвением и приватностью.",
-    technologies: ["summarization", "retrieval", "Postgres"],
-    why: "Без памяти агент золотая рыбка. С бесконечной памятью он тащит секреты и устаревшее.",
-    prerequisites: ["agent loop", "RAG"], productionUse: ["персональные ассистенты"], previousKnowledge: ["state цикла", "chunk retrieval"],
-    lessons: [
-      { title: "Типы памяти", minutes: 16, objectives: ["working / episodic / semantic"], paragraphs: ["Working: текущий scratchpad цикла. Episodic: что случилось в сессии. Semantic: факты о пользователе и мире. Conversation buffer это ещё не архитектура: это лог.", "Summarization сжимает эпизоды. Retrieval достаёт семантику. Смешивать в одну строку «память» нельзя: иначе нельзя забыть точечно."] },
-      { title: "Забвение и приватность", minutes: 16, objectives: ["Право быть забытым", "TTL"], paragraphs: ["Пользователь сказал «забудь мой адрес». Это команда к вашей БД, не к промпту «пожалуйста не вспоминай». TTL, ручное удаление, запрет класть секреты в semantic store.", "Relevance: не тащить год назад «любит синий» в задачу про инвойс."] },
-      { title: "Local vs persistent", minutes: 12, objectives: ["Decision card"], paragraphs: ["Local хватает CLI. Persistent нужен, когда сессии разные. Платформа курса пока хранит заметки студента в Postgres: это ваша память обучения, не память агента. Агенту память добавите в его репозитории."] },
-    ],
-    lab: { title: "Memory module", goal: "Personal agent читает/пишет факты с TTL.", setup: ["агент недели 12", "таблица memories"], steps: [{ title: "Write", body: "tool remember({fact, ttlDays}).", expected: "Строка в БД." }, { title: "Forget", body: "tool forget({query}) удаляет.", expected: "Следующий диалог не использует факт." }], reflection: ["Куда бы вы не клали пароли даже с TTL?"] },
-    practice: { title: "Политика памяти", time: "2 часа", context: "Документ + код политики.", requirements: ["что храним", "TTL", "PII", "команда забыть", "тест forget"], constraints: ["Нельзя хранить ключи API"], acceptance: ["forget покрыт тестом"], tests: ["unit policy"], hints: [{ title: "Подсказка 1", text: "Allowlist типов фактов." }, { title: "Подсказка 2", text: "Не эмбеддьте секреты." }, { title: "Подсказка 3", text: "Лог удаления без тела секрета." }], solution: "memories table + policy.ts + tests." },
-    prompt: { title: "Извлечь факты для памяти", purpose: "Не писать сырой чат в semantic store", when: "Конец сессии", placeholders: ["{{dialog}}"], text: `Извлеки факты JSON [{"fact":string,"type":"preference"|"task"|"pii","ttlDays":number}]. PII помечай. Если пароль или ключ, пропусти.\n{{dialog}}`, explanation: "Фильтр до записи.", limitations: "Классификатор PII ошибается. Свои правила выше." },
-    quiz: [
-      { prompt: "«Забудь» только в system prompt:", options: ["Достаточно", "Данные останутся в БД, нужно удаление", "Удаляет GPU", "Чистит Git"], answer: 1, kind: "security" as "scenario", explanation: "Память это storage." },
-      { prompt: "Working memory живёт:", options: ["Годами всегда", "Внутри цикла/сессии", "Только в n8n", "В CDN"], answer: 1, kind: "conceptual", explanation: "Скретчпад." },
-      { prompt: "Эмбеддить API keys для «удобного поиска»:", options: ["Инновация", "Запрещено политикой", "Требование pgvector", "Нужно для HITL"], answer: 1, kind: "scenario", explanation: "Секреты не в semantic index." },
-      { prompt: "Local vs persistent: CLI один прогон:", options: ["Обязательно Postgres", "Хватит памяти процесса/файла", "Только Redis Cluster", "Только MCP"], answer: 1, kind: "architecture", explanation: "Не усложняйте." },
-    ],
-    artifactResult: "Memory module + политика хранения и забвения.",
-    checklist: ["типы памяти", "forget", "TTL", "запрет секретов"],
-    decisionCard: { title: "Local vs persistent memory", optionA: "Local", optionB: "Persistent DB", useA: ["один сеанс", "чувствительные данные не храним"], useB: ["возврат пользователя", "кросс-сессионные факты с политикой"], tradeoffs: "Персистентность это GDPR/утечки.", mistake: "Писать весь чат в вектор навсегда." },
-    recall: [{ fromWeek: "agent-loop", question: "Где state цикла?", answer: "В вашем runtime, не в «голове модели»." }],
-  },
-  {
     id: 18, slug: "mcp", moduleId: "m07", title: "Model Context Protocol", short: "MCP", track: "engineering", hours: 12,
     goal: "Свой MCP server на TypeScript по актуальной спецификации.",
     technologies: ["MCP", "TypeScript SDK", "stdio / Streamable HTTP"],
@@ -78,4 +53,4 @@ const rest: CompactWeek[] = [
   },
 ];
 
-export const weeks17to19 = rest.map(compactWeek);
+export const weeks18to19 = rest.map(compactWeek);
