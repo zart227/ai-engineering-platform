@@ -16,8 +16,8 @@ const heading = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: {
-    default: "Цикл. Курс по ИИ в продуктовом процессе",
-    template: "%s · Цикл",
+    default: "AI Engineering Platform",
+    template: "%s · AI Engineering Platform",
   },
   description:
     "Самостоятельный курс на 6 недель: как встроить ИИ в работу от проблемы до аналитики. Теория, практика и промпты.",

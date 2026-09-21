@@ -33,9 +33,9 @@ Later he asked to put the app in its own folder, then to rename the folder becau
 
 ## What the course is
 
-Public name in the UI: **Цикл**.  
-Tagline: как встроить ИИ в работу, от проблемы до данных.  
-Folder on disk: `ai-product-process/`.
+Public name in the UI: **AI Engineering Platform**.  
+Course inside it is still the 6-week process «Цикл».  
+Repo: `artur-zainullin/ai-engineering-platform`. App lives at the repo root (`course/` + `src/`).
 
 One week = one stage of a product process. The student does everything on **one personal project** (work pain, internal tool, or a small service). Each week ends with an artifact. Progress and notes live in `localStorage` key `cycle-course-v1`. Nothing is sent to a server. No auth, no database.
 
@@ -66,27 +66,27 @@ Content is written so a **developer on Cursor** can take it (Artur’s case), no
 
 ```
 /
-  README.md                 # points to the app folder
-  HANDOFF.md                # this file
-  ai-product-process/       # the project
-    course/                 # weeks, lessons, exercises, prompts
-    src/                    # Next.js app
-    package.json
-    src/app/                # /, /week/[slug], /project
-    src/lib/progress.ts
-    src/lib/progress-store.ts
-    src/components/         # week-view, save-fields, progress-provider, …
-    src/components/ui/      # shadcn (Base UI). Tabs/checkbox from shadcn are unused in week UI
+  README.md
+  HANDOFF.md
+  course/                 # weeks, lessons, exercises, prompts
+  src/                    # Next.js app
+  package.json            # name: ai-engineering-platform
+  src/app/                # /, /week/[slug], /project
+  src/lib/progress.ts
+  src/lib/progress-store.ts
+  src/components/         # week-view, save-fields, progress-provider, …
+  src/components/ui/
+  scripts/
 ```
 
-Do not put the app back at repo root. Do not rename the folder to a generic `course` again.
+Do not nest the app in `ai-product-process/` again. The repo name is the app name.
 
 ### Important files
 
-- Course data: `ai-product-process/course/week1.ts` … `week6.ts`
-- Week UI: `ai-product-process/src/components/week-view.tsx` (`WeekView` + `WeekPanels`)
-- Checkboxes / notes: `ai-product-process/src/components/save-fields.tsx` (`DoneRow` is a plain `<button>`, not shadcn Checkbox)
-- Progress: `ai-product-process/src/lib/progress-store.ts` + `useSyncExternalStore` in `progress-provider.tsx`
+- Course data: `course/week1.ts` … `week6.ts`
+- Week UI: `src/components/week-view.tsx` (`WeekView` + `WeekPanels`)
+- Checkboxes / notes: `src/components/save-fields.tsx` (`DoneRow` is a plain `<button>`, not shadcn Checkbox)
+- Progress: `src/lib/progress-store.ts` + `useSyncExternalStore` in `progress-provider.tsx`
 - Routes: `src/app/page.tsx`, `src/app/week/[slug]/page.tsx`, `src/app/project/page.tsx`
 
 Routes:
@@ -102,7 +102,6 @@ Tabs on a week page: Теория, Практика, Промпты, Артеф�
 Next.js 16.3.5 App Router, React 19, TypeScript, Tailwind 4, shadcn (Base UI primitives). Port **43127** (not 3000). `npm start` binds `0.0.0.0`.
 
 ```bash
-cd ai-product-process
 npm install
 npm run build
 npm start
@@ -116,7 +115,7 @@ Dev: `npm run dev` (same port). See the bug below before relying on `next dev` i
 
 2. **`next dev` in this cloud VM often does not hydrate.** HMR websocket `ws://127.0.0.1:43127/_next/hmr` fails (`ERR_INVALID_HTTP_RESPONSE`). Result: SSR HTML looks fine, links work, React `onClick` does not. Symptom: tab underline might look focused but `aria-selected` and `data-panel` never change. **Preview/verify with `npm run build && npm start`**, not `next dev`. Confirmed working in production: tabs switch, prompts copy, artifact checklist, “прочитал” checkbox, header progress %.
 
-3. Folder was `course/`, user said the name does not describe the course. Now `ai-product-process/`.
+3. Inner folder was `ai-product-process/`. Repo is now `ai-engineering-platform` and the Next.js app lives at the repo root.
 
 ## What another AI should / should not do
 
@@ -139,4 +138,4 @@ Should not:
 
 ## Current runtime expectation
 
-App is served from `ai-product-process` on `http://127.0.0.1:43127`. Branch: `main`.
+App is served from the repo root on `http://127.0.0.1:43127`. Branch: `main`.

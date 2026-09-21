@@ -17,7 +17,7 @@ export function weekHref(week: Week) {
 }
 
 export const courseMeta = {
-  title: "Цикл",
+  title: "AI Engineering Platform",
   tagline: "Как встроить ИИ в работу: от проблемы до данных",
   length: "6 недель",
   about:
