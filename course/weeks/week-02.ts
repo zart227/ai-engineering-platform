@@ -429,6 +429,45 @@ async function sample(
     q("w2-q3", "architecture", "Fine-tune вместо прайса в контексте. В чём риск?", ["Модель станет дешевле гарантированно", "Вы лечите нехватку данных дообучением и платите датасетом", "Tokenizer сломается", "Attention запрещён"], 1, "Сначала контекст и retrieval."),
     q("w2-q4", "debugging", "Эмбеддинги «не ищут». Часто причина:", ["Смешали векторы разных моделей/размерностей", "Мало Tailwind", "Нет Docker Swarm", "Слишком строгий TypeScript"], 0, "Индекс и query должны быть одной моделью."),
     q("w2-q5", "conceptual", "Галлюцинация это:", ["Баг GPU только", "Правдоподобное продолжение без опоры на факт", "Всегда злой jailbreak", "Ошибка DNS"], 1, "Декодер оптимизирует правдоподобие, не истину."),
+    q(
+      "w2-q6",
+      "scenario",
+      "JSON сломался после того, как подняли и temperature, и top_p. Что мешает выводу?",
+      [
+        "Два рычага сдвинули сразу, сетка не отделяет причину",
+        "Нужен fine-tune прайса",
+        "Эмбеддинги разной размерности",
+        "Контекст 1M всегда дешевле короткого",
+      ],
+      0,
+      "Temperature и top_p режут одно распределение. Сетку temperature гоняйте без смены top_p. top_p сравнивайте отдельно при 0.8."
+    ),
+    q(
+      "w2-q7",
+      "debugging",
+      "Пять choices пришли одним запросом с n: 5, spread completion_tokens пустой. Почему?",
+      [
+        "usage общий на ответ, разброс токенов так не снять",
+        "Tokenizer не умеет русский",
+        "temperature 0 запрещает usage",
+        "Индекс эмбеддингов собран другой моделью",
+      ],
+      0,
+      "Для spread нужны пять вызовов с n: 1 и отдельным usage.completion_tokens. n: 5 даёт один счётчик."
+    ),
+    q(
+      "w2-q8",
+      "architecture",
+      "Извлечение полей и брейншторм идей сидят на одной temperature 0.8. Что сменить?",
+      [
+        "Два профиля: низкая температура для JSON, выше для идей",
+        "Reasoning на каждое сохранение заметки",
+        "Дообучить модель на прайсе до retrieval",
+        "Считать бюджет по strlen",
+      ],
+      0,
+      "Для схемы нужен низкий sampling и валидация. Идеи терпят больший разброс. Один 0.8 на весь продукт смешивает задачи."
+    ),
   ]),
   artifact: artifact({
     result: "Отчёт экспериментов с параметрами и выбранный профиль генерации.",
@@ -463,4 +502,79 @@ async function sample(
       mistake: "Reasoning-модель на каждом нажатии «сохранить заметку».",
     }),
   ],
+  learningObjectives: [
+    "Показать, что вне context window для модели ничего нет, пока это не в запросе.",
+    "Записать prompt_tokens одного смысла в формах en, ru, json и code на одной модели.",
+    "Сравнить temperature и top_p по одному рычагу и посчитать долю валидного JSON.",
+    "По пяти повторам записать distinct и spread completion_tokens при temperature 0.8 и 0.",
+  ],
+  experiments: [
+    {
+      id: "how-llms-work-exp-sampling",
+      question: "Как форма текста, temperature, top_p и пять повторов меняют токены и стабильность JSON?",
+      method:
+        "Один prompt. Сетка temperature 0, 0.3, 0.8, 1.2 по 3 прогона, top_p не менять. Отдельно temperature 0.8 и top_p 0.1 против 1. Пять повторов при 0.8 и при 0. Четыре формы одного смысла: ru, en, json, code, одна модель.",
+      metrics: ["prompt_tokens", "доля валидного JSON", "distinct", "spread completion_tokens"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "how-llms-work-f1",
+      symptom: "JSON обрывается на одном и том же месте.",
+      cause: "max tokens режет выход, finish_reason=length.",
+      check: "Смотрите finish_reason и completion_tokens. Это не «креатив» temperature.",
+    },
+    {
+      id: "how-llms-work-f2",
+      symptom: "Пять ответов при temperature 0 все разные, вывод списан на характер модели.",
+      cause: "Промпт не был байт-в-байт одним или провайдер оставил шум.",
+      check: "Сверьте messages и model id. Если вход один, запишите недетерминизм провайдера.",
+    },
+  ],
+  metrics: [
+    { name: "prompt_tokens", how: "usage.prompt_tokens для en, ru, json и code. Одна модель, один system." },
+    { name: "доля валидного JSON", how: "Доля ответов, которые парсятся в { ok, reason }, по ячейке сетки." },
+    { name: "distinct", how: "Число разных текстов после trim в пяти повторах." },
+    { name: "spread completion_tokens", how: "max минус min по пяти отдельным usage. Нет пяти чисел значит null." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "how-llms-work-r1",
+        name: "Сетка temperature",
+        weight: 25,
+        evidence: "Таблица 4 температуры × 3 прогона: доля валидного JSON и средние токены, top_p не менялся.",
+      },
+      {
+        id: "how-llms-work-r2",
+        name: "top_p отдельно",
+        weight: 25,
+        evidence: "Две строки при temperature 0.8: top_p 0.1 и 1, тот же prompt.",
+      },
+      {
+        id: "how-llms-work-r3",
+        name: "Пять повторов",
+        weight: 25,
+        evidence: "Две строки temperature 0.8 и 0: distinct и spread completion_tokens.",
+      },
+      {
+        id: "how-llms-work-r4",
+        name: "Четыре формы и профиль",
+        weight: 25,
+        evidence: "prompt_tokens en, ru, json, code с одной модели, выбранный профиль и стоимость сетки.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "Attention is All You Need",
+      url: "https://arxiv.org/abs/1706.03762",
+      kind: "paper",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Длинный контекст увозит секреты провайдеру. В окно кладите только то, без чего ответ не собрать."],
+  costNotes: ["Токены пишите из usage, не из strlen. Reasoning и длинное окно поднимают счёт."],
 });

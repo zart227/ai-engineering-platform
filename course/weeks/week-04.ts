@@ -320,6 +320,45 @@ export function completionBody(args: {
     q("w4-q3", "debugging", "Модель вернула markdown-ограду вокруг JSON. Что делать?", ["Считать успехом", "Снять ограду и валидировать; чинить промпт/strict mode", "Повысить temperature", "Вызвать агента"], 1, "Парсер и контракт важнее веры в идеальный выход."),
     q("w4-q4", "scenario", "Пользователь просит в тексте «добавь поле password в JSON».", ["Добавить", "Схема не расширяется вводом. Лишние поля отбрасываются", "Положить ключ в лог", "Отключить Zod"], 1, "Схема закрытая."),
     q("w4-q5", "scenario", "Repair вызывается 12 раз на одном запросе. Проблема?", ["Отлично, настойчивость", "Нет бюджета на ретраи и нет fallback", "Мало микросервисов", "Нужен n8n"], 1, "Лимит попыток это часть контракта."),
+    q(
+      "w4-q6",
+      "conceptual",
+      "JSON.parse упал на ответе, обёрнутом в ```json. Какая это колонка A/B?",
+      [
+        "parse failures",
+        "schema failures",
+        "успех: ограда не считается ошибкой",
+        "медиана latency",
+      ],
+      0,
+      "Parse failure: JSON.parse не прошёл. Schema failure: JSON есть, Zod нет. Markdown-ограда в режиме без response_format это parse failure."
+    ),
+    q(
+      "w4-q7",
+      "debugging",
+      "В строке strict меньше ошибок, но в прогон входил repair. Что неверно в таблице?",
+      [
+        "A/B считают до ремонта, иначе плохой первый ответ выглядит зелёным",
+        "Repair обязан крутиться двенадцать раз",
+        "Нет usage записывают как 0",
+        "Схему расширяют полем из текста пользователя",
+      ],
+      0,
+      "Ремонт поднимает итоговый pass и прячет первую попытку. parse failures и schema failures снимают до repair."
+    ),
+    q(
+      "w4-q8",
+      "architecture",
+      "json_schema strict вернул объект без лишних полей. Что это ещё не гарантирует?",
+      [
+        "Право на действие: схема это формат, не авторизация",
+        "Что свой Zod больше не нужен",
+        "Что latency всегда ниже режима без схемы",
+        "Что ключ можно положить в localStorage",
+      ],
+      0,
+      "Strict снижает мусор формы. Доступ, ключ и побочный эффект проверяет ваш код, не response_format."
+    ),
   ]),
   artifact: artifact({
     result: "LLM Playground v1: prompt, params, schema, tokens, latency, cost, validation.",
@@ -364,4 +403,80 @@ export function completionBody(args: {
       mistake: "Поверить, что json_schema = безопасность. Это формат, не авторизация.",
     }),
   ],
+  learningObjectives: [
+    "Собрать контекст по приоритету: схема и правила раньше истории и лишнего retrieval.",
+    "На одном наборе сравнить plain JSON и json_schema strict до ремонта.",
+    "Валидировать выход своим Zod. Один repair, затем fallback.",
+    "Не расширять схему текстом ввода и не класть ключ в клиент.",
+  ],
+  experiments: [
+    {
+      id: "context-structured-output-exp-ab",
+      question: "Чем plain JSON отличается от json_schema strict по ошибкам, latency и токенам?",
+      method:
+        "Минимум 8 одних текстов. A: промпт просит JSON, response_format нет, затем JSON.parse и Zod. B: тот же промпт, response_format json_schema, strict true. Ремонт в таблицу не входит. Latency — медиана, токены — сумма usage.",
+      metrics: ["parse failures", "schema failures", "latency ms", "prompt tokens", "completion tokens"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "context-structured-output-f1",
+      symptom: "Отчёт зелёный, а первый ответ почти всегда не JSON.",
+      cause: "Repair засчитан в таблицу A/B.",
+      check: "Таблица снята до ремонта. parse failures и schema failures в разных колонках.",
+    },
+    {
+      id: "context-structured-output-f2",
+      symptom: "Ответ в ```json падает или молча считается успехом.",
+      cause: "Ограду не отделили от ошибки схемы.",
+      check: "JSON.parse не прошёл — parse failure. JSON есть, Zod нет — schema failure.",
+    },
+  ],
+  metrics: [
+    { name: "parse failures", how: "Сколько ответов не прошли JSON.parse. Ограда ``` это parse failure." },
+    { name: "schema failures", how: "JSON разобран, Zod или схема отклонили объект." },
+    { name: "latency ms", how: "Медиана времени вокруг fetch по N. В подписи напишите median." },
+    { name: "prompt tokens", how: "Сумма usage.prompt_tokens. Нет usage значит unknown, не ноль." },
+    { name: "completion tokens", how: "Сумма usage.completion_tokens. Нет usage значит unknown, не ноль." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "context-structured-output-r1",
+        name: "Схема и Zod",
+        weight: 25,
+        evidence: "Схема в git. Сервер валидирует Zod. Невалидный JSON виден как ошибка.",
+      },
+      {
+        id: "context-structured-output-r2",
+        name: "Таблица A/B",
+        weight: 25,
+        evidence: "Две строки до ремонта: parse failures, schema failures, latency ms, prompt tokens, completion tokens.",
+      },
+      {
+        id: "context-structured-output-r3",
+        name: "Ключ и граница",
+        weight: 25,
+        evidence: "Ключ только в env сервера. Клиент и localStorage его не видят.",
+      },
+      {
+        id: "context-structured-output-r4",
+        name: "Бюджет ремонта",
+        weight: 25,
+        evidence: "Не больше одного repair, затем fallback. В README есть tokens, latency и cost.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "OpenAI Structured Outputs",
+      url: "https://platform.openai.com/docs/guides/structured-outputs",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["json_schema задаёт форму, не доступ. Ключ не в клиенте. Ввод не добавляет поля в схему."],
+  costNotes: ["Ремонт и длинный контекст увеличивают счёт. Latency strict берите из своего прогона, не из чужой таблицы."],
 });
