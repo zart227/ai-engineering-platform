@@ -1,0 +1,35 @@
+import { expect, test } from "@playwright/test";
+
+test("register, learn, persist", async ({ page }) => {
+  const email = `tester-${Date.now()}@example.com`;
+  await page.goto("/register");
+  await page.getByLabel("Имя").fill("Тестер");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Пароль").fill("password12");
+  await page.getByRole("button", { name: "Создать аккаунт" }).click();
+  await expect(page.getByText("Продолжить обучение")).toBeVisible();
+  await page.getByRole("link", { name: "Continue Learning" }).click();
+  await expect(page.getByText("Неделя 1")).toBeVisible();
+  await page.getByRole("tab", { name: "Теория" }).click();
+  await expect(page.getByText("Архитектура AI-приложения")).toBeVisible();
+  await page.getByRole("button", { name: "Отметить, что прочитал" }).first().click();
+  await page.getByRole("tab", { name: "Лаборатория" }).click();
+  await page.getByPlaceholder("Заметки лаборатории").fill("Лаба в процессе");
+  await expect(page.getByText("Saved")).toBeVisible({ timeout: 5000 });
+  await page.getByRole("button", { name: "Лаборатория сделана" }).click();
+  await page.getByRole("tab", { name: "Практика" }).click();
+  await page.getByPlaceholder("Черновик, выводы, ссылки").fill("Сделаю клиент");
+  await page.getByRole("button", { name: "Hint 1" }).click();
+  await page.getByRole("tab", { name: "Квиз" }).click();
+  await page.getByRole("tab", { name: "Артефакт" }).click();
+  await page.getByPlaceholder("Ссылки, формулировки, чеклист текстом").fill("repo later");
+  await page.getByRole("button", { name: /Артефакт готов/ }).click();
+  await page.getByRole("button", { name: "Выйти" }).click();
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Пароль").fill("password12");
+  await page.getByRole("button", { name: "Войти" }).click();
+  await expect(page.getByText("Продолжить обучение")).toBeVisible();
+  await page.goto("/week/environment-llm-api");
+  await expect(page.getByText("Неделя 1")).toBeVisible();
+});

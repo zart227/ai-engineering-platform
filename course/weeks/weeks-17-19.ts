@@ -1,0 +1,81 @@
+import { compactWeek, type CompactWeek } from "./compact";
+
+const rest: CompactWeek[] = [
+  {
+    id: 17, slug: "agent-memory", moduleId: "m06", title: "Память агента", short: "Memory", track: "engineering", hours: 12,
+    goal: "Добавить persistent memory с типами, забвением и приватностью.",
+    technologies: ["summarization", "retrieval", "Postgres"],
+    why: "Без памяти агент золотая рыбка. С бесконечной памятью он тащит секреты и устаревшее.",
+    prerequisites: ["agent loop", "RAG"], productionUse: ["персональные ассистенты"], previousKnowledge: ["state цикла", "chunk retrieval"],
+    lessons: [
+      { title: "Типы памяти", minutes: 16, objectives: ["working / episodic / semantic"], paragraphs: ["Working: текущий scratchpad цикла. Episodic: что случилось в сессии. Semantic: факты о пользователе и мире. Conversation buffer это ещё не архитектура: это лог.", "Summarization сжимает эпизоды. Retrieval достаёт семантику. Смешивать в одну строку «память» нельзя: иначе нельзя забыть точечно."] },
+      { title: "Забвение и приватность", minutes: 16, objectives: ["Право быть забытым", "TTL"], paragraphs: ["Пользователь сказал «забудь мой адрес». Это команда к вашей БД, не к промпту «пожалуйста не вспоминай». TTL, ручное удаление, запрет класть секреты в semantic store.", "Relevance: не тащить год назад «любит синий» в задачу про инвойс."] },
+      { title: "Local vs persistent", minutes: 12, objectives: ["Decision card"], paragraphs: ["Local хватает CLI. Persistent нужен, когда сессии разные. Платформа курса пока хранит заметки студента в Postgres: это ваша память обучения, не память агента. Агенту память добавите в его репозитории."] },
+    ],
+    lab: { title: "Memory module", goal: "Personal agent читает/пишет факты с TTL.", setup: ["агент недели 12", "таблица memories"], steps: [{ title: "Write", body: "tool remember({fact, ttlDays}).", expected: "Строка в БД." }, { title: "Forget", body: "tool forget({query}) удаляет.", expected: "Следующий диалог не использует факт." }], reflection: ["Куда бы вы не клали пароли даже с TTL?"] },
+    practice: { title: "Политика памяти", time: "2 часа", context: "Документ + код политики.", requirements: ["что храним", "TTL", "PII", "команда забыть", "тест forget"], constraints: ["Нельзя хранить ключи API"], acceptance: ["forget покрыт тестом"], tests: ["unit policy"], hints: [{ title: "Подсказка 1", text: "Allowlist типов фактов." }, { title: "Подсказка 2", text: "Не эмбеддьте секреты." }, { title: "Подсказка 3", text: "Лог удаления без тела секрета." }], solution: "memories table + policy.ts + tests." },
+    prompt: { title: "Извлечь факты для памяти", purpose: "Не писать сырой чат в semantic store", when: "Конец сессии", placeholders: ["{{dialog}}"], text: `Извлеки факты JSON [{"fact":string,"type":"preference"|"task"|"pii","ttlDays":number}]. PII помечай. Если пароль или ключ, пропусти.\n{{dialog}}`, explanation: "Фильтр до записи.", limitations: "Классификатор PII ошибается. Свои правила выше." },
+    quiz: [
+      { prompt: "«Забудь» только в system prompt:", options: ["Достаточно", "Данные останутся в БД, нужно удаление", "Удаляет GPU", "Чистит Git"], answer: 1, kind: "security" as "scenario", explanation: "Память это storage." },
+      { prompt: "Working memory живёт:", options: ["Годами всегда", "Внутри цикла/сессии", "Только в n8n", "В CDN"], answer: 1, kind: "conceptual", explanation: "Скретчпад." },
+      { prompt: "Эмбеддить API keys для «удобного поиска»:", options: ["Инновация", "Запрещено политикой", "Требование pgvector", "Нужно для HITL"], answer: 1, kind: "scenario", explanation: "Секреты не в semantic index." },
+      { prompt: "Local vs persistent: CLI один прогон:", options: ["Обязательно Postgres", "Хватит памяти процесса/файла", "Только Redis Cluster", "Только MCP"], answer: 1, kind: "architecture", explanation: "Не усложняйте." },
+    ],
+    artifactResult: "Memory module + политика хранения и забвения.",
+    checklist: ["типы памяти", "forget", "TTL", "запрет секретов"],
+    decisionCard: { title: "Local vs persistent memory", optionA: "Local", optionB: "Persistent DB", useA: ["один сеанс", "чувствительные данные не храним"], useB: ["возврат пользователя", "кросс-сессионные факты с политикой"], tradeoffs: "Персистентность это GDPR/утечки.", mistake: "Писать весь чат в вектор навсегда." },
+    recall: [{ fromWeek: "agent-loop", question: "Где state цикла?", answer: "В вашем runtime, не в «голове модели»." }],
+  },
+  {
+    id: 18, slug: "mcp", moduleId: "m07", title: "Model Context Protocol", short: "MCP", track: "engineering", hours: 12,
+    goal: "Свой MCP server на TypeScript по актуальной спецификации.",
+    technologies: ["MCP", "TypeScript SDK", "stdio / Streamable HTTP"],
+    why: "MCP стандартизует, как агент видит tools/resources/prompts. Без spec вы выучите один SDK-миф.",
+    prerequisites: ["tools", "агент"], productionUse: ["IDE agents", "внутренние tool-серверы"], previousKnowledge: ["JSON-RPC как идея", "least privilege"],
+    asOf: "2026-09-21",
+    lessons: [
+      { title: "Архитектура MCP", minutes: 18, objectives: ["Host, client, server", "data vs transport"], paragraphs: ["Актуально на 2026-09-21, спецификация 2026-07-28: https://modelcontextprotocol.io/specification/2026-07-28 . Host это LLM-приложение. Client внутри host. Server даёт tools, resources, prompts.", "Слой данных: JSON-RPC. Транспорт: stdio или Streamable HTTP. Ядро стало stateless: запрос несёт protocolVersion и capabilities в _meta. Discovery: server/discover. Sampling на клиенте deprecated в этой ревизии, elicitation остаётся.", "Не выдумывайте initialize-сессию по старым туториалам 2025 года без сверки."] },
+      { title: "Примитивы и безопасность", minutes: 18, objectives: ["tools/resources/prompts", "consent"], paragraphs: ["Tools это вызовы с побочными эффектами. Resources это данные для контекста. Prompts это шаблоны. Описания tool с чужого сервера недоверенные. Host должен спрашивать согласие на tool.", "HTTP: OAuth/токены, заголовки Mcp-Method и Mcp-Name в Streamable HTTP. Не открывайте filesystem tool без корня-песочницы."] },
+      { title: "Свой сервер", minutes: 14, objectives: ["2 tools, 1 resource, 1 prompt"], paragraphs: ["Официальный TypeScript SDK сверяйте с репозиторием протокола. Учебный сервер: notes.read, notes.write в каталоге-песочнице, resource списка файлов, prompt «суммируй заметку»."] },
+    ],
+    lab: { title: "MCP server", goal: "Сервер поднимается и отвечает на list tools.", setup: ["актуальный SDK, дата в README"], steps: [{ title: "Scaffold", body: "Пакет, два tool, песочница path.", expected: "Inspector или клиент видит tools." }, { title: "Deny path", body: "Запись вне корня запрещена.", expected: "Тест traversal." }], reflection: ["Чем MCP server отличается от вашего tool runtime недели 11?"] },
+    practice: { title: "Подключить к IDE agent", time: "2 часа", context: "Документируйте шаги подключения без привязки к одному вендору навсегда.", requirements: ["README as-of date", "security notes", "пример вызова"], constraints: ["Не требовать секреты в git"], acceptance: ["Чужой поднимает по README"], tests: ["path traversal"], hints: [{ title: "Подсказка 1", text: "Сверьтесь со spec, не с случайным gist." }, { title: "Подсказка 2", text: "stdio для локалки, HTTP для удалённого." }, { title: "Подсказка 3", text: "Логи без содержимого секретных файлов." }], solution: "packages/notes-mcp + README + tests." },
+    prompt: { title: "Ревью MCP server", purpose: "Security pass", when: "Перед публикацией", placeholders: ["{{code}}"], text: `Ищи path traversal, избыточные tools, отсутствие consent, логи секретов, доверие к чужим tool annotations.\n{{code}}`, explanation: "Красная команда по коду сервера.", limitations: "Spec могла обновиться после as-of." },
+    quiz: [
+      { prompt: "MCP server в модели 2026-07-28 обязан помнить session как в 2024?", options: ["Да, initialize обязателен всегда как раньше", "Ядро stateless, версия в _meta запроса", "Сессий нет в HTTP никогда исторически", "MCP отменён"], answer: 1, kind: "conceptual", explanation: "Сверяйте текущую spec." },
+      { prompt: "Tool annotations с чужого сервера:", options: ["Доверенны", "Недоверенны, нужен consent", "Заменяют ACL", "Пишутся в DNS"], answer: 1, kind: "scenario", explanation: "Spec security principles." },
+      { prompt: "Resources vs tools:", options: ["Одно и то же", "Resources данные, tools действия", "Resources всегда пишут БД", "Tools нельзя на TypeScript"], answer: 1, kind: "architecture", explanation: "Разные примитивы." },
+      { prompt: "Filesystem tool без корня:", options: ["Удобно", "Риск чтения .env хоста", "Требование протокола", "Нужно для cosine"], answer: 1, kind: "debugging", explanation: "Песочница." },
+    ],
+    artifactResult: "MCP Server на TypeScript + security notes, as-of дата spec.",
+    checklist: ["tools/resources/prompts", "sandbox path", "as-of spec", "README"],
+    recall: [{ fromWeek: "tool-calling", question: "Почему описания tools пишет инженер?", answer: "Иначе poisoning." }],
+  },
+  {
+    id: 19, slug: "agent-frameworks", moduleId: "m08", title: "Agent SDK и фреймворки", short: "Frameworks", track: "engineering", hours: 10,
+    goal: "Понять, что фреймворк делает за вас, и портировать свой цикл на один SDK.",
+    technologies: ["один актуальный Agent SDK на выбор"],
+    why: "После своего цикла сахар имеет смысл. До него вы не отличите магию от трёх if.",
+    prerequisites: ["неделя 12", "MCP обзор"], productionUse: ["продукты, где не хотите держать свой runner"], previousKnowledge: ["loop", "tools", "HITL как идея"],
+    asOf: "2026-09-21",
+    lessons: [
+      { title: "Карта подходов", minutes: 16, objectives: ["SDK vs graph vs workflow-with-LLM"], paragraphs: ["Класс решений: тонкий Agent SDK (раннер, tools, sessions), графы состояний, workflow-движки с LLM-нодой. Не учите «единственный правильный бренд». Сравните документацию двух актуальных на дату as-of: что с handoff, tracing, guardrails, MCP adapters, HITL.", "Вопрос недели: что фреймворк делает за нас? Если не можете ответить, не берите его в прод."] },
+      { title: "Портирование", minutes: 16, objectives: ["Тот же агент на SDK"], paragraphs: ["Перенесите Personal Agent. Таблица: бюджет шагов, trace, tool errors, memory. Что исчезло в абстракции? Что стало лучше (retries, sessions)?"] },
+      { title: "Когда остаться на своём цикле", minutes: 12, objectives: ["Не внедрять SDK ради резюме"], paragraphs: ["Свой цикл лучше, когда агент маленький и вы хотите прозрачности. SDK лучше, когда команда и фичи (tracing) реально нужны. Как с n8n: инструмент следует задаче."] },
+    ],
+    lab: { title: "Порт на SDK", goal: "Один happy path на фреймворке.", setup: ["выбранный SDK, дата docs в README"], steps: [{ title: "Map", body: "Таблица свой цикл vs SDK.", expected: "Не пустая." }, { title: "Port", body: "Один сценарий notes.search работает.", expected: "Запись запуска." }], reflection: ["Что вы больше не контролируете?"] },
+    practice: { title: "Comparison note", time: "2 часа", context: "Документ для команды.", requirements: ["2 альтернативы", "критерии", "рекомендация для вашего агента", "as-of"], constraints: ["Не реклама"], acceptance: ["Можно принять решение не брать SDK"], tests: ["ссылки на официальные docs"], hints: [{ title: "Подсказка 1", text: "Критерии: HITL, MCP, tracing, license, lock-in." }, { title: "Подсказка 2", text: "Проверьте breaking changes changelog." }, { title: "Подсказка 3", text: "Не сравнивайте версии двухлетней давности." }], solution: "COMPARE.md с датой." },
+    prompt: { title: "Что скрывает SDK?", purpose: "Разбор абстракции", when: "Чтение docs раннера", placeholders: ["{{docs}}"], text: `По docs перечисли механизмы, которые SDK прячет: loop, retries, sessions, memory, guardrails. Для каждого: как бы ты сделал сам.\n{{docs}}`, explanation: "Антимагия.", limitations: "Docs врут и стареют. Проверьте код SDK." },
+    quiz: [
+      { prompt: "Главный вопрос к фреймворку:", options: ["Какой логотип", "Что он делает за нас и чем это стоит lock-in", "Сколько эмодзи", "Есть ли градиент"], answer: 1, kind: "conceptual", explanation: "Прозрачность." },
+      { prompt: "Порт своего агента нужен чтобы:", options: ["Удалить понимание цикла", "Сверить семантику 1:1", "Увеличить число зависимостей всегда", "Заменить тесты"], answer: 1, kind: "architecture", explanation: "Вы учите разницу." },
+      { prompt: "SDK без бюджета шагов:", options: ["Безопасен", "Вы обязаны добавить свой лимит", "Лучше без лимита", "Так задумано MCP"], answer: 1, kind: "debugging", explanation: "Касса." },
+      { prompt: "Выбор SDK по Twitter:", options: ["Достаточно", "Нужны docs, лицензия, fit задачи, дата проверки", "Всегда самый новый", "Всегда самый старый"], answer: 1, kind: "scenario", explanation: "Инженерное решение." },
+    ],
+    artifactResult: "Порт агента на один SDK + comparison note с as-of.",
+    checklist: ["таблица отличий", "рабочий порт", "as-of docs", "осознанный выбор"],
+    recall: [{ fromWeek: "agent-loop", question: "Какие stop conditions вы уже писали?", answer: "max steps, tokens, done, repeat tool." }],
+  },
+];
+
+export const weeks17to19 = rest.map(compactWeek);
