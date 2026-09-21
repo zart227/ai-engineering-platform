@@ -410,34 +410,38 @@
 ### Week 23. Approval, Pause, Permissions
 
 - **Slug:** `human-in-the-loop`
-- **Goal:** опасные действия не проходят без человека.
+- **Goal:** письмо не уходит, пока человек не закроет pending. Класс права смотрит имя инструмента.
 - **Hours:** 10
 - **Lessons:**
-  1. Approval, pause/resume, escalation
-  2. Permission model: READ / WRITE / DELETE / FINANCIAL / ADMIN
-  3. Audit log
-  4. UX паузы агента
-- **Lab:** агент хочет отправить письмо: ждёт approve.
-- **Practice:** обойти HITL нельзя сменой формулировки цели.
-- **Artifact:** permission + audit module.
+  1. Письмо уходит в том же вызове
+  2. Пауза, решение, продолжение
+  3. Пять классов права
+  4. Промпт, чат и спиннер
+  5. Журнал и экран паузы
+- **Lab:** письмо ждёт approve.
+- **Practice:** перефраз цели не снимает паузу.
+- **Artifact:** каталог прав, pending и журнал без тела письма.
+- **Decision card:** Пауза на каждый инструмент или пауза по классу.
 
 ---
 
 ## MODULE 12. AI Security (week 24)
 
-### Week 24. Attack then defend
+### Week 24. Границы своего агента
 
 - **Slug:** `ai-security`
-- **Goal:** атаковать своего агента локально, затем закрыть дыры.
+- **Goal:** на локальных фикстурах закрыть пять дыр: инструкция пользователя, инструкция в документе, чужое описание инструмента, секрет в логе, смена роли текстом.
 - **Hours:** 12
 - **Lessons:**
-  1. Prompt injection и indirect injection
-  2. Malicious RAG documents, tool poisoning
-  3. Data exfiltration, excessive agency, privilege escalation
-  4. Guardrails: input/output validation, sandbox, secrets
-- **Lab:** 5 атак, 5 защит, регресс-тесты.
-- **Practice:** секрет в логах считается провалом лабы.
-- **Artifact:** threat model + hardened agent.
+  1. Четыре входа и активы
+  2. Фраза в чанке это данные
+  3. Карточка инструмента не команда
+  4. Лог, роль и имя вне списка
+  5. Проверка стоит в runtime
+- **Lab:** пять фикстур и пять отказов на своём процессе.
+- **Practice:** модель угроз своего агента.
+- **Artifact:** заметка об угрозах и тесты границ.
+- **Decision card:** Фраза в промпте или проверка в коде.
 
 ---
 
@@ -446,16 +450,18 @@
 ### Week 25. Evaluation pipelines
 
 - **Slug:** `evals`
-- **Goal:** качество измеряется датасетом, не ощущением.
+- **Goal:** версионированный набор, held-out и код выхода, когда порог не достигнут.
 - **Hours:** 12
 - **Lessons:**
-  1. Golden dataset, split, leakage
-  2. Deterministic tests vs model-based vs human
-  3. Метрики: task success, tool accuracy, retrieval, hallucination, safety, latency, cost
-  4. Regression gates в CI
-- **Lab:** pipeline, который падает при деградации hit-rate.
-- **Practice:** 30 кейсов на свой RAG или агент.
-- **Artifact:** automatic evaluation pipeline.
+  1. Набор, который лежит в git
+  2. Три способа судить
+  3. Несколько чисел, одна выборка
+  4. Порог в прогоне
+  5. Граничные входы
+- **Lab:** зелёный прогон и красный на сломанной фикстуре.
+- **Practice:** ворота на held-out без ключа провайдера.
+- **Artifact:** скрипт оценки с отчётом и порогом.
+- **Decision card:** Судья-модель или проверка кодом.
 
 ---
 
@@ -464,16 +470,18 @@
 ### Week 26. Why did the agent decide that?
 
 - **Slug:** `observability`
-- **Goal:** каждый decision имеет trace.
+- **Goal:** по request id видно, какой шаг упал. Секрет в span не попадает.
 - **Hours:** 10
 - **Lessons:**
-  1. Trace, span, generation, tool call, handoff
-  2. Tokens, cost, latency
-  3. Debugging по трейсу, не по чату
-  4. Что нельзя логировать
-- **Lab:** открыть падение агента только по trace.
-- **Practice:** дашборд трёх чисел: success, cost, latency.
-- **Artifact:** tracing middleware.
+  1. Trace, span и виды шагов
+  2. Токены, стоимость, задержка
+  3. Разбор по трейсу
+  4. Что нельзя класть в span
+  5. Обёртка complete и execute
+- **Lab:** причина падения названа по JSON следа.
+- **Practice:** обёртка следа и три числа: успех, стоимость, задержка.
+- **Artifact:** tracing middleware и разбор одного падения.
+- **Decision card:** JSON-файл или внешний collector.
 
 ---
 
@@ -482,31 +490,34 @@
 ### Week 27. Event-driven Automation
 
 - **Slug:** `event-driven-automation`
-- **Goal:** очереди, воркеры, retries, DLQ, идемпотентность.
+- **Goal:** быстрый приём, воркер, повтор без второго эффекта, DLQ после лимита попыток.
 - **Hours:** 12
 - **Lessons:**
-  1. Events vs requests
-  2. Queues, workers, backoff
-  3. Idempotency keys, DLQ
-  4. Scheduled jobs
-- **Lab:** producer → queue → worker, повтор не дублирует side effect.
-- **Practice:** отравить worker и показать DLQ.
-- **Artifact:** очередь + идемпотентный обработчик.
-- **Decision card:** sync vs async; queue vs direct.
+  1. Событие и запрос
+  2. Очередь в Postgres и воркер
+  3. Пауза, повтор и DLQ
+  4. Один side effect на ключ
+  5. Расписание создаёт событие
+- **Lab:** двойная доставка даёт один эффект, третий срыв уходит в DLQ.
+- **Practice:** таблица jobs без обязательного Redis.
+- **Artifact:** очередь, идемпотентный эффект и DLQ.
+- **Decision card:** Прямой запрос или очередь.
 
 ### Week 28. Agentic Automation
 
 - **Slug:** `agentic-automation`
-- **Goal:** событие запускает workflow, агент подключается точечно, человек подтверждает опасное.
+- **Goal:** правило закрывает очевидное, агент не больше двух событий из десяти, WRITE ждёт человека.
 - **Hours:** 12
 - **Lessons:**
-  1. Event → workflow → router → agent
-  2. RAG/memory/MCP как опции, не как дефолт
-  3. Human approval → action → DB → analytics
-  4. Операционные SLO автоматизации
-- **Lab:** тикет → класс → (агент | правило) → approve → действие.
-- **Practice:** 80% потока без агента.
-- **Artifact:** **AI Automation Platform** v1.
+  1. Событие входит в граф
+  2. Восемь из десяти без агента
+  3. Флаги шага, не дефолт
+  4. Запись после approve
+  5. Четыре числа прогона
+- **Lab:** на десяти фикстурах агент вызван не больше двух раз.
+- **Practice:** срез приёма, маршрутизатора, редкого агента и pending.
+- **Artifact:** платформа автоматизации v1.
+- **Decision card:** Правило или агент.
 
 ---
 
@@ -515,30 +526,34 @@
 ### Week 29. Discovery & Research
 
 - **Slug:** `discovery-research`
-- **Goal:** PRD своего AI-продукта на фактах, не на вайбе.
+- **Goal:** журнал фактов, одна закрытая гипотеза и PRD одной роли.
 - **Hours:** 12
 - **Lessons:**
-  1. User problem, JTBD, evidence log
-  2. Deep research и проверка источников
-  3. Competitors, hypothesis, assumptions
-  4. PRD и user stories
-- **Lab:** 10 фактов с URL, узкая проблема, PRD v1.
-- **Practice:** убить одну гипотезу данными.
-- **Artifact:** полный PRD.
+  1. Факт, не мнение
+  2. Гипотеза, которую можно убить
+  3. Где модель запрещена
+  4. Истории, которые можно проверить
+  5. Скептик по тексту
+- **Lab:** десять записей и одна закрытая гипотеза.
+- **Practice:** PRD с не-целями, границей модели и черновиком стоимости.
+- **Artifact:** журнал и PRD.
+- **Decision card:** Писать код или закрыть гипотезу.
 
 ### Week 30. UX/UI + AI
 
 - **Slug:** `ux-ui-ai`
-- **Goal:** от user flow до прототипа без театра в Figma.
+- **Goal:** один путь из пяти кадров, включая ожидание и отказ.
 - **Hours:** 12
 - **Lessons:**
-  1. IA, user flow, wireframes
-  2. Design systems и AI-assisted design
-  3. Prototype ключевого пути
-  4. Design → code: что теряется
-- **Lab:** 5 экранов критического пути.
-- **Practice:** прототип на одном сценарии, не на всём продукте.
-- **Artifact:** flow + прототип + критерии теста.
+  1. Пять кадров, не продукт целиком
+  2. Отказ не прячут
+  3. Макет ускоряет, продукт остаётся вашим
+  4. Из картинки в код
+  5. Одна рубрика на человека и на модель
+- **Lab:** схема и кадры отказа и ожидания.
+- **Practice:** кликабельный прототип и заметка прогона с человеком.
+- **Artifact:** путь, прототип и рубрика.
+- **Decision card:** Ещё экраны или прогон одного пути.
 
 ---
 
@@ -547,16 +562,18 @@
 ### Week 31. Analytics & Analytics Agent
 
 - **Slug:** `product-analytics`
-- **Goal:** события, воронка, эксперименты; агент помогает читать данные, не подменяет их.
+- **Goal:** воронка считается кодом. Неизвестной метрики нет в схеме, значит отказ, не процент.
 - **Hours:** 12
 - **Lessons:**
-  1. Events, funnels, conversion
-  2. Retention, cohorts, feature usage
-  3. Experiments
-  4. Analytics Agent: вопросы к данным со схемами
-- **Lab:** 4 события, воронка из 3 шагов, один инсайт.
-- **Practice:** агент не имеет права выдумать метрику, которой нет.
-- **Artifact:** **Analytics Agent** + схема событий.
+  1. Имена, которые не плывут
+  2. Воронку считает код
+  3. Один рычаг
+  4. Агент читает схему
+  5. События учат продукт, не следят ради рекламы
+- **Lab:** четыре имени, три шага, отказ на выдуманной метрике.
+- **Practice:** агент схемы возвращает запрос или abstain.
+- **Artifact:** схема событий, воронка и отказ без числа.
+- **Decision card:** Спросить модель или посчитать.
 
 ---
 
@@ -565,27 +582,35 @@
 ### Week 32. Production architecture
 
 - **Slug:** `production-ai`
-- **Goal:** выкатить AI-систему так, чтобы она жила неделю без героизма.
+- **Goal:** дежурный понимает секреты, копию данных и что сказать при 429.
 - **Hours:** 16
 - **Lessons:**
-  1. Docker, CI/CD, secrets, backups
-  2. Postgres, Redis, queues, workers
-  3. Streaming: SSE / WebSocket
-  4. Model routing, rate limits, retries, caching
-  5. Monitoring, scaling, cost optimization
-- **Lab:** чеклист продакшена на LLM Playground или Knowledge Platform.
-- **Practice:** инцидент: провайдер 429, система деградирует, не молчит.
-- **Artifact:** production runbook + архитектура.
-- **Decision card:** monolith vs service.
+  1. Образ, база, секрет
+  2. Дешёвый шаг и дорогой шаг
+  3. 429 не тишина
+  4. Сначала вертикаль
+  5. Чужой дежурный читает страницу
+- **Lab:** мок ограничения показывает текст, не пустой экран.
+- **Practice:** runbook без оркестратора, которого нет.
+- **Artifact:** страница дежурства и фикстура 429.
+- **Decision card:** Модульный монолит или отдельный сервис.
 
 ---
 
 ## CAPSTONE
 
 - **Slug:** `capstone`
-- **Goal:** полноценный AI SaaS / продукт в портфолио.
-- **Hours:** 40+
-- **Цепочка:** real problem → research → competitors → user problem → hypothesis → validation → PRD → architecture → UX → prototype → development → AI integration → automation → agents → RAG/memory only if needed → tests → evals → security → deploy → analytics → feedback → iteration 2.
-- **Artifact:** живой URL, README, архитектура, evals, threat model, аналитика.
+- **Goal:** узкий продукт: боль, запуск, оценка, заметка об угрозах, четыре события и вторая итерация по наблюдению.
+- **Hours:** 40
+- **Lessons:**
+  1. Узкий срез, не весь курс
+  2. Сначала то, что можно проверить без модели
+  3. Оценка и угрозы до объявления готовности
+  4. Вторая итерация по следу
+  5. Рассказ на пять минут
+- **Lab:** граница среза и граф работ без цикла.
+- **Practice:** путь, который открывает другой человек.
+- **Artifact:** запуск, документ, оценка, события и итерация 2.
+- **Decision card:** Добавить приём из курса или оставить не-целью.
 
 Сквозной проект курса: сама `ai-engineering-platform` эволюционирует по мере недель.
