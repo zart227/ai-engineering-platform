@@ -7,6 +7,7 @@ import {
   decision,
   diagram,
   exercise,
+  h,
   lab,
   lesson,
   p,
@@ -102,14 +103,71 @@ export const week02 = week({
     lesson(
       "how-llms-work-l3",
       "Tokenizer и embeddings на инженерном уровне",
-      16,
+      20,
       [
         "Отличить токен от слова",
+        "Измерить токены одного смысла в четырёх формах",
         "Понять embedding как координаты смысла, не как магию",
       ],
       [
         p(
           "Tokenizer режет текст на куски из словаря. Числа, UUID, чужие языки, код с верблюжьим регистром часто дороже, чем кажется. Если вы считаете бюджет по strlen, вы ошибаетесь особенно на русском."
+        ),
+        h("Один смысл, четыре формы"),
+        p(
+          "Возьмите один смысл: посылка приезжает завтра утром. Запишите его по-английски, по-русски, компактным JSON и коротким кодом. Посчитайте токены одной и той же моделью: usage.prompt_tokens при одинаковом system. Ожидание для большинства tokenizer: русский, JSON и код дороже английского того же смысла. В таблицу пишите измерение. Чужой коэффициент не подставляйте."
+        ),
+        code(
+          "ts",
+          `const samples = [
+  { id: "en", text: "Delivery status: the package arrives tomorrow morning." },
+  { id: "ru", text: "Статус доставки: посылка придёт завтра утром." },
+  { id: "json", text: '{"delivery_status":"package arrives tomorrow morning"}' },
+  { id: "code", text: 'const deliveryStatus = "package arrives tomorrow morning";' },
+];
+
+async function promptTokens(userText: string) {
+  const baseUrl = process.env.LLM_BASE_URL;
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL;
+  if (!baseUrl || !apiKey || !model) throw new Error("LLM env invalid");
+  const response = await fetch(\`\${baseUrl}/chat/completions\`, {
+    method: "POST",
+    headers: {
+      authorization: \`Bearer \${apiKey}\`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      messages: [
+        { role: "system", content: "Answer with one word: ok" },
+        { role: "user", content: userText },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error(\`llm_http_\${response.status}\`);
+  const json = (await response.json()) as { usage?: { prompt_tokens?: number } };
+  const tokens = json.usage?.prompt_tokens;
+  if (typeof tokens !== "number") throw new Error("usage_missing");
+  return tokens;
+}
+
+async function main() {
+  for (const sample of samples) {
+    const tokens = await promptTokens(sample.text);
+    console.info(\`\${sample.id}\\t\${tokens}\`);
+  }
+}
+
+main();
+`,
+          "Четыре строки, одна модель"
+        ),
+        callout(
+          "Не заучивайте коэффициент",
+          "System один и тот же, поэтому разница prompt_tokens это разница текстов. Если usage нет, в ячейке unknown. Если ваша модель разошлась с ожиданием, в отчёте остаются измеренные числа.",
+          "cost"
         ),
         p(
           "Embedding это вектор, который модель (часто отдельная, меньшая) сопоставляет куску текста. Близкие векторы примерно близки по смыслу для той задачи, на которой эмбеддер учили. Это не понимание. «Банк» реки и «банк» денег могут схлопнуться или разъехаться в зависимости от модели."
@@ -140,7 +198,7 @@ export const week02 = week({
     lesson(
       "how-llms-work-l4",
       "Sampling: temperature, top-p, seed, reasoning",
-      16,
+      20,
       [
         "Выбрать параметры под JSON и под бриф",
         "Не путать «reasoning» с гарантией истины",
@@ -161,6 +219,87 @@ export const week02 = week({
           "Параметры",
           "Одна температура 0.8 на весь продукт, потому что так в туториале.",
           "Профиль: extract (низкая, без стрима), chat (средняя), ideas (выше), и отдельный лимит токенов."
+        ),
+        h("Один рычаг за раз"),
+        p(
+          "Temperature и top_p оба режут распределение. Если поднять оба сразу, вы не узнаете, кто сломал JSON. Сетку temperature оставьте как есть, top_p в ней не трогайте. Отдельным прогоном зафиксируйте temperature 0.8 и сравните только top_p: 0.1 и 1."
+        ),
+        code(
+          "ts",
+          `function generationBody(args: {
+  model: string;
+  messages: { role: "system" | "user"; content: string }[];
+  topP: number;
+}) {
+  return {
+    model: args.model,
+    messages: args.messages,
+    temperature: 0.8,
+    top_p: args.topP,
+    n: 1,
+  };
+}
+`,
+          "top_p при одной temperature"
+        ),
+        p(
+          "Повтор того же prompt: пять генераций при temperature 0.8. Посчитайте, сколько текстов различны после trim, и разброс completion_tokens (max минус min). Затем те же пять при temperature 0. Совпадений обычно больше. Провайдер всё равно может вернуть разные строки. Поле n в chat/completions собирает несколько choices одним запросом, но usage тогда общий. Для разброса токенов нужны пять ответов с отдельным usage."
+        ),
+        code(
+          "ts",
+          `type ChatMessage = { role: "system" | "user"; content: string };
+
+async function once(args: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  temperature: number;
+}) {
+  const response = await fetch(\`\${args.baseUrl}/chat/completions\`, {
+    method: "POST",
+    headers: {
+      authorization: \`Bearer \${args.apiKey}\`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: args.model,
+      messages: args.messages,
+      temperature: args.temperature,
+      n: 1,
+    }),
+  });
+  if (!response.ok) throw new Error(\`llm_http_\${response.status}\`);
+  const json = (await response.json()) as {
+    choices: { message?: { content?: string | null } }[];
+    usage?: { completion_tokens?: number };
+  };
+  return {
+    text: json.choices[0]?.message?.content?.trim() ?? "",
+    completionTokens: json.usage?.completion_tokens ?? null,
+  };
+}
+
+async function sample(
+  args: {
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    messages: ChatMessage[];
+  },
+  temperature: number
+) {
+  const runs = [];
+  for (let i = 0; i < 5; i += 1) runs.push(await once({ ...args, temperature }));
+  const distinct = new Set(runs.map((run) => run.text)).size;
+  const counts = runs
+    .map((run) => run.completionTokens)
+    .filter((value): value is number => typeof value === "number");
+  const spread = counts.length === 5 ? Math.max(...counts) - Math.min(...counts) : null;
+  return { temperature, distinct, spread };
+}
+`,
+          "n=5 и разброс токенов"
         ),
       ]
     ),
@@ -196,7 +335,7 @@ export const week02 = week({
   lab: lab({
     id: "how-llms-work-lab",
     title: "Сетка параметров",
-    goal: "Прогнать один prompt через набор temperature/top-p и описать поведение.",
+    goal: "Прогнать один prompt через сетку temperature, отдельно сравнить top_p и пять повторов, и посчитать токены одного смысла в четырёх формах.",
     setup: ["Клиент недели 1", "Таблица в markdown или CSV"],
     steps: [
       {
@@ -206,12 +345,27 @@ export const week02 = week({
       },
       {
         title: "Сетка",
-        body: "temperature 0, 0.3, 0.8, 1.2. По 3 прогона. Считайте долю валидного JSON и средние токены.",
+        body: "temperature 0, 0.3, 0.8, 1.2. По 3 прогона. top_p в этой сетке не меняйте. Считайте долю валидного JSON и средние токены.",
         expected: "Таблица 4x3 не пустая.",
       },
       {
+        title: "top_p при фиксированной temperature",
+        body: "Temperature держите 0.8. Два прогона: top_p 0.1 и top_p 1, тот же prompt. Не ставьте temperature 1.2 и top_p 1 в одной ячейке.",
+        expected: "Две строки: доля валидного JSON и средние токены. Менялся только top_p.",
+      },
+      {
+        title: "Пять повторов",
+        body: "Тот же prompt, temperature 0.8, пять генераций. Запишите число различных ответов после trim и разброс completion_tokens: max минус min. Если usage один на весь ответ с n: 5, снимите разброс пятью запросами с n: 1. Повторите пятёрку при temperature 0.",
+        expected: "Две строки: temperature, distinct, spread. При 0 совпадений обычно больше. Если все пять разные, запишите model id.",
+      },
+      {
+        title: "Четыре формы",
+        body: "Один смысл: английская фраза, русская фраза, компактный JSON, короткий код. Одинаковый system, одна модель. Колонка prompt_tokens из usage. Ожидайте, что русский и JSON/код дороже английского. Если вышло иначе, оставьте измеренные числа.",
+        expected: "Четыре числа или unknown. Ни одного коэффициента из блога.",
+      },
+      {
         title: "Вывод",
-        body: "Какой профиль оставите для продакшен-извлечения и почему.",
+        body: "Какой профиль оставите для продакшен-извлечения и почему. Учтите сетку temperature, сравнение top_p и разброс пяти повторов.",
         expected: "Один выбранный профиль + риск.",
       },
     ],
@@ -220,10 +374,15 @@ export const week02 = week({
         problem: "Модель всегда один текст",
         fix: "Провайдер мог зажать sampling. Зафиксируйте model id и поля ответа.",
       },
+      {
+        problem: "Провайдер отверг n или top_p",
+        fix: "Пять отдельных вызовов с n: 1. В таблице напишите sequential. Temperature и текст prompt не меняйте.",
+      },
     ],
     reflection: [
       "Где вариативность полезна, где вредна?",
       "Сколько стоила сетка относительно одного вызова?",
+      "На ваших числах русский и код дороже английского того же смысла или нет?",
     ],
   }),
   practice: exercise({
@@ -275,13 +434,14 @@ export const week02 = week({
     result: "Отчёт экспериментов с параметрами и выбранный профиль генерации.",
     repository: "Папка experiments/ с таблицей и сырыми ответами.",
     demo: "Команда повторного прогона в README.",
-    readme: ["prompt", "сетка", "вывод", "стоимость"],
+    readme: ["prompt", "сетка temperature", "top_p при 0.8", "distinct и spread для n=5", "токены en/ru/json/code", "вывод", "стоимость"],
     architecture: ["один клиент, разные generation profiles"],
     tests: ["повтор запуска даёт ту же таблицу структуры"],
     checklist: [
       { id: "how-llms-work-a1", text: "Таблица параметров сохранена" },
       { id: "how-llms-work-a2", text: "Есть вывод для продакшен-профиля" },
       { id: "how-llms-work-a3", text: "Стоимость эксперимента посчитана" },
+      { id: "how-llms-work-a4", text: "Токены en, ru, json и code записаны с одной модели" },
     ],
   }),
   recall: [

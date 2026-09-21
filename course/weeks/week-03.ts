@@ -4,6 +4,7 @@ import {
   check,
   code,
   compare,
+  decision,
   exercise,
   lab,
   lesson,
@@ -11,6 +12,7 @@ import {
   promptT,
   q,
   quiz,
+  reading,
   ul,
   week,
 } from "../blocks";
@@ -128,6 +130,16 @@ export const week03 = week({
           "Если вы подгоняете промпт, глядя на все 10 сразу, вы переобучите промпт. Держите 3 случая неприкосновенными до финальной проверки.",
           "warn"
         ),
+        p(
+          "«Кажется лучше» это черновик. Выбор версии это accuracy и стоимость на одном и том же наборе. Если v2 приятнее на одном письме и хуже на golden set, в прод идёт v1."
+        ),
+        reading([
+          {
+            title: "OpenAI prompt engineering",
+            url: "https://platform.openai.com/docs/guides/prompt-engineering",
+            note: "Официальные приёмы. Решение по версии всё равно ваш прогон, не пример из доки.",
+          },
+        ]),
       ]
     ),
   ],
@@ -156,7 +168,11 @@ export const week03 = week({
     troubleshooting: [
       { problem: "Accuracy скачет", fix: "Зафиксируйте модель и temperature. Смотрите парсер JSON." },
     ],
-    reflection: ["Какой кейс сломал v2?", "Стоит ли few-shot своих токенов?"],
+    reflection: [
+      "Какой кейс сломал v2?",
+      "Стоит ли few-shot своих токенов?",
+      "Если v2 кажется лучше, а accuracy не выше, какую версию оставите?",
+    ],
   }),
   practice: exercise({
     id: "prompt-engineering-practice",
@@ -227,5 +243,17 @@ User template:
       answer: "Провайдер и батчинг могут оставить шум. Для прода нужна валидация, не вера в ноль.",
     },
   ],
-  decisionCards: [],
+  decisionCards: [
+    decision({
+      id: "prompt-engineering-d1",
+      title: "Кажется лучше или измерено",
+      optionA: "Субъективное «кажется лучше»",
+      optionB: "Accuracy и стоимость на фиксированном наборе",
+      useA: ["черновик формулировки", "один пример, который вы ещё не кладёте в набор"],
+      useB: ["выбор версии промпта", "решение катить в прод", "спор, чья формулировка удачнее"],
+      tradeoffs:
+        "Ощущение быстрее и ловит тон. На фиксированном наборе видно, что новая версия дороже и не точнее.",
+      mistake: "Сменить промпт из-за одного приятного ответа и не прогнать тот же golden set.",
+    }),
+  ],
 });
