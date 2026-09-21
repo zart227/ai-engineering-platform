@@ -324,8 +324,9 @@ W5 + research ─ W29 discovery ─ W30 UX ─ W31 analytics
 2. Module 2 (недели 5-6) полностью `ready`: coding agents, AGENTS.md, отладка, тесты, ревью
 3. Module 3 (недели 7-10) полностью `ready`: script/workflow/agent, n8n, webhook, AI Office Automation
 4. Module 4 (недели 11-12) полностью `ready`: tool calling, цикл агента без фреймворка, Personal AI Agent
-5. Недели 13-32: карта + проходимые обзор/лаба/практика/квиз/артефакт
-6. Дальше углубление теории по модулям, не массовая вода
+5. Module 5 (недели 13-16) полностью `ready`: cosine, pgvector, RAG, eval и AI Knowledge Platform
+6. Недели 17-32: карта + проходимые обзор/лаба/практика/квиз/артефакт
+7. Дальше углубление теории по модулям, не массовая вода
 
 После каждого блока: typecheck, lint, tests, build, визуальная проверка.
 
