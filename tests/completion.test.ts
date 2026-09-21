@@ -41,4 +41,10 @@ describe("quiz scoring", () => {
     assert.equal(result.score, 100);
     assert.equal(result.passed, true);
   });
+
+  it("fails a 75 when the caller sets passScore to 80", () => {
+    const result = scoreQuiz([0, 0, 0, 1], [0, 0, 0, 0], 80);
+    assert.equal(result.score, 75);
+    assert.equal(result.passed, false);
+  });
 });

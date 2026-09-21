@@ -50,12 +50,12 @@ export function weekComplete(parts: WeekCompletionParts) {
   );
 }
 
-export function scoreQuiz(answers: number[], correct: number[]) {
+export function scoreQuiz(answers: number[], correct: number[], passScore = 70) {
   if (correct.length === 0) return { score: 0, passed: false };
   let right = 0;
   for (let i = 0; i < correct.length; i += 1) {
     if (answers[i] === correct[i]) right += 1;
   }
   const score = Math.round((right / correct.length) * 100);
-  return { score, passed: score >= 70 };
+  return { score, passed: score >= passScore };
 }
