@@ -7,6 +7,7 @@ import { logWarn } from "../src/server/logger";
 const RATE_LIMIT_ERROR = "Слишком много попыток. Подождите немного.";
 const LOGIN_EMAIL = "Login-Rate-Limit@Example.com";
 const REGISTER_EMAIL = "Register-Rate-Limit@Example.com";
+const REGISTER_TRIM_EMAIL = "Register-Trim-Rate-Limit@Example.com";
 
 const originalConsole = {
   warn: console.warn,
@@ -87,6 +88,27 @@ describe("auth rate-limit logs", () => {
     const text = lines.join("\n");
     assert.equal(text.includes(REGISTER_EMAIL), false);
     assert.equal(text.includes(REGISTER_EMAIL.toLowerCase()), false);
+    assert.match(text, /\{"level":"warn","message":"register_rate_limited"\}/);
+  });
+
+  it("shares the register rate-limit bucket across trimmed email variants", async () => {
+    const lines = captureConsole();
+    const base = { name: "Ada", password: "short" };
+    const allowed = [];
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      allowed.push(
+        await registerUser({
+          ...base,
+          email: attempt % 2 === 0 ? `  ${REGISTER_TRIM_EMAIL}  ` : REGISTER_TRIM_EMAIL.toUpperCase(),
+        }),
+      );
+    }
+    const blocked = await registerUser({ ...base, email: ` ${REGISTER_TRIM_EMAIL} ` });
+    assert.ok(allowed.every((result) => !result.ok && result.error === "Пароль не короче 8 символов."));
+    assert.deepEqual(blocked, { ok: false, error: RATE_LIMIT_ERROR });
+    const text = lines.join("\n");
+    assert.equal(text.includes(REGISTER_TRIM_EMAIL), false);
+    assert.equal(text.includes(REGISTER_TRIM_EMAIL.toLowerCase()), false);
     assert.match(text, /\{"level":"warn","message":"register_rate_limited"\}/);
   });
 });

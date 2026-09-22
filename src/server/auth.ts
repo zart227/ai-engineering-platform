@@ -71,12 +71,12 @@ export async function requireUser() {
 }
 
 export async function registerUser(input: { email: string; name: string; password: string }) {
-  const key = `register:${input.email.toLowerCase()}`;
+  const email = input.email.trim().toLowerCase();
+  const key = `register:${email}`;
   if (!rateLimit(key, 5, 15 * 60 * 1000).ok) {
     logWarn("register_rate_limited");
     return { ok: false as const, error: "Слишком много попыток. Подождите немного." };
   }
-  const email = input.email.trim().toLowerCase();
   const name = input.name.trim();
   if (!email.includes("@") || name.length < 2) {
     return { ok: false as const, error: "Проверьте имя и email." };
