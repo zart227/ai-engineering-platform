@@ -126,7 +126,7 @@ export type Span = {
       "observability-l2",
       "Токены, стоимость, задержка",
       16,
-      ["Сложить usage всех generation", "Взять latency с корня, не с суммы детей"],
+      ["Сложить usage всех generation", "Взять latency с корня, не с суммы детей", "Посчитать TTFT и перцентили по своим трейсам"],
       [
         p(
           "Оператору нужны три числа за период: success, cost, latency. Остальное это углубление в конкретный trace. Success здесь контракт продукта: корневой span ok и stop равен done. Стопы недели 12 (max_steps, repeated_tool, budget, timeout, cancelled, tool_failures) в success не входят, даже если пользователь увидел вежливую фразу."
@@ -186,6 +186,51 @@ export function summarize(
           "Счёт агента",
           "В отчёт попали токены только последнего ответа.",
           "Сумма promptTokens и completionTokens по всем generation этого traceId."
+        ),
+        diagram(
+          `Request → Queue → Retrieval → Reranking → LLM → Tools → Response
+у каждой стадии свой span: startMs и endMs
+узкое место это самая длинная стадия вашего трейса`,
+          "Где искать узкое место"
+        ),
+        p(
+          "TTFT это миллисекунды от старта запроса до первого токена. Замер пишете вы в свой трейс. Нет стрима: TTFT равен длительности этого generation. Нет замера: unknown."
+        ),
+        p(
+          "Tokens per second: completionTokens делят на секунды generation span. Длительность 0 даёт unknown, не ноль."
+        ),
+        p(
+          "Total latency это endMs корня минус startMs корня. p50, p95 и p99 считают по списку ваших total latency. Рядом пишут N и метод. Берут ранг ceil(p/100*N). Это не SLO из чужой статьи. На восьми трейсах p99 почти максимум, так и подпишите."
+        ),
+        code(
+          "ts",
+          `export const stages = [
+  "request",
+  "queue",
+  "retrieval",
+  "reranking",
+  "llm",
+  "tools",
+  "response",
+] as const;
+
+export function percentile(samples: number[], p: number) {
+  if (samples.length === 0) return { ok: false as const, reason: "no traces" };
+  const sorted = [...samples].sort((a, b) => a - b);
+  const rank = Math.ceil((p / 100) * sorted.length) - 1;
+  const index = Math.min(sorted.length - 1, Math.max(0, rank));
+  return { ok: true as const, value: sorted[index], n: sorted.length };
+}
+
+export function tokensPerSecond(completionTokens: number, durationMs: number) {
+  if (durationMs <= 0) return { ok: false as const, reason: "unknown" };
+  return { ok: true as const, value: completionTokens / (durationMs / 1000) };
+}
+`,
+          "Перцентиль из своих чисел"
+        ),
+        p(
+          "Сбой трейса: медленный span спрятан. Поиск шёл внутри вызова модели, а span retrieval не записан. Длинным выглядит LLM. Сумма детей сильно меньше корня. Стадию называют узким местом только когда у неё есть свои startMs и endMs."
         ),
         check(
           "Почему latency дашборда не равна сумме latency детей?",
@@ -478,6 +523,16 @@ export async function tracedComplete(
         body: "Поправьте runtime или версию промпта так, чтобы ошибка инструмента стала stop tool_failures. Вырежьте ключ до записи. Прогоните фикстуру ещё раз.",
         expected: "Новый trace: tool ok false, корень stop tool_failures, строки ключа в JSON нет.",
       },
+      {
+        title: "Свои перцентили",
+        body: "Не меньше 8 своих трейсов. На каждом запишите TTFT, tokens per second и total latency. По списку total latency посчитайте p50, p95, p99. Напишите N. Чужой SLO не копируют.",
+        expected: "Таблица из ваших чисел. У перцентилей есть N.",
+      },
+      {
+        title: "Скрытый span",
+        body: "Один трейс специально без span стадии, которая заняла время. Пройдите Request, Queue, Retrieval, Reranking, LLM, Tools, Response. Найдите дыру: корень долгий, а стадии в файле нет.",
+        expected: "Фраза называет спрятанный span. После правки у этой стадии есть startMs и endMs.",
+      },
     ],
     troubleshooting: [
       {
@@ -492,6 +547,11 @@ export async function tracedComplete(
     reflection: [
       "Какого поля не хватило, чтобы назвать версию промпта?",
       "Какое из трёх чисел дашборда скрыло бы это падение, если корень остался ok true?",
+      "Что не сработало и на каком requestId span был спрятан?",
+      "Почему корень долгий, а сумма детей нет?",
+      "Как вы проверили, какая стадия конвейера пропала?",
+      "Что изменено в record, чтобы у стадии появились startMs и endMs?",
+      "Стало ли лучше: p50, p95 и p99 пересчитаны по тем же трейсам?",
     ],
   }),
   practice: exercise({
@@ -506,6 +566,10 @@ export async function tracedComplete(
       "redaction до записи: белый список и замена ключа",
       "сводка success, costUsd, latencyMs",
       "исключение execute даёт span с ok false и летит дальше",
+      "таблица своих TTFT, tokens per second и total latency",
+      "p50, p95, p99 посчитаны по этим трейсам, рядом N",
+      "узкое место названо стадией конвейера",
+      "один трейс, где медленный span скрыт, и правка, которая его показывает",
     ],
     constraints: [
       "в spans нет process.env и нет apiKey",
@@ -636,7 +700,46 @@ export async function tracedComplete(
       1,
       "Каждый ход модели платный. Cost складывает usage всех generation, не только финала."
     ),
-  ]),
+    q(
+      "w26-q6",
+      "conceptual",
+      "Откуда брать p95 в этой неделе?",
+      [
+        "Из чужого SLO в статье",
+        "Посчитать по своим total latency и записать N. Это не цель извне",
+        "p95 копируют из чужого SLO, своих трейсов нет",
+        "p95 это сумма токенов за день",
+      ],
+      1,
+      "Перцентиль описывает ваши трейсы. Без списка чисел это чужая цифра."
+    ),
+    q(
+      "w26-q7",
+      "architecture",
+      "Корень долгий. Как найти узкое место?",
+      [
+        "Переписать приветствие в промпте",
+        "Сравнить длительности spans стадий: Request, Queue, Retrieval, Reranking, LLM, Tools, Response",
+        "Взять p99 из документации провайдера",
+        "Сложить cost всех дней и разделить на TTFT",
+      ],
+      1,
+      "Узкое место это самая длинная записанная стадия вашего трейса."
+    ),
+    q(
+      "w26-q8",
+      "debugging",
+      "Span retrieval отсутствует. LLM span длинный, а поиск шёл внутри него. В чём сбой?",
+      [
+        "LLM и есть узкое место, файл полный",
+        "Трейс прячет медленный span: время поиска записано внутрь LLM",
+        "TTFT заменяет дерево spans",
+        "p50 само дописывает пропавшую стадию",
+      ],
+      1,
+      "Пока у retrieval нет своих startMs и endMs, называть LLM узким местом рано."
+    ),
+  ], 70),
   artifact: artifact({
     result: "Tracing middleware и разбор инцидента по trace.",
     repository: "Git URL.",
@@ -662,6 +765,7 @@ export async function tracedComplete(
       { id: "observability-a3", text: "Сводка success, cost, latency" },
       { id: "observability-a4", text: "Разбор падения: фраза причины ссылается на span id" },
       { id: "observability-a5", text: "Ошибка execute записана и проброшена" },
+      { id: "observability-a6", text: "Свои TTFT, tokens per second, total latency, p50, p95, p99 и стадия узкого места" },
     ],
   }),
   recall: recall([
@@ -704,4 +808,82 @@ export async function tracedComplete(
         "Включить экспорт в вендора до теста redaction и положить в span заголовок Authorization.",
     }),
   ],
+  learningObjectives: [
+    "Собрать дерево spans одного requestId и найти последний span с ok false.",
+    "Посчитать по своим трейсам TTFT, tokens per second, total latency, p50, p95 и p99.",
+    "Пройти стадии Request, Queue, Retrieval, Reranking, LLM, Tools, Response и назвать узкое место по длительности span.",
+    "Вырезать ключ и лишние данные до record. Не прятать секрет только на экране.",
+  ],
+  experiments: [
+    {
+      id: "observability-exp-spans",
+      question: "Какая стадия конвейера самая долгая на ваших трейсах, и не спрятан ли её span?",
+      method:
+        "Не меньше 8 своих трейсов. У каждой стадии startMs и endMs. По total latency корня посчитать p50, p95, p99 и записать N. Один трейс специально без span медленной стадии.",
+      metrics: ["TTFT ms", "tokens per second", "total latency ms", "p50", "p95", "p99"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "observability-f1",
+      symptom: "В отчёте p95 как цель, списка трейсов нет.",
+      cause: "Число взято из чужого SLO, а не из своих total latency.",
+      check: "Рядом с p50, p95 и p99 есть N и те же миллисекунды, из которых их посчитали.",
+    },
+    {
+      id: "observability-f2",
+      symptom: "Узким местом назван LLM, хотя поиск шёл внутри этого span.",
+      cause: "Трейс прячет медленный span: у retrieval нет startMs и endMs.",
+      check: "После правки стадия есть в дереве. Сумма детей больше не оставляет дыру в корне.",
+    },
+  ],
+  metrics: [
+    { name: "TTFT ms", how: "От старта вашего запроса до первого токена. Нет замера значит unknown. Без стрима это длительность generation." },
+    { name: "tokens per second", how: "completionTokens делите на секунды своего generation span. Длительность 0 значит unknown." },
+    { name: "total latency ms", how: "endMs корня минус startMs корня на каждом вашем трейсе." },
+    { name: "p50", how: "Перцентиль 50 ваших total latency. Рядом N. Не SLO." },
+    { name: "p95", how: "Перцентиль 95 тех же N чисел." },
+    { name: "p99", how: "Перцентиль 99 тех же N чисел. Если N мало, напишите, что это почти максимум." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "observability-r1",
+        name: "Дерево",
+        weight: 25,
+        evidence: "Spans с requestId, parentId и kind. Причина падения ссылается на span id.",
+      },
+      {
+        id: "observability-r2",
+        name: "Свои числа",
+        weight: 25,
+        evidence: "Таблица TTFT, tokens per second, total latency. p50, p95, p99 посчитаны из неё, рядом N.",
+      },
+      {
+        id: "observability-r3",
+        name: "Узкое место",
+        weight: 25,
+        evidence: "Названа стадия конвейера. Есть трейс, где медленный span был скрыт, и правка, которая его показывает.",
+      },
+      {
+        id: "observability-r4",
+        name: "Без секрета",
+        weight: 25,
+        evidence: "Тест redaction: ключа и process.env в JSON spans нет.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "OpenTelemetry: Traces",
+      url: "https://opentelemetry.io/docs/concepts/signals/traces/",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Ключ, cookie и Authorization режут в record. process.env в span не сериализуют."],
+  privacyNotes: ["В span оставляют chunkIds, не текст чанка. Сырой session id заменяют коротким хешем."],
+  costNotes: ["Cost складывает usage всех generation. Tokens per second считают из своих spans, не из прайса."],
 });
