@@ -1,7 +1,7 @@
 # Action Checklist
 
 Закрывает checkbox только Orchestrator после implementation, tests, review и integration.
-Источник: multi-agent plan + сверка с `origin/main` `839f135`.
+Источник: multi-agent plan + сверка с `origin/main` `cac6473` (PRs #7–#25).
 
 ## Правила
 
@@ -110,9 +110,51 @@ P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукт
 
 ## WAVE 8 — Final Validation
 
-- [ ] Security, performance, cost reviewers
-- [ ] Red team, student simulation, fresh clone
-- [ ] Full validation
+Сверка с `origin/main` `cac6473` (PRs #7–#25). Orchestrator закрывает GATE FINAL только после integration review.
+
+### Security review
+
+- [x] MAJOR #1: `getSession()` gates search/map/glossary; MCP rejects null session — PRs #8, #12
+- [x] MAJOR #2: quiz keys/solutions stripped from week client props — PR #9
+- [x] MAJOR #3: bookmark `href` validated — PR #7
+- [x] MAJOR #4: MCP instruction boundary — PR #12
+- [x] MAJOR #5: Compose Postgres password not published on `0.0.0.0` — PR #11
+
+### Performance review
+
+- [x] MAJOR #1: slim `loadCourseProgress` + React `cache()` — PR #13
+- [x] MAJOR #2: funnel query bounded to funnel event types — PR #18
+- [x] MAJOR #3: search index stamp short-circuit — PR #19
+- [x] MAJOR #4: `persistWeekPercent` slim progress read — PR #17
+
+### Cost review
+
+- [x] No billed model/embedding calls without operator keys (`feature-hash-v1`; tutor needs `OLLAMA_API_KEY`)
+
+### Red team
+
+- [x] Full backup restore (notes, bookmarks, portfolio, progress, events, recall) — PRs #10, #21
+- [x] Capstone replace-on-import when absent from file — PR #25
+- [x] Quiz re-score on import — PR #21
+- [x] Week toggle id validation — PR #20
+- [ ] Week `completed` flags still client-supplied once ids validate (checkbox model; not server work verification)
+- [x] GATE 4 rubric + objectives in week overview — PR #16
+- [x] Recall miss grading + week tab review writes — PRs #14, #22
+
+### Student simulation
+
+- [x] Funnel honors quiz/artifact when practice skipped — PR #15
+- [x] Dashboard recall for opened weeks — PR #14
+- [x] Practice hints restored after reload — PR #16
+
+### Fresh clone
+
+- [x] No product BLOCKER; Compose requires `POSTGRES_PASSWORD` in `.env` (PR #11)
+
+### Residual / process
+
+- [ ] In-memory login/register rate limit (`P0-RATELIMIT` PARTIAL; trim fixed PR #23; multi-instance not addressed)
+- [ ] Full validation (orchestrator integration review)
 - [ ] GATE FINAL
 
 ## Definition of Done — Week
