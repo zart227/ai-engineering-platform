@@ -15,10 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { weekLabel, weekPosition } from "@/lib/week-label";
 import { adjacentWeeks, weekHref, weekModule } from "@course";
-import type { Week } from "@course/types";
+import type { WeekClientPayload } from "@/server/week-client-payload";
 import {
   markHintAction,
   markSolutionAction,
+  revealRecallAnswerAction,
   saveArtifactAction,
   saveNoteAction,
   savePracticeAnswerAction,
@@ -59,7 +60,7 @@ export type WeekClientState = {
   percent: number;
 };
 
-export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClientState }) {
+export function WeekWorkspace({ week, initial }: { week: WeekClientPayload; initial: WeekClientState }) {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("overview");
   const [state, setState] = useState(initial);
@@ -243,8 +244,8 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
             {tab === "recall" ? (
               <div className="mt-6 space-y-4">
                 <p className="font-heading text-2xl tracking-tight">Вспомни</p>
-                {week.recall.map((item) => (
-                  <Recall key={item.question} item={item} />
+                {week.recall.map((item, index) => (
+                  <Recall key={item.question} item={item} weekSlug={week.slug} recallIndex={index} />
                 ))}
               </div>
             ) : null}
@@ -287,7 +288,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
   );
 }
 
-function WeekBreadcrumb({ week }: { week: Week }) {
+function WeekBreadcrumb({ week }: { week: WeekClientPayload }) {
   const courseModule = weekModule(week);
   return (
     <nav aria-label="Хлебные крошки">
@@ -308,7 +309,7 @@ function WeekBreadcrumb({ week }: { week: Week }) {
   );
 }
 
-function Overview({ week }: { week: Week }) {
+function Overview({ week }: { week: WeekClientPayload }) {
   return (
     <div className="mt-6 space-y-6" data-panel="overview">
       <p className="font-heading text-2xl tracking-tight">Обзор</p>
@@ -344,7 +345,7 @@ function Theory({
   bookmarks,
   onToggle,
 }: {
-  week: Week;
+  week: WeekClientPayload;
   completed: string[];
   bookmarks: string[];
   onToggle: (id: string, value: boolean) => void;
@@ -373,7 +374,7 @@ function Theory({
             ))}
           </ul>
           <div className="mt-5">
-            <ContentBlocks blocks={lesson.blocks} />
+            <ContentBlocks blocks={lesson.blocks} weekSlug={week.slug} lessonId={lesson.id} />
           </div>
           <LessonTutor weekSlug={week.slug} lessonId={lesson.id} />
           <div className="mt-6 border-t border-border pt-4">
@@ -397,7 +398,7 @@ function LabPanel({
   onToggle,
   onNote,
 }: {
-  week: Week;
+  week: WeekClientPayload;
   done: boolean;
   note: string;
   onToggle: (value: boolean) => Promise<void>;
@@ -458,7 +459,7 @@ function PracticePanel({
   onToggle,
   onSave,
 }: {
-  week: Week;
+  week: WeekClientPayload;
   done: boolean;
   body: string;
   github: string;
@@ -471,6 +472,7 @@ function PracticePanel({
   const [resultUrl, setResult] = useState(result);
   const [openHint, setOpenHint] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
+  const [solution, setSolution] = useState<string | null>(null);
 
   return (
     <div className="mt-6 space-y-5" data-panel="practice">
@@ -527,15 +529,17 @@ function PracticePanel({
       <div>
         <Button
           variant="ghost"
-          onClick={() => {
+          onClick={async () => {
+            const result = await markSolutionAction(exercise.id, week.slug);
+            if (!result.ok) return;
+            setSolution(result.solution);
             setShowSolution(true);
-            void markSolutionAction(exercise.id, week.slug);
           }}
         >
           Показать решение
         </Button>
-        {showSolution ? (
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{exercise.solution}</p>
+        {showSolution && solution ? (
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{solution}</p>
         ) : null}
       </div>
       <DoneButton checked={done} onChange={(value) => onToggle(value)}>
@@ -550,7 +554,7 @@ function ArtifactPanel({
   state,
   onSave,
 }: {
-  week: Week;
+  week: WeekClientPayload;
   state: WeekClientState;
   onSave: (next: {
     notes: string;
@@ -625,7 +629,7 @@ function QuizPanel({
   lastScore,
   onSubmit,
 }: {
-  week: Week;
+  week: WeekClientPayload;
   passed: boolean;
   lastScore: number | null;
   onSubmit: (answers: number[]) => Promise<{ ok: boolean; score?: number; passed?: boolean }>;
@@ -682,16 +686,36 @@ function QuizPanel({
   );
 }
 
-function Recall({ item }: { item: { question: string; answer: string; fromWeek: string } }) {
+function Recall({
+  item,
+  weekSlug,
+  recallIndex,
+}: {
+  item: { question: string; fromWeek: string };
+  weekSlug: string;
+  recallIndex: number;
+}) {
   const [open, setOpen] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
+
   return (
     <div className="rounded-2xl border border-border p-4">
       <p className="text-xs text-muted-foreground">{item.fromWeek}</p>
       <p className="mt-1 font-medium">{item.question}</p>
-      <button type="button" className="mt-2 text-sm text-primary" onClick={() => setOpen((v) => !v)}>
+      <button
+        type="button"
+        className="mt-2 text-sm text-primary"
+        onClick={async () => {
+          if (!open && answer === null) {
+            const result = await revealRecallAnswerAction(weekSlug, recallIndex);
+            if (result.ok) setAnswer(result.answer);
+          }
+          setOpen((value) => !value);
+        }}
+      >
         {open ? "Скрыть" : "Ответ"}
       </button>
-      {open ? <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p> : null}
+      {open && answer ? <p className="mt-2 text-sm text-muted-foreground">{answer}</p> : null}
     </div>
   );
 }

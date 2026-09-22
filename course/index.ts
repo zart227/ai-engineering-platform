@@ -91,7 +91,7 @@ export function getWeek(slug: string) {
   return weeks.find((week) => week.slug === slug);
 }
 
-export function weekHref(week: Week) {
+export function weekHref(week: Pick<Week, "slug">) {
   return `/week/${week.slug}`;
 }
 
@@ -104,7 +104,7 @@ export function adjacentWeeks(slug: string) {
   };
 }
 
-export function weekModule(week: Week) {
+export function weekModule(week: Pick<Week, "slug">) {
   return moduleByWeekSlug(week.slug) ?? modules[0];
 }
 

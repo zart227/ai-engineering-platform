@@ -2,21 +2,46 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { revealCheckAnswerAction } from "@/app/actions/learn";
 import { Button } from "@/components/ui/button";
-import type { ContentBlock } from "@course/types";
+import type { ClientContentBlock } from "@/server/week-client-payload";
 import { cn } from "@/lib/utils";
 
-export function ContentBlocks({ blocks }: { blocks: ContentBlock[] }) {
+export function ContentBlocks({
+  blocks,
+  weekSlug,
+  lessonId,
+}: {
+  blocks: ClientContentBlock[];
+  weekSlug?: string;
+  lessonId?: string;
+}) {
   return (
     <div className="space-y-5">
       {blocks.map((block, index) => (
-        <Block key={`${block.type}-${index}`} block={block} />
+        <Block
+          key={`${block.type}-${index}`}
+          block={block}
+          weekSlug={weekSlug}
+          lessonId={lessonId}
+          blockIndex={index}
+        />
       ))}
     </div>
   );
 }
 
-function Block({ block }: { block: ContentBlock }) {
+function Block({
+  block,
+  weekSlug,
+  lessonId,
+  blockIndex,
+}: {
+  block: ClientContentBlock;
+  weekSlug?: string;
+  lessonId?: string;
+  blockIndex: number;
+}) {
   if (block.type === "p") {
     return <p className="text-base leading-7 text-foreground/90">{block.text}</p>;
   }
@@ -99,7 +124,14 @@ function Block({ block }: { block: ContentBlock }) {
     );
   }
   if (block.type === "check") {
-    return <KnowledgeCheck question={block.question} answer={block.answer} />;
+    return (
+      <KnowledgeCheck
+        question={block.question}
+        weekSlug={weekSlug}
+        lessonId={lessonId}
+        blockIndex={blockIndex}
+      />
+    );
   }
   if (block.type === "reading") {
     return (
@@ -132,20 +164,36 @@ function Block({ block }: { block: ContentBlock }) {
   );
 }
 
-function KnowledgeCheck({ question, answer }: { question: string; answer: string }) {
+function KnowledgeCheck({
+  question,
+  weekSlug,
+  lessonId,
+  blockIndex,
+}: {
+  question: string;
+  weekSlug?: string;
+  lessonId?: string;
+  blockIndex: number;
+}) {
   const [open, setOpen] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
+
+  async function toggle() {
+    if (!open && answer === null && weekSlug && lessonId) {
+      const result = await revealCheckAnswerAction(weekSlug, lessonId, blockIndex);
+      if (result.ok) setAnswer(result.answer);
+    }
+    setOpen((value) => !value);
+  }
+
   return (
     <div className="rounded-2xl border border-border p-4">
       <p className="text-sm font-medium">Проверка</p>
       <p className="mt-1 text-sm leading-6">{question}</p>
-      <button
-        type="button"
-        className="mt-3 text-sm text-primary hover:underline"
-        onClick={() => setOpen((value) => !value)}
-      >
+      <button type="button" className="mt-3 text-sm text-primary hover:underline" onClick={toggle}>
         {open ? "Скрыть ответ" : "Показать ответ"}
       </button>
-      {open ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{answer}</p> : null}
+      {open && answer ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{answer}</p> : null}
     </div>
   );
 }

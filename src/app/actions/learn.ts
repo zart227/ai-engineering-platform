@@ -154,12 +154,43 @@ export async function markHintAction(exerciseId: string, weekSlug: string) {
 
 export async function markSolutionAction(exerciseId: string, weekSlug: string) {
   const user = await requireUser();
+  const week = getWeek(weekSlug);
+  if (!week || week.practice.id !== exerciseId) {
+    return { ok: false as const, error: "Упражнение не найдено." };
+  }
   await prisma.exerciseProgress.upsert({
     where: { userId_exerciseId: { userId: user.id, exerciseId } },
     update: { solutionViewed: true },
     create: { userId: user.id, exerciseId, weekSlug, solutionViewed: true },
   });
   await recordEvent(user.id, "solution_viewed", { weekSlug });
+  return { ok: true as const, solution: week.practice.solution };
+}
+
+export async function revealCheckAnswerAction(
+  weekSlug: string,
+  lessonId: string,
+  blockIndex: number
+) {
+  await requireUser();
+  const week = getWeek(weekSlug);
+  if (!week) return { ok: false as const, error: "Неделя не найдена." };
+  const lesson = week.lessons.find((item) => item.id === lessonId);
+  if (!lesson) return { ok: false as const, error: "Урок не найден." };
+  const block = lesson.blocks[blockIndex];
+  if (!block || block.type !== "check") {
+    return { ok: false as const, error: "Проверка не найдена." };
+  }
+  return { ok: true as const, answer: block.answer };
+}
+
+export async function revealRecallAnswerAction(weekSlug: string, recallIndex: number) {
+  await requireUser();
+  const week = getWeek(weekSlug);
+  if (!week) return { ok: false as const, error: "Неделя не найдена." };
+  const item = week.recall[recallIndex];
+  if (!item) return { ok: false as const, error: "Карточка не найдена." };
+  return { ok: true as const, answer: item.answer };
 }
 
 export async function saveArtifactAction(input: {

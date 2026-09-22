@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { modules, weekHref, weekModule, weeks } from "@course";
-import type { Week } from "@course/types";
+import type { WeekClientPayload } from "@/server/week-client-payload";
 import { weekLabel } from "@/lib/week-label";
 import { cn } from "@/lib/utils";
 
 const weekBySlug = new Map(weeks.map((item) => [item.slug, item]));
 
-export function WeekNav({ week }: { week: Week }) {
+export function WeekNav({ week }: { week: WeekClientPayload }) {
   const currentModule = weekModule(week);
 
   return (
