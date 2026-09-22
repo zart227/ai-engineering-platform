@@ -53,6 +53,7 @@ export type WeekClientState = {
   practiceBody: string;
   practiceGithub: string;
   practiceResult: string;
+  hintsUsed: number;
   note: string;
   quizPassed: boolean;
   lastQuizScore: number | null;
@@ -170,6 +171,7 @@ export function WeekWorkspace({ week, initial }: { week: WeekClientPayload; init
                 body={state.practiceBody}
                 github={state.practiceGithub}
                 result={state.practiceResult}
+                hintsUsed={state.hintsUsed}
                 onToggle={async (value) => {
                   await togglePracticeAction(week.practice.id, week.slug, value);
                   setState((prev) => ({ ...prev, practiceDone: value }));
@@ -314,6 +316,23 @@ function Overview({ week }: { week: WeekClientPayload }) {
     <div className="mt-6 space-y-6" data-panel="overview">
       <p className="font-heading text-2xl tracking-tight">Обзор</p>
       <p className="text-base leading-7">{week.overview.why}</p>
+      {week.learningObjectives && week.learningObjectives.length > 0 ? (
+        <Meta title="Цели обучения" items={week.learningObjectives} />
+      ) : null}
+      {week.artifactRubric && week.artifactRubric.criteria.length > 0 ? (
+        <div>
+          <p className="text-sm font-medium">Рубрика артефакта</p>
+          <ul className="mt-2 space-y-3 text-sm leading-6 text-muted-foreground">
+            {week.artifactRubric.criteria.map((criterion) => (
+              <li key={criterion.id}>
+                <span className="font-medium text-foreground">{criterion.name}</span>
+                <span> · {criterion.weight}%</span>
+                <p className="mt-1">{criterion.evidence}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <Meta title="Зачем" items={[week.overview.why]} />
       <Meta title="Что уже нужно" items={week.overview.prerequisites} />
       <Meta title="Связь с прошлым" items={week.overview.previousKnowledge} />
@@ -456,6 +475,7 @@ function PracticePanel({
   body,
   github,
   result,
+  hintsUsed,
   onToggle,
   onSave,
 }: {
@@ -464,13 +484,14 @@ function PracticePanel({
   body: string;
   github: string;
   result: string;
+  hintsUsed: number;
   onToggle: (value: boolean) => Promise<void>;
   onSave: (next: { body: string; github: string; result: string }) => Promise<{ ok: boolean }>;
 }) {
   const exercise = week.practice;
   const [githubUrl, setGithub] = useState(github);
   const [resultUrl, setResult] = useState(result);
-  const [openHint, setOpenHint] = useState(0);
+  const [openHint, setOpenHint] = useState(hintsUsed);
   const [showSolution, setShowSolution] = useState(false);
   const [solution, setSolution] = useState<string | null>(null);
 

@@ -34,6 +34,7 @@ export default async function WeekPage({
   const state = await loadLearningState(user.id);
   const row = summarizeWeeks(state).find((item) => item.week.slug === slug);
   const answer = state.answers.find((item) => item.exerciseId === week.practice.id);
+  const exerciseProgress = state.exercises.find((item) => item.exerciseId === week.practice.id);
   const artifact = state.artifacts.find((item) => item.weekSlug === week.slug);
   const quiz = state.quizzes.get(week.slug);
   const note = state.notes.find((item) => item.key === `${week.slug}-lab`);
@@ -57,6 +58,7 @@ export default async function WeekPage({
         practiceBody: answer?.body ?? "",
         practiceGithub: answer?.githubUrl ?? "",
         practiceResult: answer?.resultUrl ?? "",
+        hintsUsed: exerciseProgress?.hintsUsed ?? 0,
         note: note?.body ?? "",
         quizPassed: Boolean(quiz?.passed),
         lastQuizScore: quiz?.score ?? null,
