@@ -138,8 +138,8 @@ GATE 0  audit docs + ownership
 | W2-E | Quality contract types | Integration + E | P0 | GATE 1 | INTEGRATION_ONLY | DONE |
 | W2-F | Assessments weeks 1–4 | F | P1 | W2-E | SEQUENTIAL after schema | DONE |
 | W2-G | Learning UX | G | P1 | W1-A | SAFE_PARALLEL | DONE |
-| W3-C1..C10 | Curriculum deepen | C1–C10 | P0 | GATE 2 | SAFE_PARALLEL по файлам | READY_FOR_VERIFICATION |
-| W4-M1..M5 | Missing topics embed | M* | P1 | GATE 3 | SEQUENTIAL с теми же week files | NOT_STARTED |
+| W3-C1..C10 | Curriculum deepen | C1–C10 | P0 | GATE 2 | SAFE_PARALLEL по файлам | DONE |
+| W4-M1..M5 | Missing topics embed | M* | P1 | GATE 3 | SAFE_PARALLEL по разным week files | DONE |
 | W5-P1 | Learning funnel | P1 | P1 | GATE 4 | SAFE_PARALLEL | NOT_STARTED |
 | W5-P2 | Spaced repetition | P2 | P1 | GATE 4 | SAFE_PARALLEL | NOT_STARTED |
 | W5-P3 | pgvector search | P3 | P2 | proven use case | SEQUENTIAL | NOT_STARTED |

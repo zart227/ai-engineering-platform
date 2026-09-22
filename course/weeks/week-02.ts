@@ -373,6 +373,11 @@ async function sample(
         body: "Тот же prompt, temperature 0. Занизьте max tokens так, чтобы JSON не закрылся. Запишите finish_reason, completion_tokens и итог JSON.parse. Поднимите max tokens и повторите один раз тем же текстом.",
         expected: "Две строки одного prompt. Первая: finish_reason=length, JSON.parse не прошёл. Вторая: JSON разбирается.",
       },
+      {
+        title: "Один prompt, API и local",
+        body: "Тот же prompt. Если локальный runtime уже есть, заполните две строки: API и local. Колонки: куда ушёл промпт, TTFT ms, total ms, output tokens, стоимость или «0 provider». Куда ушёл промпт: провайдер или эта машина. TTFT это миллисекунды до первого токена. Total это миллисекунды до конца ответа. Без стрима TTFT равен total. У строки local в колонке стоимости пишите 0 provider. Если локального runtime нет, напишите local unavailable и всё равно заполните строку API.",
+        expected: "Один и тот же prompt. Строка API заполнена. Строка local содержит замер или local unavailable.",
+      },
     ],
     troubleshooting: [
       {
