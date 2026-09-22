@@ -290,3 +290,30 @@ GATE 7 закрыт для Tutor V1 (orchestrator sign-off Sep 2026). GATE FINAL
 База: `origin/main` `8620a62`. GATE 7 отмечен в `action-checklist.md`. `W7-TUTOR` → DONE для V1; V2 citations, V3 rubric feedback, V4 multi-week/long_generation, 99-hint eval suite — out of scope / deferred. GATE FINAL не трогали.
 
 Evidence: `tests/tutor.test.ts` (context separation, fail-closed routing, session owner, rate limit, no searchCourse); browser smoke week 1 theory (`wave-7-tutor-browser.md`); `wave7-tutor.md` updated.
+
+## Wave 8 rate-limit store
+
+База: `origin/main` `8620a62`. PR #28: `RateLimitBucket`, `rateLimitPersisted` for login/register; tutor in-memory unchanged. `npm test` — 167/167 pass. GATE FINAL не закрыт.
+
+## Wave 8 completion verification
+
+База: `origin/main` `8620a62`. PR #29: server validators in `week-progress-validation.ts` wired in `learn.ts` for lesson/lab/practice/artifact `completed=true`. `npm test` — 177/177 pass. WAVE 8 checklist row checked in PR #29. GATE FINAL не закрыт.
+
+## Wave 8 GATE FINAL close
+
+База: `origin/main` `5fa4fc6` (PRs #7–#29 merged).
+
+Предусловия (код на `main`, не stale integration report):
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Postgres auth rate limit | pass | PR #28; `src/server/rate-limit.ts` `rateLimitPersisted`; `prisma/schema.prisma` `RateLimitBucket` |
+| Completion verify on mark-done | pass | PR #29; `validate*Completion` in `week-progress-validation.ts`; checklist row checked |
+| GATE 7 Tutor V1 | pass | PR #27; `[x] GATE 7` in `action-checklist.md`; `W7-TUTOR` DONE |
+| Integration walk | pass | 17/17 sub-steps PASS, 0 BLOCKER (`wave-8-integration-validation.md`, baseline `8620a62` pre-#28/#29; product fixes landed in #28/#29 without regressions) |
+
+Закрыто в `action-checklist.md`: login/register Postgres rate limit, full validation, GATE FINAL. `P0-RATELIMIT` → DONE in `implementation-status.md`.
+
+Не строили: Tutor V2–V4, Redis/queue (GATE 6 open), per-week Definition of Done template rows.
+
+Tests on `5fa4fc6`: `npm test` — 177/177 pass (includes rate-limit and completion suites from PRs #28–#29).
