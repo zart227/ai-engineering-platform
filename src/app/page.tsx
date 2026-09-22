@@ -85,7 +85,12 @@ export default async function HomePage() {
         ))}
       </div>
       <LearningFunnel snapshot={funnel} />
-      <RecallToday items={recall.due} waiting={recall.waiting} startedCount={recall.startedCount} />
+      <RecallToday
+        items={recall.due}
+        waiting={recall.waiting}
+        startedCount={recall.startedCount}
+        recallInStartedWeeks={recall.recallInStartedWeeks}
+      />
       <section className="mt-12 space-y-8">
         {modules.map((mod) => (
           <div key={mod.id}>
