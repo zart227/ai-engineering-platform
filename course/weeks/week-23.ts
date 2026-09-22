@@ -91,6 +91,9 @@ export function sendEmailNow(args: { to: string; body: string }, box: Mailbox) {
         p(
           "Пауза это ваша запись, не реплика модели. Поля: id, tool, args, status, assignee, expiresAt, decidedBy. Старт для письма: status pending. Продолжение одно из трёх. Оператор в срок ставит approved, и только тогда фикстура принимает письмо. Оператор ставит denied: транспорт молчит, в цикл уходит observation denied. Время вышло: status expired, транспорт молчит, observation expired."
         ),
+        p(
+          "Запись pending это checkpoint прогона. Процесс можно остановить и поднять снова. Resume читает ту же запись. Пока статус не approved, транспорт молчит. После approved deliver шлёт один раз. Второй resume с тем же id письмо не повторяет."
+        ),
         diagram(
           `send_email
   -> запись pending, транспорт не вызван
@@ -327,6 +330,16 @@ export function deliver(
         body: "Новый pending. Оператор ставит denied. deliver вызывают нарочно.",
         expected: "Счётчик не растёт. Наблюдение для цикла: denied.",
       },
+      {
+        title: "Сбой: действие до approve",
+        body: "Нарочно вызовите транспорт в том же шаге, что и предложение модели. Запишите sent до кнопки.",
+        expected: "Счётчик 1 до approve. Это сбой. В рабочем пути так не оставляют.",
+      },
+      {
+        title: "Checkpoint и resume",
+        body: "Рабочий путь: pending, затем чтение той же записи заново, как после рестарта. До approve sent равен 0. Потом operator ставит approved и deliver один раз. Повтор resume с тем же id второе письмо не добавляет. Колонки таблицы: sent до клика, sent после чтения checkpoint до approve, sent после approve, sent после второго resume.",
+        expected: "0, 0, 1, 1. Повтор того же id не шлёт копию.",
+      },
     ],
     troubleshooting: [
       {
@@ -341,6 +354,13 @@ export function deliver(
     reflection: [
       "Как закрыть send_email для роли intern целиком, без строки pending?",
       "Чем сырые args на экране отличаются от пересказа, который написала модель?",
+      "Что не сработало, когда агент вызвал транспорт до approve?",
+      "На каком действии счётчик стал 1 до кнопки?",
+      "Почему предложение модели уже оказалось отправкой?",
+      "Как проверить гипотезу: pending, рестарт, sent остаётся 0 до approved?",
+      "Что вы изменили: где теперь стоит deliver и что читает resume?",
+      "Стало ли лучше на рабочем пути?",
+      "Какие четыре числа таблицы это доказывают?",
     ],
   }),
   practice: exercise({
@@ -358,6 +378,7 @@ export function deliver(
       "тест: вызов decide от агента или от intern не ставит approved",
       "тест: now >= expiresAt не вызывает транспорт",
       "журнал: proposed и approved, в строке нет тела письма",
+      "таблица sent: до approve, после чтения checkpoint, после approved, после второго resume",
     ],
     constraints: [
       "проверка в коде до side effect, не фраза в system prompt",
@@ -479,7 +500,46 @@ export function deliver(
       3,
       "Следующий ход читает вашу запись. Чат модели записью не является."
     ),
-  ]),
+    q(
+      "w23-q6",
+      "debugging",
+      "sent равен 1, кнопка approve ещё не нажата. Где сбой?",
+      [
+        "Так и задумана фикстура",
+        "Транспорт вызвался в том же шаге, что и предложение модели",
+        "Журнал слишком короткий",
+        "Роль intern обязана слать письмо",
+      ],
+      1,
+      "До approved счётчик нулевой. Иначе человек уже не останавливает письмо."
+    ),
+    q(
+      "w23-q7",
+      "scenario",
+      "Процесс подняли заново. Запись pending на месте, approve ещё нет. Чему равен sent?",
+      [
+        "0. Resume читает checkpoint и не шлёт",
+        "1. Рестарт сам означает согласие",
+        "2. Письмо ушло и до паузы, и после",
+        "Число токенов цели",
+      ],
+      0,
+      "Checkpoint держит паузу. Транспорт ждёт approved."
+    ),
+    q(
+      "w23-q8",
+      "architecture",
+      "После approved deliver уже отправил письмо. Resume с тем же id вызывает deliver снова. Сколько писем должно остаться?",
+      [
+        "Два, на каждый resume",
+        "Ноль, approve отменяет отправку",
+        "Одно. Повтор того же id не добавляет копию",
+        "Столько, сколько слов в цели",
+      ],
+      2,
+      "Checkpoint после успеха тоже читается. Второй deliver с тем же id молчит."
+    ),
+  ], 70),
   artifact: artifact({
     result: "Модуль прав и журнала: каталог классов, pending, decide, фикстура письма, audit.",
     repository: "Git URL.",
@@ -546,4 +606,80 @@ export function deliver(
       mistake: "Снять паузу с send_email, потому что цель в промпте звучит как черновик.",
     }),
   ],
+  learningObjectives: [
+    "Оставить send_email в pending, пока человек с ролью operator не поставил approved.",
+    "Поймать сбой, когда транспорт вызывается до approve.",
+    "После рестарта прочитать ту же запись и не слать письмо, пока статуса approved нет.",
+    "После approved отправить один раз и не повторить письмо на втором resume.",
+  ],
+  experiments: [
+    {
+      id: "hitl-exp-approval",
+      question: "Когда фикстура письма растёт: до approve, после чтения checkpoint или только после approved?",
+      method:
+        "Один send_email. Строка сбоя: транспорт в том же шаге, что предложение модели. Строка рабочего пути: pending, чтение записи заново, approve, второй resume. Студент пишет sent на каждой точке.",
+      metrics: ["sent before approval", "sent after resume before approval", "sent after approval", "sent on second resume"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "hitl-f1",
+      symptom: "Счётчик sent равен 1, кнопка approve ещё не нажата.",
+      cause: "Агент вызывает транспорт в том же шаге, что и предложение модели.",
+      check: "До decide с approved sent равен 0. Транспорт стоит в deliver.",
+    },
+    {
+      id: "hitl-f2",
+      symptom: "После рестарта письмо уходит само или approve шлёт его дважды.",
+      cause: "Запись pending не прочитали или deliver не смотрит id.",
+      check: "Resume до approve оставляет sent 0. Второй deliver с тем же id не добавляет строку.",
+    },
+  ],
+  metrics: [
+    { name: "sent before approval", how: "Длина фикстуры до клика operator. В рабочем пути 0." },
+    { name: "sent after resume before approval", how: "Длина фикстуры после чтения той же pending-записи до approved. В рабочем пути 0." },
+    { name: "sent after approval", how: "Длина фикстуры после deliver при status approved. В рабочем пути 1." },
+    { name: "sent on second resume", how: "Длина фикстуры после повторного deliver с тем же id. Остаётся 1." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "hitl-r1",
+        name: "Пауза до side effect",
+        weight: 25,
+        evidence: "send_email пишет pending. До approved sent равен 0.",
+      },
+      {
+        id: "hitl-r2",
+        name: "Сбой пойман",
+        weight: 25,
+        evidence: "Прогон, где транспорт вызван в том же шаге, даёт sent 1 до кнопки и записан как сбой.",
+      },
+      {
+        id: "hitl-r3",
+        name: "Checkpoint",
+        weight: 25,
+        evidence: "Повторное чтение pending до approve не шлёт. После approved один раз. Второй resume с тем же id не добавляет письмо.",
+      },
+      {
+        id: "hitl-r4",
+        name: "Журнал",
+        weight: 25,
+        evidence: "Строки proposed и approved с actor. В строке нет тела письма. Агент и intern не ставят approved.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "OWASP LLM06 Excessive Agency",
+      url: "https://owasp.org/www-project-top-10-for-large-language-model-applications/2_0_vulns/LLM06_ExcessiveAgency",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Side effect ждёт approved. Агент и роль intern статус не ставят."],
+  privacyNotes: ["В журнал пишут preview: адрес и длину body. Полное тело остаётся в записи для экрана человека."],
+  costNotes: ["Повтор deliver с тем же id не делает второе письмо."],
 });
