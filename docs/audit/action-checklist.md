@@ -55,6 +55,8 @@
 
 ## WAVE 3 — Curriculum Deepening
 
+Содержание C1–C10 влито. Квиз 8 вопросов, `passScore` 70, рубрика 4×25 на всех 33 неделях. `npm test` (40), typecheck и lint прошли. Чекбоксы ниже закрываются после CR1–CR5.
+
 - [ ] C1 Weeks 1–4 final pass
 - [ ] C2 Weeks 5–10
 - [ ] C3 Weeks 11–12

@@ -25,13 +25,13 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | C-W3 | Week 3: Prompt A vs B на dataset | DONE | Golden set, accuracy и cost в `week-03.ts`. Нет decision card и sources | Agent C | — | Добить card + source, не переписывать |
 | C-W4 | Week 4: plain JSON vs schema-constrained, parse/schema/latency/tokens | DONE | A/B: prompt JSON vs `json_schema` strict, таблица отказов и токенов | Agent C | — | Закрыто для Wave 1 |
 | C-SCHEMA | Course Quality Contract | DONE | Опциональные поля на `Week`. Обязательными не стали. Документ: `content-schema.md` | Agent E | GATE 1 | Закрыто |
-| C-RUBRIC | ArtifactRubric first-class | PARTIAL | Тип есть. Недели 1–4 имеют 4 критерия по 25%. Недели 5–33 ещё на checklist | Agent F | C-SCHEMA | Волна 3 переносит остальные |
-| C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | PARTIAL | Недели 1–4: 8 вопросов. `passScore` оставлен 70, чтобы не пересчитать старые попытки. Остальные недели: 5 вопросов | Agent F | C-SCHEMA | Волна 3 |
+| C-RUBRIC | ArtifactRubric first-class | READY_FOR_VERIFICATION | Все 33 недели: 4 критерия, сумма весов 100 | C1–C10 | C-SCHEMA | Ждёт CR, не DONE |
+| C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | READY_FOR_VERIFICATION | Все 33 недели: 8 вопросов. `passScore` 70, старые попытки не пересчитываются | C1–C10 | C-SCHEMA | Порог 80% не включали |
 | C-SR | Spaced repetition | NOT_STARTED | Recall внутри недели, без `nextReviewAt` | Wave 5 P2 | — | Не считать recall scheduler-ом |
-| C-RAG | Глубина RAG ingestion/chunking/eval | PARTIAL | Weeks 13–16 ready, ingestion в основном markdown | C4 | GATE 2 | Wave 3 |
-| C-MCP | MCP threat model | PARTIAL | Week 18: host/client/server; каталог угроз тонкий | C5 | GATE 2 | Wave 3 |
-| C-BUDGET | AgentBudget | PARTIAL | max steps/tokens/timeout в week 12; нет maxCost/toolBudget | C6 | GATE 2 | Wave 3 |
-| C-DIST | at-most-once / exactly-once illusion названы | PARTIAL | at-least-once и DLQ есть в week 27 | C8 | GATE 2 | Wave 3 |
+| C-RAG | Глубина RAG ingestion/chunking/eval | READY_FOR_VERIFICATION | Week 16: Recall@K отдельно от citation/answer correctness | C4 | GATE 2 | Ждёт CR |
+| C-MCP | MCP threat model | READY_FOR_VERIFICATION | Week 18: Host → Client → Server, tool shadowing и отказ host по своему списку путей | C5 | GATE 2 | Ждёт CR |
+| C-BUDGET | AgentBudget | READY_FOR_VERIFICATION | Week 12: интерфейс в учебном коде, maxCost и toolBudget | C3 | GATE 2 | Это не тип платформы |
+| C-DIST | at-most-once / exactly-once illusion названы | READY_FOR_VERIFICATION | Week 27 называет at-most-once и exactly-once иллюзией | C8 | GATE 2 | Ждёт CR |
 | C-MISSING | Local models, serving, fine-tune, routing, privacy taxonomy | NOT_STARTED | Почти нет в `course/` | M1–M5 | GATE 3 | Встраивать в существующие недели |
 | T-CI | PR: typecheck, lint, test, build | DONE | `.github/workflows/ci.yml` | Agent D | — | Закрыто |
 | T-CONTRACT | Unique ids/slugs, refs, no TODO/placeholder | DONE | `tests/curriculum-integrity.test.ts` | Agent D | — | Закрыто |

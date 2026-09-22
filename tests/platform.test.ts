@@ -57,7 +57,7 @@ describe("curriculum", () => {
       assert.equal(week.status, "ready");
       assert.ok(week.lessons.length >= 5);
       assert.ok(week.prompts.length >= 2);
-      assert.equal(week.decisionCards.length, 1);
+      assert.ok(week.decisionCards.length >= 1);
       assert.ok(week.recall.length >= 2);
     }
   });

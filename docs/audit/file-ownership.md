@@ -35,7 +35,7 @@ course/completion.ts  # исключение Wave 1: passScore принадле�
 | G UX | `src/components/week-workspace.tsx`, `src/components/week-nav.tsx`, `src/app/week/[slug]/page.tsx` | нет | Low. Не менять `week-label.ts` и тексты уроков |
 | F Assessments | `course/weeks/week-01.ts` … `week-04.ts` | нет | Sequential после E. Не стартовать, пока типы не влиты |
 
-## Wave 3 (активна)
+## Wave 3 (содержание влито, CR открыт)
 
 Один owner на файл. `course/glossary.ts`, `course/types.ts`, `course/index.ts`, `course/curriculum.ts` не редактировать: только INTEGRATION REQUEST.
 
