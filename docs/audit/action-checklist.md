@@ -86,11 +86,13 @@
 
 ## WAVE 5 — Platform as Lab
 
-- [ ] P1 Learning analytics funnel
-- [ ] P2 Spaced repetition «Сегодня повторить»
+Сделано от `origin/main` `5820ae5`. P3 и P4 не начинались.
+
+- [x] P1 Learning analytics funnel
+- [x] P2 Spaced repetition «Сегодня повторить»
 - [ ] P3 Semantic search только с реальным use case
 - [ ] P4 Platform MCP после курса MCP
-- [ ] GATE 5
+- [x] GATE 5
 
 ## WAVE 6 — Async (conditional)
 
