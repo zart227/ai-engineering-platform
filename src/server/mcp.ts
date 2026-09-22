@@ -12,7 +12,7 @@ export const MCP_TOOLS = [
   {
     name: "course.search",
     title: "Поиск по курсу",
-    description: "Семантический поиск по урокам и глоссарию курса. Аргумент query, не короче двух символов.",
+    description: "Хеш-поиск по урокам и глоссарию курса. Совпадение идёт по словам и префиксам feature-hash-v1, не по смыслу перефразировки. Аргумент query, не короче двух символов.",
     inputSchema: {
       type: "object",
       properties: { query: { type: "string", description: "Фраза ученика" } },

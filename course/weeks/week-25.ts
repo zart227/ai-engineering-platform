@@ -439,6 +439,7 @@ export function sameDataset(a: ReportRow, b: ReportRow) {
       { id: "eval-a4", text: "Отчёт содержит размер, ok и model id или mock" },
       { id: "eval-a5", text: "Обязательный прогон не требует ключа" },
       { id: "eval-a6", text: "Две конфигурации на одном datasetId: task success, format compliance, latency, tokens, cost" },
+      { id: "eval-a7", text: "Три строки prompt, retrieval и fine-tune: свидетельство, цена и выбор сегодня" },
     ],
   }),
   recall: recall([
@@ -471,6 +472,7 @@ export function sameDataset(a: ReportRow, b: ReportRow) {
     "Сравнить две конфигурации на одном datasetId по этим числам, без «кажется лучше».",
     "Завершить прогон с кодом 1, когда порог на held-out не достигнут, без ключа для обязательных проверок.",
     "Назвать SFT, LoRA, QLoRA, instruction tuning и preference optimization и не учить веса, пока контекст закрывает разрыв held-out.",
+    "По своим числам выбрать prompt, retrieval или fine-tune. Fine-tune только если контекст разрыв не закрыл.",
   ],
   experiments: [
     {
@@ -507,26 +509,33 @@ export function sameDataset(a: ReportRow, b: ReportRow) {
       {
         id: "eval-r1",
         name: "Один набор",
-        weight: 25,
+        weight: 20,
         evidence: "Кейсы в git со split. Две конфигурации ссылаются на один datasetId.",
       },
       {
         id: "eval-r2",
         name: "Пять чисел",
-        weight: 25,
+        weight: 20,
         evidence: "В каждой строке task success, format compliance, latency, tokens, cost. Нет «кажется лучше».",
       },
       {
         id: "eval-r3",
         name: "Порог",
-        weight: 25,
+        weight: 20,
         evidence: "Слом фикстуры даёт код выхода 1 и список провальных id.",
       },
       {
         id: "eval-r4",
         name: "Без ключа",
-        weight: 25,
+        weight: 20,
         evidence: "Обязательный прогон детерминированный. В report нет секрета.",
+      },
+      {
+        id: "eval-r5",
+        name: "Три рычага",
+        weight: 20,
+        evidence:
+          "Три строки prompt, retrieval и fine-tune: свидетельство, цена и выбор сегодня по числам своего held-out. Fine-tune стоит «не сейчас», если контекст ещё может закрыть разрыв. Веса не обучены.",
       },
     ],
   },

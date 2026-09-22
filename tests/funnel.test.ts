@@ -39,6 +39,7 @@ describe("learning funnel", () => {
     assert.equal(snapshot.steps[3]?.label, "Практика завершена");
     assert.equal(snapshot.steps[1]?.conversion, 1);
     assert.equal(snapshot.steps[1]?.dropout, 0);
+    assert.equal(snapshot.steps[1]?.dropoutRate, 0);
     assert.ok(snapshot.steps.every((step, index) => index === 0 || step.count <= snapshot.steps[index - 1].count));
   });
 
@@ -56,6 +57,7 @@ describe("learning funnel", () => {
       [1, 1, 0, 0, 0, 0, 0]
     );
     assert.equal(snapshot.steps[2]?.dropout, 1);
+    assert.equal(snapshot.steps[2]?.dropoutRate, 1);
     assert.equal(snapshot.steps[2]?.conversion, 0);
   });
 

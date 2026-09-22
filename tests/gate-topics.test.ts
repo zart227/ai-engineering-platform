@@ -11,18 +11,22 @@ function blob(slug: string) {
 describe("gate 4 topic depth", () => {
   it("teaches local models in week 2 beyond local unavailable", () => {
     const text = blob("how-llms-work");
-    for (const term of ["Ollama", "GGUF", "quantization", "VRAM", "CPU", "GPU", "local embeddings", "licensing", "privacy"]) {
+    for (const term of ["Ollama", "GGUF", "quantization", "VRAM", "CPU", "GPU", "local embeddings", "licensing", "privacy", "llama.cpp"]) {
       assert.ok(text.includes(term), term);
     }
     assert.match(text, /Одной пометки local unavailable недостаточно/);
+    assert.match(text, /Карточка терминов без замера не принимается/);
+    assert.match(text, /how-llms-work-r5/);
   });
 
   it("teaches serving fundamentals in week 32 and keeps the timeout lab", () => {
     const text = blob("production-ai");
-    for (const term of ["inference server", "vLLM", "continuous batching", "KV cache", "concurrency", "throughput", "GPU memory"]) {
+    for (const term of ["inference server", "vLLM", "continuous batching", "KV cache", "concurrency", "throughput", "GPU memory", "Scheduler"]) {
       assert.ok(text.includes(term), term);
     }
+    assert.match(text, /Request → Scheduler → Batch → Model → Token/);
     assert.match(text, /Один запрос, пять подряд, таймаут/);
+    assert.match(text, /production-ai-r5/);
   });
 
   it("teaches fine-tune names in week 25 and keeps the held-out rule", () => {
@@ -31,6 +35,7 @@ describe("gate 4 topic depth", () => {
       assert.ok(text.includes(term), term);
     }
     assert.match(text, /контекст не закрывает/);
+    assert.match(text, /eval-r5/);
   });
 
   it("teaches provider fallback routing in week 10 and keeps cheap versus strong", () => {

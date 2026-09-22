@@ -16,6 +16,7 @@ export type FunnelStep = {
   count: number;
   conversion: number | null;
   dropout: number;
+  dropoutRate: number | null;
 };
 
 export type FunnelSnapshot = {
@@ -75,6 +76,7 @@ export function countFunnel(events: FunnelEvent[], userId: string): FunnelSnapsh
         count: counts[index],
         conversion: previous && previous > 0 ? counts[index] / previous : null,
         dropout: previous === null ? 0 : previous - counts[index],
+        dropoutRate: previous && previous > 0 ? (previous - counts[index]) / previous : null,
       };
     }),
   };

@@ -5,6 +5,8 @@ import {
   exportSchema,
   exportSchemaV2,
   exportSchemaV3,
+  importExport,
+  importReplacesRecall,
   migrateExport,
   previewImport,
 } from "../src/server/export";
@@ -249,5 +251,91 @@ describe("recall review roundtrip", () => {
     const migrated = migrateExport(fullFixture);
     assert.equal(migrated.formatVersion, 3);
     assert.deepEqual(migrated.recallReviews, []);
+  });
+
+  it("warns that a v3 file replaces the schedule, including a wipe at count 0", () => {
+    const raw = { ...fullFixture, formatVersion: 3 as const, recallReviews: [] as const };
+    const preview = previewImport(migrateExport(raw), raw);
+    assert.equal(preview.counts.recallReviews, 0);
+    const text = preview.warnings.join(" ");
+    assert.match(text, /Расписание повторений будет полностью заменено/);
+    assert.match(text, /ноль/);
+    assert.match(text, /стирается целиком/);
+  });
+
+  it("tells a v2 preview that the current schedule stays", () => {
+    const preview = previewImport(migrateExport(fullFixture), fullFixture);
+    assert.match(preview.warnings.join(" "), /Текущие карточки останутся/);
+    assert.equal(importReplacesRecall(fullFixture), false);
+  });
+});
+
+type RecallCard = { prompt: string };
+
+function createImportDb(initialRecall: RecallCard[], throwOn?: string) {
+  let committed = {
+    capstone: false,
+    recall: initialRecall.map((item) => ({ prompt: item.prompt })),
+  };
+  const calls: string[] = [];
+  return {
+    calls,
+    get state() {
+      return committed;
+    },
+    async $transaction(fn: (tx: never) => Promise<unknown>) {
+      const draft = {
+        capstone: committed.capstone,
+        recall: committed.recall.map((item) => ({ prompt: item.prompt })),
+      };
+      const tx = new Proxy(
+        {},
+        {
+          get(_target, prop) {
+            const name = String(prop);
+            return {
+              upsert: async () => {
+                calls.push(`${name}.upsert`);
+                if (throwOn === name) throw new Error("boom");
+                if (name === "capstoneProject") draft.capstone = true;
+              },
+              deleteMany: async () => {
+                calls.push(`${name}.deleteMany`);
+                if (throwOn === name) throw new Error("boom");
+                if (name === "recallReview") draft.recall = [];
+                return { count: draft.recall.length };
+              },
+              createMany: async () => {
+                calls.push(`${name}.createMany`);
+                if (throwOn === name) throw new Error("boom");
+                return { count: 0 };
+              },
+            };
+          },
+        }
+      );
+      await fn(tx as never);
+      committed = draft;
+    },
+  };
+}
+
+describe("importExport schedule and rollback", () => {
+  it("keeps an existing schedule on a raw formatVersion 2 import", async () => {
+    const db = createImportDb([{ prompt: "keep-me" }]);
+    const result = await importExport("user-1", fullFixture, db);
+    assert.equal(result.ok, true);
+    assert.deepEqual(db.state.recall, [{ prompt: "keep-me" }]);
+    assert.equal(db.calls.includes("recallReview.deleteMany"), false);
+  });
+
+  it("rolls back a failed import and leaves the account unchanged", async () => {
+    const db = createImportDb([{ prompt: "keep-me" }], "note");
+    const result = await importExport("user-1", fullFixture, db);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error, /импорт/i);
+    assert.equal(db.state.capstone, false);
+    assert.deepEqual(db.state.recall, [{ prompt: "keep-me" }]);
+    assert.equal(db.calls.includes("capstoneProject.upsert"), true);
   });
 });

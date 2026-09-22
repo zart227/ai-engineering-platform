@@ -43,7 +43,7 @@
   3. Tokenizer и embeddings: почему «слово» != токен
   4. Sampling: temperature, top-p, seed, reasoning traces
   5. Hallucinations, multimodality, когда модель врёт уверенно
-  6. Локальная модель: Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing, privacy
+  6. Локальная модель: llama.cpp как движок, Ollama как демон, GGUF, quantization, RAM/VRAM, CPU vs GPU, замер hosted и local
 - **Lab:** один и тот же prompt, сетка параметров, таблица качества/стоимости.
 - **Practice:** объяснить в README, почему два ответа разошлись.
 - **Artifact:** отчёт экспериментов + правила выбора параметров.
@@ -461,7 +461,7 @@
   4. Порог в прогоне
   5. Граничные входы
   6. SFT, LoRA, QLoRA, instruction tuning, preference optimization. Fine-tune только если контекст не закрыл разрыв held-out
-- **Lab:** зелёный прогон и красный на сломанной фикстуре.
+- **Lab:** зелёный прогон, красный на сломанной фикстуре и три строки prompt, retrieval, fine-tune.
 - **Practice:** ворота на held-out без ключа провайдера.
 - **Artifact:** скрипт оценки с отчётом и порогом.
 - **Decision card:** Судья-модель или проверка кодом.
@@ -593,7 +593,7 @@
   3. 429 не тишина
   4. Сначала вертикаль
   5. Чужой дежурный читает страницу
-  6. Inference server: vLLM, continuous batching, batching, KV cache, concurrency, throughput, GPU memory
+  6. Inference server: Request → Scheduler → Batch → Model → Token, latency против throughput, vLLM, batching, KV cache
 - **Lab:** мок ограничения показывает текст, не пустой экран.
 - **Practice:** runbook без оркестратора, которого нет.
 - **Artifact:** страница дежурства и фикстура 429.

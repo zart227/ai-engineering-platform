@@ -1,6 +1,6 @@
 "use server";
 
-import { getWeek, weeks } from "@course";
+import { getWeek } from "@course";
 import { scoreQuiz } from "@course/completion";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db";
@@ -338,13 +338,7 @@ export async function previewImportAction(raw: unknown) {
 
 export async function importLearningAction(raw: unknown) {
   const user = await requireUser();
-  const result = await importExport(user.id, raw);
-  if (result.ok) {
-    for (const week of weeks) {
-      await safePersistWeek(user.id, week.slug);
-    }
-  }
-  return result;
+  return importExport(user.id, raw);
 }
 
 export async function changePasswordAction(current: string, next: string) {
