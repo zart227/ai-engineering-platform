@@ -40,13 +40,13 @@ describe("platform MCP", () => {
     assert.doesNotMatch(searchTool?.description ?? "", /Семантический поиск/);
   });
 
-  it("returns course search hits and a lesson", async () => {
+  it("returns course search hits and a lesson for the session owner", async () => {
     const search = await handlePlatformMcp({
       body: call("tools/call", {
         name: "course.search",
         arguments: { query: "квантованная модель на видеокарте" },
       }),
-      sessionUserId: null,
+      sessionUserId: "alice",
       deps: {
         search: async (query) => rankChunks(query, buildCourseChunks(), 8),
         progress: async () => [],
@@ -64,14 +64,14 @@ describe("platform MCP", () => {
         name: "course.lesson",
         arguments: { weekSlug: "how-llms-work", lessonId: "how-llms-work-l6" },
       }),
-      sessionUserId: null,
+      sessionUserId: "alice",
     });
     const lessonBody = textOf(lesson);
     assert.equal(lessonBody.result?.isError, false);
     assert.match(lessonBody.result?.content?.[0]?.text ?? "", /Ollama/);
   });
 
-  it("refuses user tools without a session and ignores a foreign user id", async () => {
+  it("refuses course and user tools without a session and ignores a foreign user id", async () => {
     const seen: string[] = [];
     const deps = {
       search: async () => [],
@@ -84,14 +84,33 @@ describe("platform MCP", () => {
         return [{ key: "n", body: "только моя", weekSlug: "how-llms-work", lessonId: null }];
       },
     };
-    const anonymous = await handlePlatformMcp({
+    const anonymousNotes = await handlePlatformMcp({
       body: call("tools/call", { name: "user.notes", arguments: { userId: "bob" } }),
       sessionUserId: null,
       deps,
     });
-    assert.equal(textOf(anonymous).result?.isError, true);
-    assert.match(textOf(anonymous).result?.content?.[0]?.text ?? "", /сессия/);
+    assert.equal(textOf(anonymousNotes).result?.isError, true);
+    assert.match(textOf(anonymousNotes).result?.content?.[0]?.text ?? "", /сессия/);
     assert.equal(seen.length, 0);
+
+    const anonymousSearch = await handlePlatformMcp({
+      body: call("tools/call", { name: "course.search", arguments: { query: "ollama" } }),
+      sessionUserId: null,
+      deps,
+    });
+    assert.equal(textOf(anonymousSearch).result?.isError, true);
+    assert.match(textOf(anonymousSearch).result?.content?.[0]?.text ?? "", /сессия/);
+
+    const anonymousLesson = await handlePlatformMcp({
+      body: call("tools/call", {
+        name: "course.lesson",
+        arguments: { weekSlug: "how-llms-work", lessonId: "how-llms-work-l6" },
+      }),
+      sessionUserId: null,
+      deps,
+    });
+    assert.equal(textOf(anonymousLesson).result?.isError, true);
+    assert.match(textOf(anonymousLesson).result?.content?.[0]?.text ?? "", /сессия/);
 
     const notes = await handlePlatformMcp({
       body: call("tools/call", { name: "user.notes", arguments: { userId: "bob", weekSlug: "how-llms-work" } }),

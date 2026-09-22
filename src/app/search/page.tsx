@@ -1,4 +1,5 @@
 import { SearchClient } from "./search-client";
+import { getSession } from "@/server/auth";
 import { searchCourse } from "@/server/semantic-search";
 
 export default async function SearchPage({
@@ -6,9 +7,13 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
+  const session = await getSession();
   const params = await searchParams;
   const query = typeof params.q === "string" ? params.q : "";
-  const result = query.trim().length >= 2 ? await searchCourse(query) : { ok: true as const, hits: [] };
+  const result =
+    session && query.trim().length >= 2
+      ? await searchCourse(query)
+      : { ok: true as const, hits: [] };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
