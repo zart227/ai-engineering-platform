@@ -1,5 +1,6 @@
 import { getWeek } from "@course";
 import { buildCourseChunks } from "@/server/course-index";
+import { wrapCourseLessonPayload, wrapUserNotesPayload } from "@/server/mcp-boundary";
 import { rankChunks, type SearchHit } from "@/server/semantic-search";
 
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
@@ -252,7 +253,7 @@ async function callTool(
     const lessonId = typeof argumentsObject.lessonId === "string" ? argumentsObject.lessonId : undefined;
     const lesson = lessonText(weekSlug, lessonId);
     if (!lesson) return toolResult(id, "Урок не найден.", true);
-    return toolResult(id, JSON.stringify(lesson), false);
+    return toolResult(id, JSON.stringify(wrapCourseLessonPayload(lesson)), false);
   }
 
   const weekSlug = typeof argumentsObject.weekSlug === "string" ? argumentsObject.weekSlug : undefined;
@@ -261,5 +262,6 @@ async function callTool(
     return toolResult(id, JSON.stringify({ userId: sessionUserId, progress: rows }), false);
   }
   const notes = await deps.notes(sessionUserId, weekSlug);
-  return toolResult(id, JSON.stringify({ userId: sessionUserId, notes }), false);
+  const wrapped = wrapUserNotesPayload(notes);
+  return toolResult(id, JSON.stringify({ userId: sessionUserId, ...wrapped }), false);
 }

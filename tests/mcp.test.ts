@@ -68,7 +68,11 @@ describe("platform MCP", () => {
     });
     const lessonBody = textOf(lesson);
     assert.equal(lessonBody.result?.isError, false);
-    assert.match(lessonBody.result?.content?.[0]?.text ?? "", /Ollama/);
+    const lessonPayload = JSON.parse(lessonBody.result?.content?.[0]?.text ?? "{}") as {
+      lesson: { lessonText: { trust: string; text: string } };
+    };
+    assert.equal(lessonPayload.lesson.lessonText.trust, "untrusted");
+    assert.match(lessonPayload.lesson.lessonText.text, /Ollama/);
   });
 
   it("refuses course and user tools without a session and ignores a foreign user id", async () => {
@@ -123,7 +127,11 @@ describe("platform MCP", () => {
       deps,
     });
     assert.deepEqual(seen, ["alice", "alice"]);
-    assert.match(textOf(notes).result?.content?.[0]?.text ?? "", /только моя/);
+    const notesPayload = JSON.parse(textOf(notes).result?.content?.[0]?.text ?? "{}") as {
+      notes: { noteBody: { trust: string; text: string } }[];
+    };
+    assert.equal(notesPayload.notes[0]?.noteBody.trust, "untrusted");
+    assert.match(notesPayload.notes[0]?.noteBody.text ?? "", /только моя/);
     assert.doesNotMatch(textOf(notes).result?.content?.[0]?.text ?? "", /bob/);
     assert.match(textOf(progress).result?.content?.[0]?.text ?? "", /alice/);
   });
