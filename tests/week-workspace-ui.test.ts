@@ -36,4 +36,14 @@ describe("week workspace UI contract", () => {
       assert.ok(payload.artifactRubric && payload.artifactRubric.criteria.length > 0, week.slug);
     }
   });
+
+  it("records recall reviews from the week tab with success and miss actions", () => {
+    const ui = readFileSync("src/components/week-workspace.tsx", "utf8");
+    const recall = ui.slice(ui.indexOf("function Recall"), ui.indexOf("function DoneButton"));
+    assert.match(recall, /markRecallReviewedAction/);
+    assert.match(recall, /recordReview\(true\)/);
+    assert.match(recall, /recordReview\(false\)/);
+    assert.match(recall, /Повторил/);
+    assert.match(recall, /Не помню/);
+  });
 });

@@ -45,6 +45,16 @@ export function nextReviewAt(reviewCount: number, now: Date) {
   return new Date(now.getTime() + intervalDays(reviewCount) * DAY_MS);
 }
 
+export function nextReviewCountAfter(input: {
+  existingCount: number;
+  samePrompt: boolean;
+  recalled: boolean;
+}) {
+  if (!input.recalled) return 1;
+  if (!input.samePrompt) return 1;
+  return input.existingCount + 1;
+}
+
 export function startedWeekSlugs(groups: Iterable<{ weekSlug: string }>[]) {
   const slugs = new Set<string>();
   for (const group of groups) {

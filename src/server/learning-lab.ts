@@ -1,7 +1,13 @@
 import { getWeek, weeks } from "@course";
 import { prisma } from "@/server/db";
 import { countFunnel, FUNNEL_EVENT_TYPES } from "@/server/funnel";
-import { DUE_RECALL_LIMIT, nextReviewAt, selectDueRecall, startedWeekSlugs } from "@/server/recall-schedule";
+import {
+  DUE_RECALL_LIMIT,
+  nextReviewAt,
+  nextReviewCountAfter,
+  selectDueRecall,
+  startedWeekSlugs,
+} from "@/server/recall-schedule";
 
 export async function loadLearningFunnel(userId: string) {
   const rows = await prisma.learningEvent.groupBy({
@@ -65,7 +71,13 @@ export async function userStartedWeek(userId: string, weekSlug: string) {
   return started.has(weekSlug);
 }
 
-export async function saveRecallReview(userId: string, weekSlug: string, itemIndex: number, now = new Date()) {
+export async function saveRecallReview(
+  userId: string,
+  weekSlug: string,
+  itemIndex: number,
+  recalled = true,
+  now = new Date()
+) {
   const week = getWeek(weekSlug);
   const item = week?.recall[itemIndex];
   if (!week || itemIndex < 0 || !Number.isInteger(itemIndex) || !item) {
@@ -79,7 +91,11 @@ export async function saveRecallReview(userId: string, weekSlug: string, itemInd
     where: { userId_weekSlug_itemIndex: { userId, weekSlug, itemIndex } },
   });
   const samePrompt = existing?.prompt === item.question;
-  const reviewCount = samePrompt ? existing.reviewCount + 1 : 1;
+  const reviewCount = nextReviewCountAfter({
+    existingCount: samePrompt ? existing.reviewCount : 0,
+    samePrompt,
+    recalled,
+  });
   const dueAt = nextReviewAt(reviewCount, now);
   await prisma.recallReview.upsert({
     where: { userId_weekSlug_itemIndex: { userId, weekSlug, itemIndex } },

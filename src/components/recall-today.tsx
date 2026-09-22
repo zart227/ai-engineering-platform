@@ -69,7 +69,7 @@ export function RecallToday({
                       setError(null);
                       setPendingKey(key);
                       startTransition(async () => {
-                        const result = await markRecallReviewedAction(item.weekSlug, item.itemIndex);
+                        const result = await markRecallReviewedAction(item.weekSlug, item.itemIndex, true);
                         setPendingKey(null);
                         if (!result.ok) {
                           setError(result.error);
@@ -81,6 +81,28 @@ export function RecallToday({
                     }}
                   >
                     Повторил
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={pendingKey === key}
+                    onClick={() => {
+                      setError(null);
+                      setPendingKey(key);
+                      startTransition(async () => {
+                        const result = await markRecallReviewedAction(item.weekSlug, item.itemIndex, false);
+                        setPendingKey(null);
+                        if (!result.ok) {
+                          setError(result.error);
+                          return;
+                        }
+                        setHidden((current) => [...current, key]);
+                        router.refresh();
+                      });
+                    }}
+                  >
+                    Не помню
                   </Button>
                 </div>
                 {open ? <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p> : null}
