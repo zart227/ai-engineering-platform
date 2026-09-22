@@ -42,6 +42,6 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | P3-SEARCH | Хеш-поиск ученика | DONE | pgvector и `CourseChunk` остаются. Косинус `<=>` по вектору `feature-hash-v1`: хеш слов, префиксов и биграмм, 384 измерения. Перефраз без общих слов не находится. Страница `/search` и `course.search` называют это хеш-поиском. Проверено на `1592ea9` | Wave 5.1 | Use case подтверждён | Закрыто |
 | P4-MCP | Platform MCP server | DONE | `POST /api/mcp`, ревизия 2026-07-28: `course.search`, `course.lesson`, `user.progress`, `user.notes`. Прогресс и заметки только через `getSession()`, аргумент userId игнорируется. Проверено на `1592ea9` | Wave 5.1 | Курс MCP | Закрыто |
 | W6-REDIS | Redis/queue | NOT_APPLICABLE | Use case не доказан. Платформа — один процесс + Postgres | Wave 6 | Измеренная боль | Не ставить зависимость |
-| W7-TUTOR | AI Tutor V1–V4 | NOT_STARTED | Нет rubrics/evals как контракта | Wave 7 | GATE 3+ | Research перед кодом |
+| W7-TUTOR | AI Tutor V1–V4 | PARTIAL | V1: один урок и вопрос, cloud Ollama, сессия владельца, без solution/quiz/recall и без searchCourse. Тяжёлые задачи только названы. Rubrics/evals и GATE 7 не закрыты | Wave 7 | GATE 3+ | GATE 7 открыт |
 
 Финальный `DONE` по implementation-пунктам ставит только Orchestrator после review и gate.

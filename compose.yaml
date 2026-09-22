@@ -31,6 +31,13 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production-use-a-long-random-value}
       APP_URL: http://127.0.0.1:43127
       NODE_ENV: production
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-https://ollama.com}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-minimax-m2.5}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-30}
       PORT: 43127
       HOSTNAME: 0.0.0.0
     ports:

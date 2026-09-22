@@ -15,3 +15,11 @@ V3 needs a real attempt. `ArtifactProgress` is a self-report: notes, URLs, and a
 Evals later: 99 hint cases from the 33 practices (three hints each), and a failure if the solution string appears in the reply. No invented prices.
 
 Login and register rate-limit warnings no longer include the email. Week 24 treats email as PII. The limits stay 8 and 5 attempts per 15 minutes.
+
+## V1 call
+
+GATE 7 is not done. GATE FINAL is not done.
+
+A provider exists, so V1 may call it. The router follows job-pilot: routine tasks use cloud Ollama (`get_simple_llm_provider`: filter, scoring, chat, learning, edit_proposal, edit_reply, plus tutor_v1). Heavy tasks use OpenAI (`get_llm_provider`: proposal, plus rubric_feedback, multi_week_context, long_generation). Those heavy flows are named and not built. A routine call with no Ollama config does not fall through to OpenAI. A heavy call with no OpenAI config does not fall through to Ollama.
+
+V1 context is the current lesson’s teaching text plus the student question. `check.question` is included. `check.answer`, `practice.solution`, quiz answers, recall answers, and other weeks are not. The route does not call `searchCourse`. The practice hint panel is unchanged. The tutor route checks the session owner, rate-limits that owner, and does not log the question, the lesson body, or the email. A reply that contains `practice.solution` is rejected. A reply that is the next hint is returned.
