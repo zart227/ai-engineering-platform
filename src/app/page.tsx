@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { modules, weeks, weekHref, courseMeta } from "@course";
 import { getSession } from "@/server/auth";
+import { loadDueRecall, loadLearningFunnel } from "@/server/learning-lab";
 import { coursePercent, currentWeek, loadLearningState, summarizeWeeks } from "@/server/progress";
+import { LearningFunnel } from "@/components/learning-funnel";
+import { RecallToday } from "@/components/recall-today";
 import { Button } from "@/components/ui/button";
 import { weekLabel } from "@/lib/week-label";
 
@@ -39,7 +42,11 @@ export default async function HomePage() {
     );
   }
 
-  const state = await loadLearningState(session.user.id);
+  const [state, funnel, recall] = await Promise.all([
+    loadLearningState(session.user.id),
+    loadLearningFunnel(session.user.id),
+    loadDueRecall(session.user.id),
+  ]);
   const rows = summarizeWeeks(state);
   const percent = coursePercent(rows);
   const next = currentWeek(rows);
@@ -77,6 +84,8 @@ export default async function HomePage() {
           </div>
         ))}
       </div>
+      <LearningFunnel snapshot={funnel} />
+      <RecallToday items={recall.due} waiting={recall.waiting} startedCount={recall.startedCount} />
       <section className="mt-12 space-y-8">
         {modules.map((mod) => (
           <div key={mod.id}>

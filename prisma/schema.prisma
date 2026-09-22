@@ -29,6 +29,7 @@ model User {
   weekProgress       WeekProgress[]
   quizAttempts       QuizAttempt[]
   learningEvents     LearningEvent[]
+  recallReviews      RecallReview[]
 }
 
 model Session {
@@ -227,4 +228,19 @@ model LearningEvent {
 
   @@index([userId, createdAt])
   @@index([userId, type])
+}
+
+model RecallReview {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekSlug     String
+  itemIndex    Int
+  prompt       String
+  nextReviewAt DateTime
+  reviewCount  Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, weekSlug, itemIndex])
+  @@index([userId, nextReviewAt])
 }

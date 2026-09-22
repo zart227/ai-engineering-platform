@@ -26,8 +26,8 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | C-W4 | Week 4: plain JSON vs schema-constrained, parse/schema/latency/tokens | DONE | A/B: prompt JSON vs `json_schema` strict, таблица отказов и токенов | Agent C | — | Закрыто для Wave 1 |
 | C-SCHEMA | Course Quality Contract | DONE | Опциональные поля на `Week`. Обязательными не стали. Документ: `content-schema.md` | Agent E | GATE 1 | Закрыто |
 | C-RUBRIC | ArtifactRubric first-class | DONE | Все 33 недели: 4 критерия, сумма весов 100. CR прошёл | C1–C10 | C-SCHEMA | Закрыто |
-| C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | DONE | Все 33 недели: 8 вопросов, четыре вида. `passScore` 70 | C1–C10 | C-SCHEMA | Порог 80% не включали |
-| C-SR | Spaced repetition | NOT_STARTED | Recall внутри недели, без `nextReviewAt` | Wave 5 P2 | — | Не считать recall scheduler-ом |
+| C-ASSESS | Scenario/debug assessments, порог ~80% для сложных недель | DONE | Все 33 недели: 8 вопросов, четыре вида. `passScore` 70, старые попытки не пересчитываются | C1–C10 | C-SCHEMA | Порог 80% не включали |
+| C-SR | Spaced repetition | DONE | `RecallReview.nextReviewAt` на пользователя, неделю и вопрос. Пропуск не сдвигает срок. Дашборд: «Сегодня повторить», capstone как «Финальный проект» | Wave 5 P2 | — | Без Redis и воркера |
 | C-RAG | Глубина RAG ingestion/chunking/eval | DONE | Week 16: Recall@K отдельно от citation/answer correctness. Термин в глоссарии | C4 | GATE 2 | Закрыто |
 | C-MCP | MCP threat model | DONE | Week 18: Host → Client → Server, tool shadowing и отказ host по своему списку путей | C5 | GATE 2 | Закрыто |
 | C-BUDGET | AgentBudget | DONE | Week 12: интерфейс в учебном коде, maxCost и toolBudget. Не тип платформы | C3 | GATE 2 | Закрыто |
@@ -38,7 +38,7 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | T-EXPORT | Тесты export/import | DONE | `tests/export.test.ts`: v1→v2, секреты, preview. Запись в БД не покрыта интеграционным тестом | Agent B | P0-IMPORT | Схема закрыта |
 | UX-NAV | Sidebar tree, breadcrumbs, mobile week nav | DONE | `WeekNav`: модули, крошки «Курс → модуль → неделя», disclosure ниже lg | Agent G | GATE 1 | Закрыто |
 | UX-NEXT | Где я и что дальше внутри недели | PARTIAL | Dashboard знает current week; вкладки без статуса | Agent G | — | Wave 2 |
-| P1-ANALYTICS | Funnel по LearningEvent | NOT_STARTED | События пишутся, не читаются | Wave 5 | — | После curriculum |
+| P1-ANALYTICS | Funnel по LearningEvent | DONE | Дашборд считает свои строки: урок начат, урок завершён, практика или лаба, квиз сдан, артефакт готов. Новых типов нет | Wave 5 | — | Закрыто |
 | P4-MCP | Platform MCP server | NOT_STARTED | Нет | Wave 5 | Курс MCP | Не раньше |
 | W6-REDIS | Redis/queue | NOT_APPLICABLE | Use case не доказан. Платформа — один процесс + Postgres | Wave 6 | Измеренная боль | Не ставить зависимость |
 | W7-TUTOR | AI Tutor V1–V4 | NOT_STARTED | Нет rubrics/evals как контракта | Wave 7 | GATE 3+ | Research перед кодом |
