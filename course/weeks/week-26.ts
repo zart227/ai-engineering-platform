@@ -807,17 +807,6 @@ export async function tracedComplete(
       mistake:
         "Включить экспорт в вендора до теста redaction и положить в span заголовок Authorization.",
     }),
-    decision({
-      id: "observability-d2",
-      title: "Чужой SLO или свои перцентили",
-      optionA: "Число из статьи",
-      optionB: "p50, p95, p99 своих трейсов",
-      useA: ["черновик, который ещё не называют замером"],
-      useB: ["отчёт по своим spans", "поиск узкой стадии", "сравнение двух прогонов"],
-      tradeoffs:
-        "Чужая цифра появляется сразу и не про ваш процесс. Свой список дольше и честно показывает, что на малом N p99 почти максимум.",
-      mistake: "Записать p95 как цель из статьи, не имея своих total latency.",
-    }),
   ],
   learningObjectives: [
     "Собрать дерево spans одного requestId и найти последний span с ok false.",
