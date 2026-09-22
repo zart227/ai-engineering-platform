@@ -36,7 +36,7 @@ GATE 0  audit docs + ownership
       GATE 4
         |
         P1 Analytics, P2 Spaced repetition   SAFE_PARALLEL если разные таблицы/роуты
-        P3 Semantic search                   SEQUENTIAL: только после use case
+        P3 Hash search                       SEQUENTIAL: только после use case
         P4 Platform MCP                      SEQUENTIAL: после недели MCP и security review
         |
       GATE 5
@@ -140,13 +140,15 @@ GATE 0  audit docs + ownership
 | W2-G | Learning UX | G | P1 | W1-A | SAFE_PARALLEL | DONE |
 | W3-C1..C10 | Curriculum deepen | C1–C10 | P0 | GATE 2 | SAFE_PARALLEL по файлам | DONE |
 | W4-M1..M5 | Missing topics embed | M* | P1 | GATE 3 | SAFE_PARALLEL по разным week files | DONE |
-| W5-P1 | Learning funnel | P1 | P1 | GATE 4 | SAFE_PARALLEL | READY_FOR_VERIFICATION |
+| W5-P1 | Learning funnel | P1 | P1 | GATE 4 | SAFE_PARALLEL | DONE |
 | W5-P2 | Spaced repetition | P2 | P1 | GATE 4 | SAFE_PARALLEL | DONE |
-| W5-P3 | pgvector search | P3 | P2 | proven use case | SEQUENTIAL | READY_FOR_VERIFICATION |
-| W5-P4 | Platform MCP | P4 | P2 | Week 18 + authz | SEQUENTIAL | READY_FOR_VERIFICATION |
+| W5-P3 | pgvector hash search | P3 | P2 | proven use case | SEQUENTIAL | DONE |
+| W5-P4 | Platform MCP | P4 | P2 | Week 18 + authz | SEQUENTIAL | DONE |
 | W6 | Redis/queue | — | — | measured need | CONDITIONAL | NOT_APPLICABLE until proven |
 | W7 | AI Tutor | T* | P1 | rubrics, evals, security | SEQUENTIAL | NOT_STARTED |
 | W8 | Final validation | reviewers | P0 | all gates | SEQUENTIAL | NOT_STARTED |
+
+GATE 4, GATE 5 и GATE 5.1 проверены на `1592ea9`. Wave 6 не запускалась. Redis не добавлялся.
 
 ## Integration requests expected
 

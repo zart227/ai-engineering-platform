@@ -247,13 +247,13 @@ Tests:
 
 ## Gate 5
 
-Историческая пометка волны 5 для P1 и P2. Чекбокс GATE 5 в `action-checklist.md` снова открыт: оркестратор его не закрывал после доработки воронки, поиска и MCP.
+Историческая пометка волны 5 для P1 и P2. После доработки воронки, поиска и MCP чекбокс GATE 5 снова открывали. Закрытие записано в проверке `1592ea9` ниже.
 
 ## Wave 5.1
 
 База: `origin/main` `f56b403f4c79dde58170a8357b2ad7fbc3459fae`.
 
-GATE 4 и GATE 5 в чеклисте открыты. Закрытие гейтов этим проходом не заявляется.
+В том проходе GATE 4 и GATE 5 не закрывали. Закрытие — проверка `1592ea9` ниже.
 
 M1–M4 углублены в неделях 2, 32, 25 и 10. M5 не переписывалась. Воронка считает user-week по порядку шагов. Export formatVersion 3 возит `RecallReview`. Поиск ученика пишет векторы в pgvector. MCP: `POST /api/mcp`.
 
@@ -264,3 +264,11 @@ M1–M4 углублены в неделях 2, 32, 25 и 10. M5 не переп
 PASS.
 
 Условия: DOCX прочитаны, repository сверен с `origin/main`, findings объединены, task graph, dependencies, ownership и состав Wave 1 зафиксированы.
+
+## Gate 4, Gate 5, Gate 5.1
+
+PASS на `origin/main` `1592ea9abc595749c8d0c1661c014203cf15d0ba` (PR #2, CI SUCCESS). Wave 6 не запускалась. Redis не добавлялся.
+
+Проверка: `npx tsx --test tests/**/*.test.ts` — 74 passed, 0 failed. В том числе `tests/gate-topics.test.ts`, `tests/export.test.ts`, `tests/funnel.test.ts`, `tests/mcp.test.ts`, `tests/theme-boot.test.ts`, `tests/internal-path.test.ts`, `tests/quality-contract.test.ts`.
+
+Контракт готовой недели по-прежнему падает, если убрать рубрику, источники, цели, эксперимент, failure mode, метрику, `contentVersion` или `lastReviewedAt` (`tests/quality-contract.test.ts`, «rejects a ready week that drops a core field»).
