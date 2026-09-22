@@ -54,7 +54,7 @@ describe("auth rate-limit logs", () => {
     prisma.user.findUnique = (async () => {
       lookups += 1;
       return null;
-    }) as typeof prisma.user.findUnique;
+    }) as unknown as typeof prisma.user.findUnique;
     const lines = captureConsole();
     try {
       const allowed = [];
