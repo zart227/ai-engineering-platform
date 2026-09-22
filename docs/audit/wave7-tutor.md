@@ -1,6 +1,6 @@
 # Wave 7 tutor
 
-Baseline: `origin/main` `45cff6084b66ff5cf30d638eec5de2ca3a99a0bd`. GATE 7 is not done. GATE FINAL is not done.
+Baseline: `origin/main` `8620a62ec845fba2d834e4bd8e17d88fd13c38e7`. **GATE 7 closed for Tutor V1** (orchestrator sign-off Sep 2026). GATE FINAL is not done.
 
 V1 is on `main`. `POST /api/tutor` (`src/app/api/tutor/route.ts`) calls `answerTutor` in `src/server/tutor.ts`. The theory tab renders `LessonTutor` per lesson (`src/components/lesson-tutor.tsx`). Provider routing lives in `src/server/llm.ts`. Tests: `tests/tutor.test.ts`.
 
@@ -24,9 +24,9 @@ Browser smoke on current `main`: form renders on week 1 theory, Russian reply ~1
 
 ## Research (T1–T5)
 
-T1–T5 read-only research covers tutor architecture, why V1 must not use hash search, V3 rubric feedback shape, security limits, and a proposed 99-hint offline eval suite. Those rows and TutorContext separation are checked in `action-checklist.md`. GATE 7 stays open until orchestrator sign-off and remaining W7 scope (below) are closed.
+T1–T5 read-only research covers tutor architecture, why V1 must not use hash search, V3 rubric feedback shape, security limits, and a proposed 99-hint offline eval suite. Those rows and TutorContext separation are checked in `action-checklist.md`. GATE 7 is checked for V1 only.
 
-## Not built (W7-TUTOR still PARTIAL)
+## Deferred (V2–V4 out of scope for GATE 7)
 
 - V2 citations: a retriever other than `feature-hash-v1` / `searchCourse` (T2).
 - V3 rubric feedback on a real attempt history (T3).

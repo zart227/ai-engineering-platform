@@ -275,12 +275,18 @@ PASS на `origin/main` `1592ea9abc595749c8d0c1661c014203cf15d0ba` (PR #2, CI SU
 
 ## Wave 7 tutor V1
 
-GATE 7 и GATE FINAL не закрыты. Redis не добавлялся.
+GATE 7 закрыт для Tutor V1 (orchestrator sign-off Sep 2026). GATE FINAL не закрыт. Redis не добавлялся.
 
-Тьютор одного урока вызывает cloud Ollama. Тяжёлые задачи (proposal, rubric feedback, multi-week context, long generation) названы на стороне OpenAI и не собраны. Контекст — учебный текст текущего урока и вопрос. Панель подсказок практики не менялась.
+Тьютор одного урока вызывает cloud Ollama. Тяжёлые задачи (proposal, rubric feedback, multi-week context, long generation) названы на стороне OpenAI и не собраны. Контекст — учебный текст текущего урока и вопрос. Панель подсказок практики не менялась. V2–V4 и 99-hint eval suite отложены.
 
 ## Wave 8 checklist reconciliation
 
-База: `origin/main` `cac6473` (PRs #7–#25). `docs/audit/action-checklist.md` WAVE 8 разбит на точные строки: security/performance/cost MAJORs, red-team restore и UI fixes, student simulation, fresh clone — отмечены по коду. Открыто: client `completed` boolean, `P0-RATELIMIT` in-memory, full validation, GATE FINAL. GATE 7 не трогали.
+База: `origin/main` `cac6473` (PRs #7–#25). `docs/audit/action-checklist.md` WAVE 8 разбит на точные строки: security/performance/cost MAJORs, red-team restore и UI fixes, student simulation, fresh clone — отмечены по коду. Открыто: client `completed` boolean, `P0-RATELIMIT` in-memory, full validation, GATE FINAL. GATE 7 оставили открытым до отдельного V1-only sign-off.
 
 Проверка: `npm test` — 164/164 pass.
+
+## Wave 7 GATE 7 close (V1 only)
+
+База: `origin/main` `8620a62`. GATE 7 отмечен в `action-checklist.md`. `W7-TUTOR` → DONE для V1; V2 citations, V3 rubric feedback, V4 multi-week/long_generation, 99-hint eval suite — out of scope / deferred. GATE FINAL не трогали.
+
+Evidence: `tests/tutor.test.ts` (context separation, fail-closed routing, session owner, rate limit, no searchCourse); browser smoke week 1 theory (`wave-7-tutor-browser.md`); `wave7-tutor.md` updated.
