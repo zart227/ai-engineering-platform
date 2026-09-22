@@ -40,7 +40,47 @@ describe("learning funnel", () => {
     assert.equal(snapshot.steps[1]?.conversion, 1);
     assert.equal(snapshot.steps[1]?.dropout, 0);
     assert.equal(snapshot.steps[1]?.dropoutRate, 0);
-    assert.ok(snapshot.steps.every((step, index) => index === 0 || step.count <= snapshot.steps[index - 1].count));
+  });
+
+  it("counts quiz and artifact when practice was skipped", () => {
+    const snapshot = countFunnel(
+      [
+        { userId: "me", type: "week_opened", weekSlug: "environment-llm-api" },
+        { userId: "me", type: "lesson_started", weekSlug: "environment-llm-api" },
+        { userId: "me", type: "lesson_completed", weekSlug: "environment-llm-api" },
+        { userId: "me", type: "quiz_passed", weekSlug: "environment-llm-api" },
+        { userId: "me", type: "artifact_completed", weekSlug: "environment-llm-api" },
+      ],
+      "me"
+    );
+
+    assert.deepEqual(
+      snapshot.steps.map((step) => step.count),
+      [1, 1, 1, 0, 1, 1, 0]
+    );
+    assert.equal(snapshot.steps[3]?.id, "practice_completed");
+    assert.equal(snapshot.steps[4]?.id, "quiz_passed");
+    assert.equal(snapshot.steps[4]?.conversion, 1);
+    assert.equal(snapshot.steps[4]?.dropout, 0);
+    assert.equal(snapshot.steps[4]?.dropoutRate, 0);
+    assert.equal(snapshot.steps[3]?.dropout, 1);
+    assert.equal(snapshot.steps[3]?.dropoutRate, 1);
+  });
+
+  it("still blocks a post-practice stage when an earlier mandatory stage is missing", () => {
+    const snapshot = countFunnel(
+      [
+        { userId: "me", type: "week_opened", weekSlug: "a" },
+        { userId: "me", type: "quiz_passed", weekSlug: "a" },
+        { userId: "me", type: "artifact_completed", weekSlug: "a" },
+      ],
+      "me"
+    );
+
+    assert.deepEqual(
+      snapshot.steps.map((step) => step.count),
+      [1, 0, 0, 0, 0, 0, 0]
+    );
   });
 
   it("drops a week that skipped an earlier stage", () => {

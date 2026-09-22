@@ -31,8 +31,34 @@ export type FunnelEvent = {
   weekSlug?: string | null;
 };
 
+const PRACTICE_STAGE_INDEX = FUNNEL_STEPS.findIndex((step) => step.id === "practice_completed");
+const QUIZ_STAGE_INDEX = FUNNEL_STEPS.findIndex((step) => step.id === "quiz_passed");
+
 function weekKey(userId: string, weekSlug: string) {
   return `${userId}\n${weekSlug}`;
+}
+
+function hasReachedStage(stages: Set<number>, index: number) {
+  if (index <= PRACTICE_STAGE_INDEX) {
+    for (let cursor = 0; cursor <= index; cursor += 1) {
+      if (!stages.has(cursor)) return false;
+    }
+    return true;
+  }
+
+  for (let cursor = 0; cursor < PRACTICE_STAGE_INDEX; cursor += 1) {
+    if (!stages.has(cursor)) return false;
+  }
+  for (let cursor = PRACTICE_STAGE_INDEX + 1; cursor <= index; cursor += 1) {
+    if (!stages.has(cursor)) return false;
+  }
+  return true;
+}
+
+function conversionBaseline(counts: number[], index: number) {
+  if (index === 0) return null;
+  if (index === QUIZ_STAGE_INDEX) return counts[PRACTICE_STAGE_INDEX - 1];
+  return counts[index - 1];
 }
 
 export function countFunnel(events: FunnelEvent[], userId: string): FunnelSnapshot {
@@ -53,14 +79,7 @@ export function countFunnel(events: FunnelEvent[], userId: string): FunnelSnapsh
   const counts = FUNNEL_STEPS.map((_, index) => {
     let count = 0;
     for (const stages of reached.values()) {
-      let prefix = true;
-      for (let cursor = 0; cursor <= index; cursor += 1) {
-        if (!stages.has(cursor)) {
-          prefix = false;
-          break;
-        }
-      }
-      if (prefix) count += 1;
+      if (hasReachedStage(stages, index)) count += 1;
     }
     return count;
   });
@@ -69,7 +88,7 @@ export function countFunnel(events: FunnelEvent[], userId: string): FunnelSnapsh
     eventCount,
     unit: "user-week",
     steps: FUNNEL_STEPS.map((step, index) => {
-      const previous = index === 0 ? null : counts[index - 1];
+      const previous = conversionBaseline(counts, index);
       return {
         id: step.id,
         label: step.label,
