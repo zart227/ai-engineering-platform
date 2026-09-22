@@ -32,7 +32,7 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | C-MCP | MCP threat model | DONE | Week 18: Host → Client → Server, tool shadowing и отказ host по своему списку путей | C5 | GATE 2 | Закрыто |
 | C-BUDGET | AgentBudget | DONE | Week 12: интерфейс в учебном коде, maxCost и toolBudget. Не тип платформы | C3 | GATE 2 | Закрыто |
 | C-DIST | at-most-once / exactly-once illusion названы | DONE | Week 27 и термины глоссария: at-most-once, at-least-once, exactly-once | C8 | GATE 2 | Закрыто |
-| C-MISSING | Local models, serving, fine-tune, routing, privacy taxonomy | NOT_STARTED | Почти нет в `course/` | M1–M5 | GATE 3 | Встраивать в существующие недели |
+| C-MISSING | Local models, serving, fine-tune, routing, privacy taxonomy | DONE | Неделя 2: API и local. Неделя 32: один запрос, пять подряд, таймаут. Неделя 25: prompt, retrieval, fine-tune без обучения. Неделя 10: правило выбора модели. Неделя 24: четыре класса уже были | M1–M5 | GATE 3 | Новых недель нет |
 | T-CI | PR: typecheck, lint, test, build | DONE | `.github/workflows/ci.yml` | Agent D | — | Закрыто |
 | T-CONTRACT | Unique ids/slugs, refs, no TODO/placeholder | DONE | `tests/curriculum-integrity.test.ts` | Agent D | — | Закрыто |
 | T-EXPORT | Тесты export/import | DONE | `tests/export.test.ts`: v1→v2, секреты, preview. Запись в БД не покрыта интеграционным тестом | Agent B | P0-IMPORT | Схема закрыта |

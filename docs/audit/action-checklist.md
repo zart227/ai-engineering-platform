@@ -77,12 +77,12 @@
 
 ## WAVE 4 — Missing Topics (встраивание, не Week 34+)
 
-- [ ] M1 Local models
-- [ ] M2 Model serving fundamentals
-- [ ] M3 Fine-tuning decision framework
-- [ ] M4 Routing and cost
-- [ ] M5 Reliability and privacy taxonomy
-- [ ] GATE 4
+- [x] M1 Local models
+- [x] M2 Model serving fundamentals
+- [x] M3 Fine-tuning decision framework
+- [x] M4 Routing and cost
+- [x] M5 Reliability and privacy taxonomy
+- [x] GATE 4
 
 ## WAVE 5 — Platform as Lab
 
