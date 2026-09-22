@@ -1,7 +1,7 @@
 # Implementation Status
 
-Baseline: `origin/main` `839f135` (совпадает с HEAD на старте Wave 0).
-Аудит-документы описывают тот же коммит. Расхождения с кодом ниже — результат сверки R1–R6, а не повторного доверия к DOCX.
+Baseline: `origin/main` `839f135` (старт Wave 0). Последняя сверка Wave 8: `cac6473` (PRs #7–#25).
+Аудит-документы описывают тот же коммит. Расхождения с кодом ниже — результат сверки R1–R6 и Wave 8, а не повторного доверия к DOCX.
 
 Статусы: `NOT_STARTED` | `PARTIAL` | `READY_FOR_VERIFICATION` | `DONE` | `BLOCKED` | `NOT_APPLICABLE`.
 
@@ -9,15 +9,15 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | -- | ----------- | ------ | -------- | ----- | ------------ | ------ |
 | W0-RECON | R1–R6 read-only audit vs `839f135` | DONE | Этот каталог, контракты агентов | Orchestrator | — | Закрыто |
 | W0-DOCS | Audit control docs | DONE | `docs/audit/*` | Orchestrator | W0-RECON | Закрыто |
-| P0-EXPORT | Полный backup learner state | DONE | `buildExport` пишет formatVersion 3, включая `RecallReview` (weekSlug, itemIndex, prompt, nextReviewAt, reviewCount). Импорт принимает v2 и v3. v2 расписание не стирает, и превью это говорит. v3, включая ноль карточек, в превью предупреждает о полной замене. Roundtrip интервалов 1, 3, 7, 21 дня: `tests/export.test.ts`. Проверено на `1592ea9` | Agent B | — | Закрыто |
-| P0-IMPORT | Validate → version → migrate → preview → transaction → result | DONE | `migrateExport`, `previewImport`, `$transaction`. v1 не удаляет квизы и события. `importLearningAction` возвращает `importExport` и после транзакции не вызывает `safePersistWeek`. Проверено на `1592ea9` | Agent B | P0-EXPORT | Закрыто |
+| P0-EXPORT | Полный backup learner state | DONE | `buildExport` пишет formatVersion 3, включая `RecallReview` (weekSlug, itemIndex, prompt, nextReviewAt, reviewCount). Импорт принимает v2 и v3. v2 расписание не стирает, и превью это говорит. v3, включая ноль карточек, в превью предупреждает о полной замене. Roundtrip интервалов 1, 3, 7, 21 дня: `tests/export.test.ts`. Capstone replace-on-import (deleteMany+create): PR #25. Проверено на `cac6473` | Agent B | — | Закрыто |
+| P0-IMPORT | Validate → version → migrate → preview → transaction → result | DONE | `migrateExport`, `previewImport`, `$transaction`. v1 не удаляет квизы и события. `importLearningAction` возвращает `importExport` и после транзакции не вызывает `safePersistWeek`. Полная замена learner state включая capstone; quiz re-score: PRs #10, #21, #25. Проверено на `cac6473` | Agent B | P0-EXPORT | Закрыто |
 | P0-SECRETS | Не экспортировать password hash и session token | DONE | `buildExport` отдаёт только email/name | — | — | Сохранить инвариант в v2 |
 | P0-IDOR | Portfolio update только своего пользователя | DONE | `updateMany` where `{ id, userId }` | Agent B | — | Закрыто |
 | P0-DOCS | Архитектурные документы = текущий код | DONE | `PLATFORM.md` §A описывает текущий стек. Снимок `127ddb5` подписан как история. Регистрация недель в `course/index.ts` | Agent A | — | Закрыто |
 | P0-CAPSTONE-UI | 32 недели + отдельный Capstone, без семантики «Неделя 33» | DONE | `weekLabel`: capstone → «Финальный проект». Глоссарий использует тот же helper | Agent A | — | Закрыто |
 | P0-I18N | Русские подписи интерфейса | DONE | Хром: «Продолжить», «Сохранено», «Подготовка», «Что уже нужно», статусы портфолио по-русски. Названия модулей в curriculum не переводились | Agent A | — | Закрыто |
 | P0-DEAD | Подтверждённый мёртвый код | DONE | `compact.ts` удалён. `course/legacy/README.md` помечает архив | Agent A | — | Закрыто |
-| P0-RATELIMIT | In-memory rate limit не production-safe для нескольких инстансов | PARTIAL | `src/server/rate-limit.ts`, только login/register | Wave 6 | Доказанный use case | Не добавлять Redis в Wave 1 |
+| P0-RATELIMIT | In-memory rate limit не production-safe для нескольких инстансов | PARTIAL | `src/server/rate-limit.ts`, только login/register. Register key нормализует email через `trim().toLowerCase()` (PR #23). Multi-instance по-прежнему не покрыт | Wave 6 | Доказанный use case | Не добавлять Redis в Wave 1 |
 | P0-PROXY | Cookie presence = UX gate, сессия проверяется на сервере | DONE | `src/proxy.ts` смотрит cookie; `getSession()` проверяет hash и срок | — | — | Оставить границу явной в доке |
 | P0-DEEPLINK | `?next=` после логина | DONE | `loginAction` читает `next` и зовёт `safeInternalPath`. Внешний URL, `//`, `\` и значение без ведущего `/` остаются на `/`. Проверено на `1592ea9` | Wave 5.1 | — | Закрыто |
 | C-W1 | Week 1: streaming vs normal, TTFT и total latency, retries в lab | DONE | Lab: stream false/true, TTFT, total, retry 429, без retry 401 | Agent C | — | Закрыто для Wave 1. Финальный проход ещё в C1 |
@@ -42,6 +42,6 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | P3-SEARCH | Хеш-поиск ученика | DONE | pgvector и `CourseChunk` остаются. Косинус `<=>` по вектору `feature-hash-v1`: хеш слов, префиксов и биграмм, 384 измерения. Перефраз без общих слов не находится. Страница `/search` и `course.search` называют это хеш-поиском. Проверено на `1592ea9` | Wave 5.1 | Use case подтверждён | Закрыто |
 | P4-MCP | Platform MCP server | DONE | `POST /api/mcp`, ревизия 2026-07-28: `course.search`, `course.lesson`, `user.progress`, `user.notes`. Прогресс и заметки только через `getSession()`, аргумент userId игнорируется. Проверено на `1592ea9` | Wave 5.1 | Курс MCP | Закрыто |
 | W6-REDIS | Redis/queue | NOT_APPLICABLE | Use case не доказан. Платформа — один процесс + Postgres | Wave 6 | Измеренная боль | Не ставить зависимость |
-| W7-TUTOR | AI Tutor V1–V4 | PARTIAL | V1 на `45cff60`: `POST /api/tutor`, `src/server/tutor.ts`, Ollama routine без fallback на OpenAI, `getSession()` + per-owner rate limit, контекст без solution/quiz/recall/check.answer, без `searchCourse`; `reply_rejected` при утечке solution; UI `LessonTutor` на theory; `tests/tutor.test.ts`; browser smoke (orchestrator run Sep 2026). Не построено: V2 citations, V3 rubric feedback, V4 multi-week/long_generation, 99-hint eval suite (T5), heavy OpenAI flows | Wave 7 | GATE 3+ | V1 закрыт; GATE 7 открыт |
+| W7-TUTOR | AI Tutor V1–V4 | PARTIAL | V1 на `cac6473`: `POST /api/tutor`, `src/server/tutor.ts`, Ollama routine без fallback на OpenAI, `getSession()` + per-owner rate limit, контекст без solution/quiz/recall/check.answer, без `searchCourse`; `reply_rejected` при утечке solution; UI `LessonTutor` на theory; `tests/tutor.test.ts`; browser smoke (orchestrator run Sep 2026). Не построено: V2 citations, V3 rubric feedback, V4 multi-week/long_generation, 99-hint eval suite (T5), heavy OpenAI flows | Wave 7 | GATE 3+ | V1 закрыт; GATE 7 открыт |
 
 Финальный `DONE` по implementation-пунктам ставит только Orchestrator после review и gate.
