@@ -1,4 +1,4 @@
-const SECRET_KEYS = /password|token|authorization|cookie|api[_-]?key|secret|session/i;
+const SECRET_KEYS = /password|token|authorization|cookie|api[_-]?key|secret|session|email/i;
 
 function redact(value: unknown): unknown {
   if (typeof value === "string") {

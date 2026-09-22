@@ -73,6 +73,7 @@ export async function requireUser() {
 export async function registerUser(input: { email: string; name: string; password: string }) {
   const key = `register:${input.email.toLowerCase()}`;
   if (!rateLimit(key, 5, 15 * 60 * 1000).ok) {
+    logWarn("register_rate_limited");
     return { ok: false as const, error: "Слишком много попыток. Подождите немного." };
   }
   const email = input.email.trim().toLowerCase();
@@ -105,7 +106,7 @@ export async function loginUser(input: { email: string; password: string }) {
   const email = input.email.trim().toLowerCase();
   const key = `login:${email}`;
   if (!rateLimit(key, 8, 15 * 60 * 1000).ok) {
-    logWarn("login_rate_limited", { email });
+    logWarn("login_rate_limited");
     return { ok: false as const, error: "Слишком много попыток. Подождите немного." };
   }
   const user = await prisma.user.findUnique({ where: { email } });
