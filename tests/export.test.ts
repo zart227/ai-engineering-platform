@@ -320,6 +320,59 @@ function createImportDb(initialRecall: RecallCard[], throwOn?: string) {
   };
 }
 
+describe("importExport bookmark href", () => {
+  it("skips javascript: and protocol-relative bookmarks on import", async () => {
+    const stored: { targetId: string; href: string }[] = [];
+    const db = {
+      async $transaction(fn: (tx: never) => Promise<unknown>) {
+        const tx = new Proxy(
+          {},
+          {
+            get(_target, prop) {
+              const name = String(prop);
+              return {
+                upsert: async (args: { where: { userId_targetType_targetId: { targetId: string } }; create: { href: string } }) => {
+                  if (name === "bookmark") {
+                    stored.push({
+                      targetId: args.where.userId_targetType_targetId.targetId,
+                      href: args.create.href,
+                    });
+                  }
+                },
+                deleteMany: async () => ({ count: 0 }),
+                createMany: async () => ({ count: 0 }),
+              };
+            },
+          }
+        );
+        await fn(tx as never);
+      },
+    };
+
+    const payload = {
+      ...minimalV1,
+      bookmarks: [
+        { targetType: "lesson", targetId: "safe", title: "Safe", href: "/week/foundations" },
+        { targetType: "lesson", targetId: "js", title: "XSS", href: "javascript:alert(1)" },
+        { targetType: "lesson", targetId: "proto", title: "Proto", href: "//evil" },
+        {
+          targetType: "lesson",
+          targetId: "ext",
+          title: "Docs",
+          href: "https://example.com/docs",
+        },
+      ],
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.deepEqual(stored, [
+      { targetId: "safe", href: "/week/foundations" },
+      { targetId: "ext", href: "https://example.com/docs" },
+    ]);
+  });
+});
+
 describe("importExport schedule and rollback", () => {
   it("keeps an existing schedule on a raw formatVersion 2 import", async () => {
     const db = createImportDb([{ prompt: "keep-me" }]);
