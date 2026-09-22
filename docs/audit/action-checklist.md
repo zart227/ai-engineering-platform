@@ -137,7 +137,7 @@ P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукт
 - [x] Capstone replace-on-import when absent from file — PR #25
 - [x] Quiz re-score on import — PR #21
 - [x] Week toggle id validation — PR #20
-- [ ] Week `completed` flags still client-supplied once ids validate (checkbox model; not server work verification)
+- [x] Week `completed` flags server-validated when marking done (curriculum + required fields; lesson/lab self-report) — PR TBD
 - [x] GATE 4 rubric + objectives in week overview — PR #16
 - [x] Recall miss grading + week tab review writes — PRs #14, #22
 
