@@ -78,7 +78,11 @@ npm start
 - `APP_URL` - публичный URL. Если начинается с `https://`, cookie ставится как Secure
 - `COOKIE_SECURE` - опционально `true`/`false`, перекрывает вывод из `APP_URL`
 
-Секреты не коммитятся. Ключи LLM в эту платформу в MVP не входят: студенты вызывают модели в своих репозиториях.
+Секреты не коммитятся.
+
+Тьютор урока — обычная задача, cloud Ollama: `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT_SECONDS`. Без ключа Ollama тьютор не отвечает и не переключается на OpenAI.
+
+Тяжёлые задачи названы и идут в OpenAI (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TIMEOUT_SECONDS`): предложение, отзыв по рубрике, контекст нескольких недель, длинная генерация. Эти экраны не собраны. Без ключа OpenAI они не уходят в Ollama.
 
 ## Auth
 

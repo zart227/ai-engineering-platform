@@ -272,3 +272,9 @@ PASS на `origin/main` `1592ea9abc595749c8d0c1661c014203cf15d0ba` (PR #2, CI SU
 Проверка: `npx tsx --test tests/**/*.test.ts` — 74 passed, 0 failed. В том числе `tests/gate-topics.test.ts`, `tests/export.test.ts`, `tests/funnel.test.ts`, `tests/mcp.test.ts`, `tests/theme-boot.test.ts`, `tests/internal-path.test.ts`, `tests/quality-contract.test.ts`.
 
 Контракт готовой недели по-прежнему падает, если убрать рубрику, источники, цели, эксперимент, failure mode, метрику, `contentVersion` или `lastReviewedAt` (`tests/quality-contract.test.ts`, «rejects a ready week that drops a core field»).
+
+## Wave 7 tutor V1
+
+GATE 7 и GATE FINAL не закрыты. Redis не добавлялся.
+
+Тьютор одного урока вызывает cloud Ollama. Тяжёлые задачи (proposal, rubric feedback, multi-week context, long generation) названы на стороне OpenAI и не собраны. Контекст — учебный текст текущего урока и вопрос. Панель подсказок практики не менялась.

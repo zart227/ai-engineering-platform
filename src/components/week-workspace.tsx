@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookmarkButton } from "@/components/bookmark-button";
+import { LessonTutor } from "@/components/lesson-tutor";
 import { ContentBlocks, PromptCard } from "@/components/content-blocks";
 import { DecisionCardView } from "@/components/decision-card";
 import { SaveField } from "@/components/save-field";
@@ -374,6 +375,7 @@ function Theory({
           <div className="mt-5">
             <ContentBlocks blocks={lesson.blocks} />
           </div>
+          <LessonTutor weekSlug={week.slug} lessonId={lesson.id} />
           <div className="mt-6 border-t border-border pt-4">
             <DoneButton
               checked={completed.includes(lesson.id)}
