@@ -103,8 +103,12 @@ export async function ensureCourseIndex() {
   if (descriptors.length === 0) throw new Error("course index is empty");
   const chunks = buildCourseChunks(descriptors);
   const zero = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
+  const currentIds = [...descriptors.map((descriptor) => descriptor.id), STAMP_ID];
   await prisma.$transaction(
     async (tx) => {
+      await tx.courseChunk.deleteMany({
+        where: { id: { notIn: currentIds } },
+      });
       for (const chunk of chunks) {
         await upsertChunk(tx, chunk);
       }
