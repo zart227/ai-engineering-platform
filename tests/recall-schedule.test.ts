@@ -171,4 +171,42 @@ describe("started weeks", () => {
     assert.equal(slugs.has("capstone"), true);
     assert.equal(slugs.has("environment-llm-api"), false);
   });
+
+  it("counts a week opened event as started", () => {
+    const slugs = startedWeekSlugs([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [{ weekSlug: "how-llms-work" }],
+    ]);
+    assert.equal(slugs.has("how-llms-work"), true);
+    assert.equal(slugs.size, 1);
+  });
+});
+
+describe("recall empty state", () => {
+  it("reports how many recall cards exist in started weeks", () => {
+    const result = selectDueRecall({
+      weeks,
+      startedSlugs: new Set(["environment-llm-api"]),
+      reviews: [],
+      now,
+    });
+    assert.equal(result.recallInStartedWeeks, 1);
+    assert.equal(result.due.length, 1);
+  });
+
+  it("reports zero recall cards when started weeks have none", () => {
+    const result = selectDueRecall({
+      weeks: [{ slug: "no-recall", id: 99, recall: [] }],
+      startedSlugs: new Set(["no-recall"]),
+      reviews: [],
+      now,
+    });
+    assert.equal(result.recallInStartedWeeks, 0);
+    assert.equal(result.due.length, 0);
+  });
 });

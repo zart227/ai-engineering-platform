@@ -14,10 +14,12 @@ export function RecallToday({
   items,
   waiting,
   startedCount,
+  recallInStartedWeeks,
 }: {
   items: DueRecall[];
   waiting: number;
   startedCount: number;
+  recallInStartedWeeks: number;
 }) {
   const router = useRouter();
   const [hidden, setHidden] = useState<string[]>([]);
@@ -29,7 +31,9 @@ export function RecallToday({
   const emptyCopy =
     startedCount === 0
       ? "Начните неделю, и здесь появятся вопросы."
-      : "На сегодня вопросов нет.";
+      : recallInStartedWeeks === 0
+        ? "В открытых неделях пока нет карточек «Вспомни». Откройте следующую неделю — вопросы появятся здесь после первого прохождения."
+        : "На сегодня вопросов нет. Следующие карточки появятся, когда наступит срок повторения.";
 
   return (
     <section className="mt-10" aria-labelledby="recall-today-title">

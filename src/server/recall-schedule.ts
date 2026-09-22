@@ -33,6 +33,7 @@ export type DueRecallList = {
   due: DueRecall[];
   waiting: number;
   startedCount: number;
+  recallInStartedWeeks: number;
 };
 
 export function intervalDays(reviewCount: number) {
@@ -69,10 +70,12 @@ export function selectDueRecall(input: {
     input.reviews.map((review) => [reviewKey(review.weekSlug, review.itemIndex), review])
   );
   const due: DueRecall[] = [];
+  let recallInStartedWeeks = 0;
   const weeks = [...input.weeks].sort((left, right) => left.id - right.id || left.slug.localeCompare(right.slug));
 
   for (const week of weeks) {
     if (!input.startedSlugs.has(week.slug)) continue;
+    recallInStartedWeeks += week.recall.length;
     week.recall.forEach((item, itemIndex) => {
       const stored = reviews.get(reviewKey(week.slug, itemIndex));
       const samePrompt = stored?.prompt === item.question;
@@ -94,5 +97,6 @@ export function selectDueRecall(input: {
     due: due.slice(0, limit),
     waiting: Math.max(0, due.length - limit),
     startedCount: input.startedSlugs.size,
+    recallInStartedWeeks,
   };
 }

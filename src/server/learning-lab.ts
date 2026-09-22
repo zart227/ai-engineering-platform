@@ -12,15 +12,20 @@ export async function loadLearningFunnel(userId: string) {
 }
 
 export async function loadStartedWeekSlugs(userId: string) {
-  const [weekProgress, lessons, labs, exercises, artifacts, quizzes] = await Promise.all([
+  const [weekProgress, lessons, labs, exercises, artifacts, quizzes, openedWeeks] = await Promise.all([
     prisma.weekProgress.findMany({ where: { userId }, select: { weekSlug: true } }),
     prisma.lessonProgress.findMany({ where: { userId }, select: { weekSlug: true } }),
     prisma.labProgress.findMany({ where: { userId }, select: { weekSlug: true } }),
     prisma.exerciseProgress.findMany({ where: { userId }, select: { weekSlug: true } }),
     prisma.artifactProgress.findMany({ where: { userId }, select: { weekSlug: true } }),
     prisma.quizAttempt.findMany({ where: { userId }, select: { weekSlug: true } }),
+    prisma.learningEvent.findMany({
+      where: { userId, type: "week_opened", weekSlug: { not: null } },
+      select: { weekSlug: true },
+    }),
   ]);
-  return startedWeekSlugs([weekProgress, lessons, labs, exercises, artifacts, quizzes]);
+  const opened = openedWeeks.flatMap((row) => (row.weekSlug ? [{ weekSlug: row.weekSlug }] : []));
+  return startedWeekSlugs([weekProgress, lessons, labs, exercises, artifacts, quizzes, opened]);
 }
 
 export async function loadDueRecall(userId: string, now = new Date()) {
