@@ -1,3 +1,5 @@
+import { getWeek } from "@course";
+import { scoreQuiz } from "@course/completion";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeBookmarkHrefForImport } from "@/server/bookmark-href";
@@ -339,7 +341,7 @@ const KEEP_RECALL_WARNING =
   "Файл версии 1 или 2 не заменяет расписание повторений. Текущие карточки останутся.";
 
 const REPLACE_LEARNER_STATE_WARNING =
-  "Заметки, закладки и прогресс обучения будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
+  "Заметки, закладки, прогресс обучения и проекты портфолио будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
 
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
@@ -497,6 +499,37 @@ function jsonInput(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNu
   return value as Prisma.InputJsonValue;
 }
 
+function parseQuizAnswerIndices(value: unknown): number[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  if (!value.every((item) => typeof item === "number" && Number.isInteger(item))) return null;
+  return value;
+}
+
+/** Re-score imported quiz rows when answer indices are present; reject unverified passed flags. */
+export function resolveImportedQuizAttempt(input: {
+  weekSlug: string;
+  answers: unknown;
+  score: number;
+  passed: boolean;
+}): { answers: Prisma.InputJsonValue | typeof Prisma.JsonNull; score: number; passed: boolean } {
+  const week = getWeek(input.weekSlug);
+  const answerIndices = parseQuizAnswerIndices(input.answers);
+  if (week && answerIndices) {
+    const correct = week.quiz.questions.map((question) => question.answer);
+    const scored = scoreQuiz(answerIndices, correct, week.quiz.passScore);
+    return {
+      answers: answerIndices,
+      score: scored.score,
+      passed: scored.passed,
+    };
+  }
+  return {
+    answers: jsonInput(input.answers),
+    score: input.score,
+    passed: input.passed ? false : input.passed,
+  };
+}
+
 async function persistImport(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -550,22 +583,22 @@ async function persistImport(
   if (bookmarkRows.length > 0) {
     await tx.bookmark.createMany({ data: bookmarkRows });
   }
-  for (const item of data.portfolio) {
-    const fields = {
-      title: item.title,
-      description: item.description,
-      status: item.status,
-      stack: item.stack,
-      skills: item.skills,
-      githubUrl: item.githubUrl,
-      demoUrl: item.demoUrl,
-      readme: item.readme,
-      weekSlug: item.weekSlug,
-    };
-    await tx.portfolioProject.upsert({
-      where: { userId_slug: { userId, slug: item.slug } },
-      update: fields,
-      create: { userId, slug: item.slug, ...fields },
+  await tx.portfolioProject.deleteMany({ where: { userId } });
+  if (data.portfolio.length > 0) {
+    await tx.portfolioProject.createMany({
+      data: data.portfolio.map((item) => ({
+        userId,
+        slug: item.slug,
+        title: item.title,
+        description: item.description,
+        status: item.status,
+        stack: item.stack,
+        skills: item.skills,
+        githubUrl: item.githubUrl,
+        demoUrl: item.demoUrl,
+        readme: item.readme,
+        weekSlug: item.weekSlug,
+      })),
     });
   }
   await tx.lessonProgress.deleteMany({ where: { userId } });
@@ -644,14 +677,22 @@ async function persistImport(
     await tx.quizAttempt.deleteMany({ where: { userId } });
     if (data.quizAttempts.length > 0) {
       await tx.quizAttempt.createMany({
-        data: data.quizAttempts.map((item) => ({
-          userId,
-          weekSlug: item.weekSlug,
-          answers: jsonInput(item.answers),
-          score: item.score,
-          passed: item.passed,
-          createdAt: new Date(item.createdAt),
-        })),
+        data: data.quizAttempts.map((item) => {
+          const resolved = resolveImportedQuizAttempt({
+            weekSlug: item.weekSlug,
+            answers: item.answers,
+            score: item.score,
+            passed: item.passed,
+          });
+          return {
+            userId,
+            weekSlug: item.weekSlug,
+            answers: resolved.answers,
+            score: resolved.score,
+            passed: resolved.passed,
+            createdAt: new Date(item.createdAt),
+          };
+        }),
       });
     }
     await tx.learningEvent.deleteMany({ where: { userId } });
