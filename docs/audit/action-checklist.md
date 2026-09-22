@@ -106,7 +106,7 @@ P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукт
 
 - [x] T1–T5 research
 - [x] TutorContext отделён от SolutionContext
-- [ ] GATE 7
+- [x] GATE 7 (Tutor V1 only; V2–V4 deferred — orchestrator sign-off Sep 2026)
 
 ## WAVE 8 — Final Validation
 
