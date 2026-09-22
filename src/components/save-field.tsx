@@ -58,11 +58,11 @@ export function SaveField({
       />
       <p className="mt-1 text-xs text-muted-foreground">
         {status === "saving"
-          ? "Saving..."
+          ? "Сохранение…"
           : status === "saved"
-            ? "Saved"
+            ? "Сохранено"
             : status === "failed"
-              ? "Save failed"
+              ? "Не удалось сохранить"
               : "Черновик пишется автоматически"}
       </p>
     </div>

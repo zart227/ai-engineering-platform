@@ -4,7 +4,7 @@ import { getWeek, weeks } from "@course";
 import { scoreQuiz } from "@course/completion";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db";
-import { importExport } from "@/server/export";
+import { ExportFormatError, importExport, migrateExport, previewImport } from "@/server/export";
 import { recordEvent, safePersistWeek } from "@/server/progress";
 import { changePassword } from "@/server/auth";
 
@@ -203,8 +203,8 @@ export async function submitQuizAction(weekSlug: string, answers: number[]) {
   const week = getWeek(weekSlug);
   if (!week) return { ok: false as const, error: "Неделя не найдена." };
   const correct = week.quiz.questions.map((item) => item.answer);
-  const result = scoreQuiz(answers, correct);
-  const passed = result.score >= week.quiz.passScore;
+  const result = scoreQuiz(answers, correct, week.quiz.passScore);
+  const passed = result.passed;
   await prisma.quizAttempt.create({
     data: {
       userId: user.id,
@@ -297,17 +297,43 @@ export async function savePortfolioAction(input: {
 }) {
   const user = await requireUser();
   const slug = input.slug.trim() || "project";
+  const data = {
+    slug,
+    title: input.title,
+    description: input.description,
+    status: input.status,
+    githubUrl: input.githubUrl,
+    demoUrl: input.demoUrl,
+    weekSlug: input.weekSlug,
+  };
   if (input.id) {
-    await prisma.portfolioProject.update({
-      where: { id: input.id },
-      data: { ...input, slug, userId: user.id },
+    const updated = await prisma.portfolioProject.updateMany({
+      where: { id: input.id, userId: user.id },
+      data,
     });
+    if (updated.count === 0) {
+      return { ok: false as const, error: "Проект не найден." };
+    }
   } else {
     await prisma.portfolioProject.create({
-      data: { ...input, slug, userId: user.id },
+      data: { ...data, userId: user.id },
     });
   }
   return { ok: true as const };
+}
+
+export async function previewImportAction(raw: unknown) {
+  await requireUser();
+  try {
+    const data = migrateExport(raw);
+    const preview = previewImport(data, raw);
+    return { ok: true as const, counts: preview.counts, warnings: preview.warnings };
+  } catch (error) {
+    if (error instanceof ExportFormatError) {
+      return { ok: false as const, error: error.message };
+    }
+    throw error;
+  }
 }
 
 export async function importLearningAction(raw: unknown) {

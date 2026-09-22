@@ -7,11 +7,13 @@ import { BookmarkButton } from "@/components/bookmark-button";
 import { ContentBlocks, PromptCard } from "@/components/content-blocks";
 import { DecisionCardView } from "@/components/decision-card";
 import { SaveField } from "@/components/save-field";
+import { WeekNav } from "@/components/week-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { adjacentWeeks, weekHref, weeks } from "@course";
+import { weekLabel, weekPosition } from "@/lib/week-label";
+import { adjacentWeeks, weekHref, weekModule } from "@course";
 import type { Week } from "@course/types";
 import {
   markHintAction,
@@ -65,36 +67,12 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Программа
-          </p>
-          <nav className="mt-3 max-h-[70vh] space-y-1 overflow-y-auto pr-1">
-            {weeks.map((item) => {
-              const active = item.slug === week.slug;
-              return (
-                <Link
-                  key={item.slug}
-                  href={weekHref(item)}
-                  className={cn(
-                    "block rounded-xl px-3 py-2 text-sm transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <span className="block text-xs opacity-80">Неделя {item.id}</span>
-                  <span className="block font-medium">{item.short}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
-
+      <WeekBreadcrumb week={week} />
+      <div className="mt-6 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <WeekNav week={week} />
         <div>
           <p className="text-sm text-muted-foreground">
-            Неделя {week.id} из {weeks.length}
+            {weekPosition(week)}
             {week.status === "outlined" ? " · теория будет углубляться" : ""}
           </p>
           <h1 className="mt-2 max-w-3xl font-heading text-3xl leading-tight tracking-tight sm:text-4xl">
@@ -114,7 +92,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
           </div>
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
-              <span>Прогресс недели</span>
+              <span>Прогресс</span>
               <span className="tabular-nums">{state.percent}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -126,7 +104,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
           </div>
 
           <div className="mt-8">
-            <div role="tablist" className="flex flex-wrap gap-1 border-b border-border pb-px">
+            <div role="tablist" aria-label="Разделы недели" className="flex flex-wrap gap-1 border-b border-border pb-px">
               {tabs.map((item) => {
                 if (item.id === "recall" && week.recall.length === 0) return null;
                 const active = tab === item.id;
@@ -291,7 +269,7 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
           <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
             {prev ? (
               <Button variant="outline" render={<Link href={weekHref(prev)} />}>
-                Неделя {prev.id}. {prev.short}
+                {weekLabel(prev)}. {prev.short}
               </Button>
             ) : (
               <span />
@@ -308,15 +286,36 @@ export function WeekWorkspace({ week, initial }: { week: Week; initial: WeekClie
   );
 }
 
+function WeekBreadcrumb({ week }: { week: Week }) {
+  const courseModule = weekModule(week);
+  return (
+    <nav aria-label="Хлебные крошки">
+      <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+        <li>
+          <Link href="/" className="transition-colors hover:text-foreground">
+            Курс
+          </Link>
+        </li>
+        <li aria-hidden="true">→</li>
+        <li>{courseModule.title}</li>
+        <li aria-hidden="true">→</li>
+        <li aria-current="page" className="text-foreground">
+          {weekLabel(week)}
+        </li>
+      </ol>
+    </nav>
+  );
+}
+
 function Overview({ week }: { week: Week }) {
   return (
     <div className="mt-6 space-y-6" data-panel="overview">
       <p className="font-heading text-2xl tracking-tight">Обзор</p>
       <p className="text-base leading-7">{week.overview.why}</p>
       <Meta title="Зачем" items={[week.overview.why]} />
-      <Meta title="Prerequisites" items={week.overview.prerequisites} />
+      <Meta title="Что уже нужно" items={week.overview.prerequisites} />
       <Meta title="Связь с прошлым" items={week.overview.previousKnowledge} />
-      <Meta title="Production" items={week.overview.productionUse} />
+      <Meta title="В продакшене" items={week.overview.productionUse} />
       {week.overview.asOf ? (
         <p className="text-xs text-muted-foreground">Актуально на: {week.overview.asOf}</p>
       ) : null}
@@ -407,7 +406,7 @@ function LabPanel({
     <div className="mt-6 space-y-5" data-panel="lab">
       <p className="font-heading text-2xl tracking-tight">{lab.title}</p>
       <p className="text-base leading-7">{lab.goal}</p>
-      <Meta title="Setup" items={lab.setup} />
+      <Meta title="Подготовка" items={lab.setup} />
       <ol className="space-y-4">
         {lab.steps.map((step, index) => (
           <li key={step.title} className="rounded-2xl border border-border p-4">
@@ -423,7 +422,7 @@ function LabPanel({
       </ol>
       {lab.troubleshooting.length > 0 ? (
         <div>
-          <p className="text-sm font-medium">Troubleshooting</p>
+          <p className="text-sm font-medium">Если сломалось</p>
           <ul className="mt-2 space-y-2 text-sm leading-6">
             {lab.troubleshooting.map((item) => (
               <li key={item.problem}>
@@ -434,7 +433,7 @@ function LabPanel({
           </ul>
         </div>
       ) : null}
-      <Meta title="Reflection" items={lab.reflection} />
+      <Meta title="Рефлексия" items={lab.reflection} />
       <SaveField
         value={note}
         placeholder="Заметки лаборатории"
@@ -476,10 +475,10 @@ function PracticePanel({
       <p className="font-heading text-2xl tracking-tight">{exercise.title}</p>
       <p className="text-sm text-muted-foreground">{exercise.time}</p>
       <p className="text-base leading-7">{exercise.context}</p>
-      <Meta title="Requirements" items={exercise.requirements} />
-      <Meta title="Constraints" items={exercise.constraints} />
-      <Meta title="Acceptance" items={exercise.acceptance} />
-      <Meta title="Tests" items={exercise.tests} />
+      <Meta title="Требования" items={exercise.requirements} />
+      <Meta title="Ограничения" items={exercise.constraints} />
+      <Meta title="Приёмка" items={exercise.acceptance} />
+      <Meta title="Проверки" items={exercise.tests} />
       <SaveField
         value={body}
         placeholder="Черновик, выводы, ссылки"
@@ -487,7 +486,7 @@ function PracticePanel({
         onSave={(next) => onSave({ body: next, github: githubUrl, result: resultUrl })}
       />
       <label className="block text-sm">
-        GitHub URL
+        Ссылка на GitHub
         <input
           className="mt-1 w-full rounded-lg border border-input bg-card px-2.5 py-2 text-sm"
           value={githubUrl}
@@ -496,7 +495,7 @@ function PracticePanel({
         />
       </label>
       <label className="block text-sm">
-        Result / demo URL
+        Ссылка на результат
         <input
           className="mt-1 w-full rounded-lg border border-input bg-card px-2.5 py-2 text-sm"
           value={resultUrl}
@@ -519,7 +518,7 @@ function PracticePanel({
               void markHintAction(exercise.id, week.slug);
             }}
           >
-            Hint {openHint + 1}
+            Подсказка {openHint + 1}
           </Button>
         ) : null}
       </div>

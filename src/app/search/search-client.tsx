@@ -3,6 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 
+const typeLabels: Record<string, string> = {
+  lesson: "урок",
+  glossary: "глоссарий",
+  prompt: "промпт",
+  decision: "карточка",
+};
+
 export function SearchClient({
   items,
 }: {
@@ -29,7 +36,9 @@ export function SearchClient({
       <ul className="mt-6 space-y-3">
         {found.map((item) => (
           <li key={`${item.href}-${item.title}`} className="rounded-2xl border border-border p-4">
-            <p className="text-xs uppercase text-muted-foreground">{item.type}</p>
+            <p className="text-xs uppercase text-muted-foreground">
+              {typeLabels[item.type] ?? item.type}
+            </p>
             <Link href={item.href} className="font-medium hover:text-primary">
               {item.title}
             </Link>

@@ -27,7 +27,32 @@ course/completion.ts  # исключение Wave 1: passScore принадле�
 общие layout/navigation — Wave 1 chrome принадлежит A; Wave 2 UX не стартует до GATE 1
 ```
 
-## Wave 3 preview (не активно)
+## Wave 2
+
+| Agent | Owned files | Shared files | Conflict risk |
+| ----- | ----------- | ------------ | ------------- |
+| E Schema | `course/types.ts`, `course/blocks.ts`, `docs/architecture/content-schema.md`, `tests/quality-contract.test.ts` | `course/types.ts` — единственный owner | Low. Недели не трогать |
+| G UX | `src/components/week-workspace.tsx`, `src/components/week-nav.tsx`, `src/app/week/[slug]/page.tsx` | нет | Low. Не менять `week-label.ts` и тексты уроков |
+| F Assessments | `course/weeks/week-01.ts` … `week-04.ts` | нет | Sequential после E. Не стартовать, пока типы не влиты |
+
+## Wave 3 (активна)
+
+Один owner на файл. `course/glossary.ts`, `course/types.ts`, `course/index.ts`, `course/curriculum.ts` не редактировать: только INTEGRATION REQUEST.
+
+| Agent | Owned files | Shared files | Conflict risk |
+| ----- | ----------- | ------------ | ------------- |
+| C1 | `course/weeks/week-01.ts` … `week-04.ts` | нет | Low. Финальный проход, без переписывания |
+| C2 | `course/weeks/week-05.ts` … `week-10.ts` | glossary только через request | Low |
+| C3 | `course/weeks/week-11.ts`, `week-12.ts` | нет | Low |
+| C4 | `course/weeks/week-13.ts` … `week-16.ts` | нет | Low |
+| C5 | `course/weeks/week-17.ts`, `week-18.ts` | нет | Low |
+| C6 | `course/weeks/week-19.ts` … `week-23.ts` | нет | Low |
+| C7 | `course/weeks/week-24.ts` … `week-26.ts` | нет | Low |
+| C8 | `course/weeks/week-27.ts`, `week-28.ts` | нет | Low |
+| C9 | `course/weeks/week-29.ts` … `week-32.ts` | нет | Low |
+| C10 | `course/weeks/week-33.ts` | нет | Low |
+
+Wave 4 не получает эти файлы, пока C* не завершены.
 
 | Agent | Owned files | Shared files | Conflict risk |
 | ----- | ----------- | ------------ | ------------- |

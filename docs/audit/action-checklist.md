@@ -9,7 +9,7 @@
 - [x] Implementation agents работают в отдельных branch/worktree.
 - [x] Перед wave есть file ownership matrix.
 - [x] Shared files не редактируются параллельно без integration request.
-- [ ] Следующая зависимая wave стартует только после GATE предыдущей.
+- [x] Следующая зависимая wave стартует только после GATE предыдущей.
 - [x] Параллелизм только для независимых задач.
 
 ## WAVE 0 — Reconnaissance
@@ -30,28 +30,28 @@
 
 ## WAVE 1 — Foundation
 
-- [ ] Agent A: current architecture docs, content schema, history, naming, UI terminology, Capstone label
-- [ ] Agent B: export v2, полный backup, validated transactional import, preview, tests, portfolio ownership
-- [ ] Agent C: Weeks 1–4 до эталона (experiments/metrics)
-- [ ] Agent D: curriculum integrity, CI baseline
-- [ ] Reviewer A: Platform/Data
-- [ ] Reviewer B: Weeks 1–4
-- [ ] Reviewer C: Docs/Tests/CI
-- [ ] BLOCKER/MAJOR исправлены
-- [ ] Integration: shared-file requests собраны
-- [ ] typecheck + lint + tests + build
-- [ ] GATE 1
+- [x] Agent A: current architecture docs, content schema, history, naming, UI terminology, Capstone label
+- [x] Agent B: export v2, полный backup, validated transactional import, preview, tests, portfolio ownership
+- [x] Agent C: Weeks 1–4 до эталона (experiments/metrics)
+- [x] Agent D: curriculum integrity, CI baseline
+- [x] Reviewer A: Platform/Data
+- [x] Reviewer B: Weeks 1–4
+- [x] Reviewer C: Docs/Tests/CI
+- [x] BLOCKER/MAJOR исправлены
+- [x] Integration: shared-file requests собраны
+- [x] typecheck + lint + tests + build
+- [x] GATE 1
 
 ## WAVE 2 — Quality System
 
-- [ ] Agent E: Course Quality Contract, Experiment, Metric, FailureMode, ArtifactRubric, source/version
-- [ ] Agent F: assessments глубже, без поломки старого progress
-- [ ] Agent G: sidebar, breadcrumbs, 32+Capstone, navigation/a11y
-- [ ] Shared course schema меняет только Integration
-- [ ] Weeks 1–4 мигрированы на contract
-- [ ] Contract tests
-- [ ] Independent review
-- [ ] GATE 2
+- [x] Agent E: Course Quality Contract, Experiment, Metric, FailureMode, ArtifactRubric, source/version
+- [x] Agent F: недели 1–4, 8 вопросов, passScore 70 сохранён
+- [x] Agent G: sidebar по модулям, breadcrumbs, mobile disclosure, a11y name
+- [x] Shared course schema меняет только Integration
+- [x] Weeks 1–4 мигрированы на contract
+- [x] Contract tests
+- [x] Independent review
+- [x] GATE 2
 
 ## WAVE 3 — Curriculum Deepening
 

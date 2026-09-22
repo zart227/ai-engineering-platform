@@ -102,6 +102,40 @@ export type ArtifactSpec = {
   checklist: { id: string; text: string }[];
 };
 
+export type CourseSource = {
+  title: string;
+  url: string;
+  kind: "official-docs" | "paper" | "reference";
+  checkedAt: string;
+};
+
+export type MetricSpec = { name: string; how: string };
+
+export type ExperimentSpec = {
+  id: string;
+  question: string;
+  method: string;
+  metrics: string[];
+};
+
+export type FailureMode = {
+  id: string;
+  symptom: string;
+  cause: string;
+  check: string;
+};
+
+export type RubricCriterion = {
+  id: string;
+  name: string;
+  weight: number;
+  evidence: string;
+};
+
+export type ArtifactRubric = {
+  criteria: RubricCriterion[];
+};
+
 export type DecisionCard = {
   id: string;
   title: string;
@@ -147,6 +181,18 @@ export type Week = {
   artifact: ArtifactSpec;
   recall: RecallItem[];
   decisionCards: DecisionCard[];
+  learningObjectives?: string[];
+  experiments?: ExperimentSpec[];
+  failureModes?: FailureMode[];
+  metrics?: MetricSpec[];
+  artifactRubric?: ArtifactRubric;
+  sources?: CourseSource[];
+  contentVersion?: string;
+  lastReviewedAt?: string;
+  securityNotes?: string[];
+  privacyNotes?: string[];
+  costNotes?: string[];
+  productionNotes?: string[];
 };
 
 export type CourseModule = {

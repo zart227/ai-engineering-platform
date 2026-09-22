@@ -184,7 +184,7 @@ export function loadLlmEnv(source: NodeJS.ProcessEnv) {
     lesson(
       "environment-llm-api-l3",
       "Messages, streaming, retries",
-      20,
+      26,
       [
         "Собрать messages как контракт",
         "Прочитать streaming без потери ошибки",
@@ -240,12 +240,230 @@ export async function complete(args: {
         p(
           "Поток удобен человеку. Для сервера это куски, которые надо склеить, не потеряв финальный usage. Если вы пишете JSON-схему, стрим усложняет валидацию: вы не можете проверить объект, пока он не дописан. Для CLI стрим уместен. Для structured extraction часто проще дождаться полного ответа."
         ),
+        p(
+          "Один и тот же messages прогоните дважды: stream false и stream true. При stream false тело приходит целиком, поэтому TTFT равен total. При stream TTFT это первый непустой delta.content. Total часто близок. stream_options.include_usage просит usage в последнем куске. Если провайдер его не прислал, output tokens пишите unknown."
+        ),
+        code(
+          "ts",
+          `type ChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+type MeasureRow = {
+  mode: "stream" | "non-stream";
+  ttftMs: number | null;
+  totalMs: number;
+  outputTokens: number | null;
+};
+
+export async function measureCompletion(args: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  stream: boolean;
+}): Promise<MeasureRow> {
+  const started = performance.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(\`\${args.baseUrl}/chat/completions\`, {
+      method: "POST",
+      headers: {
+        authorization: \`Bearer \${args.apiKey}\`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: args.model,
+        messages: args.messages,
+        stream: args.stream,
+        ...(args.stream ? { stream_options: { include_usage: true } } : {}),
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(\`llm_http_\${response.status}\`);
+    if (!args.stream) {
+      const json = (await response.json()) as {
+        usage?: { completion_tokens?: number };
+      };
+      const totalMs = Math.round(performance.now() - started);
+      return {
+        mode: "non-stream",
+        ttftMs: totalMs,
+        totalMs,
+        outputTokens: json.usage?.completion_tokens ?? null,
+      };
+    }
+    if (!response.body) throw new Error("empty_body");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let ttftMs: number | null = null;
+    let outputTokens: number | null = null;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice("data:".length).trim();
+        if (data === "[DONE]") continue;
+        const chunk = JSON.parse(data) as {
+          choices?: { delta?: { content?: string } }[];
+          usage?: { completion_tokens?: number };
+        };
+        const piece = chunk.choices?.[0]?.delta?.content;
+        if (piece && ttftMs === null) {
+          ttftMs = Math.round(performance.now() - started);
+        }
+        if (typeof chunk.usage?.completion_tokens === "number") {
+          outputTokens = chunk.usage.completion_tokens;
+        }
+      }
+    }
+    return {
+      mode: "stream",
+      ttftMs,
+      totalMs: Math.round(performance.now() - started),
+      outputTokens,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+`,
+          "Один prompt, два режима"
+        ),
+        p(
+          "Таблица из двух строк. Колонки: mode, TTFT ms, total ms, output tokens. Числа только из вашего прогона. Эта платформа LLM не вызывает."
+        ),
         h("Retries"),
         ul([
           "Повторяйте 429 и 5xx с backoff и jitter.",
           "Не повторяйте 400 и 401: вы чините запрос или ключ, а не сеть.",
           "Если запрос имел побочный эффект, нужен idempotency key. Чистый complete обычно безопасен, tool «создать платёж» нет.",
         ]),
+        p(
+          "Потолок попыток задаёте вы. На этой неделе хватит трёх. 400 и 401 выходят сразу. 429, 5xx и сетевой сбой ждут паузу: база удваивается, сверху jitter, сверху потолок."
+        ),
+        code(
+          "ts",
+          `type ChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function backoffMs(attempt: number) {
+  const base = 250 * 2 ** attempt;
+  const jitter = Math.floor(Math.random() * base * 0.3);
+  return Math.min(base + jitter, 8_000);
+}
+
+export async function completeWithRetry(args: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  timeoutMs: number;
+  maxAttempts: number;
+}) {
+  let lastError: Error = new Error("llm_retry_exhausted");
+  for (let attempt = 0; attempt < args.maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), args.timeoutMs);
+    try {
+      const response = await fetch(\`\${args.baseUrl}/chat/completions\`, {
+        method: "POST",
+        headers: {
+          authorization: \`Bearer \${args.apiKey}\`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: args.model,
+          messages: args.messages,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+      console.info(JSON.stringify({ attempt, status: response.status }));
+      if (response.ok) return await response.json();
+      const error = new Error(\`llm_http_\${response.status}\`);
+      if (!RETRY_STATUSES.has(response.status)) throw error;
+      lastError = error;
+    } catch (error) {
+      const asError = error instanceof Error ? error : new Error("network");
+      if (!asError.message.startsWith("llm_http_")) {
+        console.info(JSON.stringify({ attempt, status: "network" }));
+        lastError = asError;
+      } else {
+        const status = Number(asError.message.slice("llm_http_".length));
+        if (!RETRY_STATUSES.has(status)) throw asError;
+        lastError = asError;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    if (attempt < args.maxAttempts - 1) await sleep(backoffMs(attempt));
+  }
+  throw lastError;
+}
+`,
+          "Retry с потолком"
+        ),
+        code(
+          "ts",
+          `import assert from "node:assert/strict";
+import { completeWithRetry } from "./client";
+
+const base = {
+  baseUrl: "https://example.invalid/v1",
+  apiKey: "test-key",
+  model: "gpt-4.1-mini",
+  messages: [{ role: "user" as const, content: "ping" }],
+  timeoutMs: 1_000,
+  maxAttempts: 3,
+};
+
+async function main() {
+  const seen401: number[] = [];
+  globalThis.fetch = (async () => {
+    seen401.push(401);
+    return new Response("unauthorized", { status: 401 });
+  }) as typeof fetch;
+  await assert.rejects(() => completeWithRetry(base), /llm_http_401/);
+  assert.deepEqual(seen401, [401]);
+
+  const seen429: number[] = [];
+  globalThis.fetch = (async () => {
+    const status = seen429.length < 2 ? 429 : 200;
+    seen429.push(status);
+    return new Response(JSON.stringify({ choices: [] }), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+  await completeWithRetry(base);
+  assert.deepEqual(seen429, [429, 429, 200]);
+}
+
+main();
+`,
+          "401 сразу, 429 три раза"
+        ),
+        check(
+          "Mock вернул 401, maxAttempts равен 3. Сколько запросов уйдёт?",
+          "Один. 401 не в списке повторов. Повтор не чинит ключ."
+        ),
         callout(
           "Стоимость ретраев",
           "Каждый повтор это новые токены. Лимит попыток это и защита кассы, и защита от бесконечного цикла.",
@@ -343,7 +561,7 @@ export async function complete(args: {
   lab: lab({
     id: "environment-llm-api-lab",
     title: "CLI-клиент с usage",
-    goal: "Сделать TypeScript CLI, который читает prompt, вызывает модель, печатает текст и usage.",
+    goal: "Сделать TypeScript CLI, который читает prompt, вызывает модель, печатает текст и usage, и записать TTFT потока против обычного ответа.",
     setup: [
       "Node 20+ и tsx или ts-node.",
       "Файл .env с LLM_BASE_URL, LLM_API_KEY, LLM_MODEL.",
@@ -366,9 +584,24 @@ export async function complete(args: {
         expected: "В конце три понятных числа или unknown.",
       },
       {
+        title: "Один prompt, два режима",
+        body: "Тот же system и user. Сначала stream false, потом stream true. Запишите mode, TTFT ms, total ms, output tokens. У потока TTFT раньше. Total может быть близким. Числа берёте из своего прогона.",
+        expected: "Таблица из двух строк. Пустых клеток нет: нет usage значит unknown.",
+      },
+      {
+        title: "Retry",
+        body: "completeWithRetry: максимум 3 попытки, exponential backoff и jitter. Повторяйте 429, 5xx и сетевую ошибку. 400 и 401 не повторяйте.",
+        expected: "В коде есть потолок попыток и список статусов.",
+      },
+      {
         title: "Ошибка",
-        body: "Отзовите ключ и проверьте, что процесс завершается кодом 1 и без ключа в stderr.",
-        expected: "stderr без sk- и без dump env.",
+        body: "Отзовите ключ или подставьте неверный. Процесс завершается кодом 1. В stderr нет ключа и нет dump env. В логе попыток 401 ровно один раз, без паузы и без второго запроса.",
+        expected: "stderr без sk-. Второй попытки нет.",
+      },
+      {
+        title: "429 отдельно от 401",
+        body: "Живой провайдер ради лимита не долбите. Mock fetch: два ответа 429, затем 200. В логе три попытки и пауза между ними. Отдельным прогоном убедитесь, что 400 тоже выходит сразу.",
+        expected: "429 доходит до успеха на третьей попытке. 400 остаётся одной попыткой.",
       },
     ],
     troubleshooting: [
@@ -384,6 +617,7 @@ export async function complete(args: {
     reflection: [
       "Где в коде граница «ваши данные / чужой API»?",
       "Что вы залогируете в проде, а что нет?",
+      "В вашей таблице TTFT потока раньше total. Где это меняет CLI, а где batch всё равно ждёт конец?",
     ],
   }),
   practice: exercise({
@@ -536,6 +770,45 @@ export async function complete(args: {
       1,
       "Метаданные вызова полезны. Секреты нет."
     ),
+    q(
+      "w1-q6",
+      "architecture",
+      "Чат рисует ответ только после закрытия стрима. Какое измерение проигнорировано?",
+      [
+        "UI ждёт total и не отдаёт первый токен по TTFT",
+        "Tokenizer режет UUID",
+        "401 надо повторять до успеха",
+        "Ключ надо положить в NEXT_PUBLIC_",
+      ],
+      0,
+      "TTFT полезен, только если первый чанк уходит в UI сразу. Иначе пользователь ждёт total, как при stream false."
+    ),
+    q(
+      "w1-q7",
+      "debugging",
+      "В строке stream true TTFT ms совпал с total ms. Что проверить первым?",
+      [
+        "Таймер первого токена стоит на закрытии тела, а не на первом delta",
+        "Сменить модель на более дорогую",
+        "Добавить 401 в список retry",
+        "Напечатать process.env в stdout",
+      ],
+      0,
+      "TTFT это время до первого токена. Если старт и стоп на одном событии, колонка врёт."
+    ),
+    q(
+      "w1-q8",
+      "scenario",
+      "Провайдер дважды вернул 429, затем 200. maxAttempts равен 3. Сколько запросов сделает верный клиент?",
+      [
+        "Один: 429 не повторяют",
+        "Три: две паузы и успех",
+        "Пятьдесят без паузы",
+        "Ноль: 429 это тот же случай, что 401",
+      ],
+      1,
+      "429 в списке повторов, потолок 3. Третий ответ 200 останавливает цикл. 401 и 400 в этот список не входят."
+    ),
   ]),
   artifact: artifact({
     result: "Репозиторий с CLI и/или HTTP LLM-клиентом на TypeScript.",
@@ -545,6 +818,7 @@ export async function complete(args: {
       "Как задать env",
       "Как запустить CLI",
       "Таблица: модель, токены, оценка стоимости",
+      "Таблица: mode, TTFT ms, total ms, output tokens",
       "Что не логируется",
     ],
     architecture: [
@@ -558,6 +832,8 @@ export async function complete(args: {
       { id: "environment-llm-api-a3", text: "Usage печатается или unknown" },
       { id: "environment-llm-api-a4", text: "README с запуском и стоимостью" },
       { id: "environment-llm-api-a5", text: "Ссылка на репозиторий сохранена в артефакте недели" },
+      { id: "environment-llm-api-a6", text: "Таблица mode, TTFT ms, total ms, output tokens" },
+      { id: "environment-llm-api-a7", text: "401 и 400 без retry, 429 с backoff и потолком попыток" },
     ],
   }),
   recall: [],
@@ -573,4 +849,80 @@ export async function complete(args: {
       mistake: "Демо на Vercel с ключом в клиенте «на час». Час превращается в прод.",
     }),
   ],
+  learningObjectives: [
+    "Держать API-ключ только на сервере: не в бандле, не в README, не в логе.",
+    "Повторять 429, 5xx и сеть с потолком попыток; 400 и 401 не повторять.",
+    "На одном prompt записать mode, TTFT ms, total ms и output tokens для stream false и stream true.",
+    "Печатать usage или unknown и оценку стоимости, не выдумывая числа.",
+  ],
+  experiments: [
+    {
+      id: "environment-llm-api-exp-stream",
+      question: "Как stream false и stream true меняют TTFT и total latency на одном prompt?",
+      method:
+        "Один system и user. Сначала stream false, потом stream true. Записать mode, TTFT ms, total ms, output tokens. Нет usage значит unknown.",
+      metrics: ["TTFT ms", "total ms", "output tokens"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "environment-llm-api-f1",
+      symptom: "401 уходит вторым запросом после паузы.",
+      cause: "401 попал в список retry.",
+      check: "В логе попыток на неверный ключ ровно один запрос, без backoff.",
+    },
+    {
+      id: "environment-llm-api-f2",
+      symptom: "В stderr или JSON-логе виден ключ.",
+      cause: "В лог попали Authorization, apiKey или dump env.",
+      check: "Прогон с неверным ключом: в stderr нет sk- и нет process.env.",
+    },
+  ],
+  metrics: [
+    { name: "TTFT ms", how: "До первого токена. У stream false это время до полного тела." },
+    { name: "total ms", how: "До конца ответа, включая последний чанк." },
+    { name: "output tokens", how: "usage.completion_tokens. Нет поля значит unknown." },
+    { name: "prompt tokens", how: "usage.prompt_tokens после вызова. До вызова только грубая оценка." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "environment-llm-api-r1",
+        name: "Секреты",
+        weight: 25,
+        evidence: ".env не в git. В README и логах нет ключа и dump env.",
+      },
+      {
+        id: "environment-llm-api-r2",
+        name: "Ошибки и retry",
+        weight: 25,
+        evidence: "В клиенте 400 и 401 без повтора, 429 и 5xx с backoff и потолком попыток.",
+      },
+      {
+        id: "environment-llm-api-r3",
+        name: "Таблица потока",
+        weight: 25,
+        evidence: "В README две строки stream false и true: mode, TTFT ms, total ms, output tokens.",
+      },
+      {
+        id: "environment-llm-api-r4",
+        name: "Usage и стоимость",
+        weight: 25,
+        evidence: "CLI печатает токены или unknown и оценку стоимости одного запроса.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "OpenAI Chat Completions",
+      url: "https://platform.openai.com/docs/api-reference/chat",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Ключ только на сервере. В лог не пишите apiKey, Authorization и process.env."],
+  privacyNotes: ["В лог не кладите полный PII: достаточно requestId, модели, latency и счётчиков токенов."],
+  costNotes: ["Каждый retry тратит новые токены. Стоимость берите из usage и прайса, не из длины строки."],
 });
