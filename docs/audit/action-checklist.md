@@ -104,8 +104,8 @@ P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукт
 
 ## WAVE 7 — AI Tutor
 
-- [ ] T1–T5 research
-- [ ] TutorContext отделён от SolutionContext
+- [x] T1–T5 research
+- [x] TutorContext отделён от SolutionContext
 - [ ] GATE 7
 
 ## WAVE 8 — Final Validation
