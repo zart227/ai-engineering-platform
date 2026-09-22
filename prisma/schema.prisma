@@ -255,3 +255,12 @@ model RecallReview {
   @@unique([userId, weekSlug, itemIndex])
   @@index([userId, nextReviewAt])
 }
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}

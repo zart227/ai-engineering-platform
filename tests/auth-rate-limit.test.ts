@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { loginUser, registerUser } from "../src/server/auth";
 import { prisma } from "../src/server/db";
 import { logWarn } from "../src/server/logger";
+import { installRateLimitStoreMock } from "./helpers/rate-limit-store-mock";
 
 const RATE_LIMIT_ERROR = "Слишком много попыток. Подождите немного.";
 const LOGIN_EMAIL = "Login-Rate-Limit@Example.com";
@@ -32,7 +33,15 @@ function restoreConsole() {
   console.error = originalConsole.error;
 }
 
+let rateLimitMock = installRateLimitStoreMock();
+
+beforeEach(() => {
+  rateLimitMock.restore();
+  rateLimitMock = installRateLimitStoreMock();
+});
+
 afterEach(() => {
+  rateLimitMock.restore();
   restoreConsole();
 });
 
