@@ -3,6 +3,7 @@ import { WeekWorkspace } from "@/components/week-workspace";
 import { getWeek, weeks } from "@course";
 import { requireUser } from "@/server/auth";
 import { loadLearningState, recordWeekOpened, summarizeWeeks } from "@/server/progress";
+import { toWeekClientPayload } from "@/server/week-client-payload";
 import { weekLabel } from "@/lib/week-label";
 
 export function generateStaticParams() {
@@ -40,7 +41,7 @@ export default async function WeekPage({
   return (
     <WeekWorkspace
       key={week.slug}
-      week={week}
+      week={toWeekClientPayload(week)}
       initial={{
         completedLessons: state.lessons
           .filter((item) => item.weekSlug === week.slug && item.completedAt)
