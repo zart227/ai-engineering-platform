@@ -331,16 +331,23 @@ describe("importExport bookmark href", () => {
             get(_target, prop) {
               const name = String(prop);
               return {
-                upsert: async (args: { where: { userId_targetType_targetId: { targetId: string } }; create: { href: string } }) => {
-                  if (name === "bookmark") {
-                    stored.push({
-                      targetId: args.where.userId_targetType_targetId.targetId,
-                      href: args.create.href,
-                    });
-                  }
-                },
+                upsert: async () => ({ count: 0 }),
                 deleteMany: async () => ({ count: 0 }),
-                createMany: async () => ({ count: 0 }),
+                createMany: async ({
+                  data,
+                }: {
+                  data: Array<{ targetId: string; href: string }>;
+                }) => {
+                  if (name === "bookmark") {
+                    stored.push(
+                      ...data.map((row) => ({
+                        targetId: row.targetId,
+                        href: row.href,
+                      }))
+                    );
+                  }
+                  return { count: data.length };
+                },
               };
             },
           }
@@ -370,6 +377,197 @@ describe("importExport bookmark href", () => {
       { targetId: "safe", href: "/week/foundations" },
       { targetId: "ext", href: "https://example.com/docs" },
     ]);
+  });
+});
+
+type LearnerRow = { id: string };
+
+const RESTORE_MODELS = [
+  "note",
+  "bookmark",
+  "lessonProgress",
+  "labProgress",
+  "exerciseProgress",
+  "exerciseAnswer",
+  "artifactProgress",
+  "weekProgress",
+] as const;
+
+type RestoreModel = (typeof RESTORE_MODELS)[number];
+
+function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[]>>) {
+  const state: Record<RestoreModel, LearnerRow[]> = {
+    note: [...(initial.note ?? [])],
+    bookmark: [...(initial.bookmark ?? [])],
+    lessonProgress: [...(initial.lessonProgress ?? [])],
+    labProgress: [...(initial.labProgress ?? [])],
+    exerciseProgress: [...(initial.exerciseProgress ?? [])],
+    exerciseAnswer: [...(initial.exerciseAnswer ?? [])],
+    artifactProgress: [...(initial.artifactProgress ?? [])],
+    weekProgress: [...(initial.weekProgress ?? [])],
+  };
+  const calls: string[] = [];
+
+  const makeModel = (name: RestoreModel) => ({
+    deleteMany: async () => {
+      calls.push(`${name}.deleteMany`);
+      state[name] = [];
+      return { count: 0 };
+    },
+    createMany: async ({ data }: { data: Array<{ id?: string }> }) => {
+      calls.push(`${name}.createMany`);
+      state[name] = data.map((row, index) => ({ id: row.id ?? `${name}-${index}` }));
+      return { count: data.length };
+    },
+    upsert: async () => {
+      calls.push(`${name}.upsert`);
+    },
+  });
+
+  const db = {
+    calls,
+    get state() {
+      return state;
+    },
+    async $transaction(fn: (tx: never) => Promise<unknown>) {
+      const tx = new Proxy(
+        {},
+        {
+          get(_target, prop) {
+            const name = String(prop);
+            if (RESTORE_MODELS.includes(name as RestoreModel)) {
+              return makeModel(name as RestoreModel);
+            }
+            if (name === "capstoneProject" || name === "userSettings" || name === "portfolioProject") {
+              return { upsert: async () => calls.push(`${name}.upsert`) };
+            }
+            if (
+              name === "quizAttempt" ||
+              name === "learningEvent" ||
+              name === "recallReview"
+            ) {
+              return {
+                deleteMany: async () => {
+                  calls.push(`${name}.deleteMany`);
+                  return { count: 0 };
+                },
+                createMany: async () => {
+                  calls.push(`${name}.createMany`);
+                  return { count: 0 };
+                },
+              };
+            }
+            return undefined;
+          },
+        }
+      );
+      await fn(tx as never);
+    },
+  };
+
+  return db;
+}
+
+describe("importExport learner restore", () => {
+  it("restores notes, bookmarks, and progress instead of merging stale rows", async () => {
+    const db = createRestoreImportDb({
+      note: [{ id: "stale-note" }],
+      bookmark: [{ id: "stale-bookmark" }],
+      lessonProgress: [{ id: "stale-lesson" }],
+      labProgress: [{ id: "stale-lab" }],
+      exerciseProgress: [{ id: "stale-exercise" }],
+      exerciseAnswer: [{ id: "stale-answer" }],
+      artifactProgress: [{ id: "stale-artifact" }],
+      weekProgress: [{ id: "stale-week" }],
+    });
+
+    const payload = {
+      ...fullFixture,
+      notes: [{ key: "only", body: "from-file", weekSlug: "foundations", lessonId: null, tags: [] }],
+      bookmarks: [
+        { targetType: "lesson", targetId: "only", title: "Only", href: "/week/foundations" },
+      ],
+      lessons: [{ lessonId: "only-lesson", weekSlug: "foundations", completed: true }],
+      labs: [{ labId: "only-lab", weekSlug: "foundations", completed: false }],
+      exercises: [
+        {
+          exerciseId: "only-exercise",
+          weekSlug: "foundations",
+          completed: true,
+          hintsUsed: 0,
+          solutionViewed: false,
+        },
+      ],
+      answers: [
+        {
+          exerciseId: "only-exercise",
+          weekSlug: "foundations",
+          body: "answer",
+          githubUrl: "",
+          resultUrl: "",
+        },
+      ],
+      artifacts: [
+        {
+          weekSlug: "foundations",
+          completed: false,
+          githubUrl: "",
+          demoUrl: "",
+          notes: "",
+        },
+      ],
+      weekProgress: [{ weekSlug: "foundations", percent: 42, completed: false }],
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.state.note.length, 1);
+    assert.equal(db.state.bookmark.length, 1);
+    assert.equal(db.state.lessonProgress.length, 1);
+    assert.equal(db.state.labProgress.length, 1);
+    assert.equal(db.state.exerciseProgress.length, 1);
+    assert.equal(db.state.exerciseAnswer.length, 1);
+    assert.equal(db.state.artifactProgress.length, 1);
+    assert.equal(db.state.weekProgress.length, 1);
+    assert.equal(db.calls.includes("note.deleteMany"), true);
+    assert.equal(db.calls.includes("bookmark.deleteMany"), true);
+    assert.equal(db.calls.includes("lessonProgress.deleteMany"), true);
+    assert.equal(db.calls.includes("weekProgress.deleteMany"), true);
+    assert.equal(db.calls.includes("note.upsert"), false);
+    assert.equal(db.calls.includes("lessonProgress.upsert"), false);
+  });
+
+  it("wipes learner collections when the backup file has none", async () => {
+    const db = createRestoreImportDb({
+      note: [{ id: "stale-note" }],
+      bookmark: [{ id: "stale-bookmark" }],
+      weekProgress: [{ id: "stale-week" }],
+    });
+
+    const payload = {
+      ...fullFixture,
+      notes: [],
+      bookmarks: [],
+      lessons: [],
+      labs: [],
+      exercises: [],
+      answers: [],
+      artifacts: [],
+      weekProgress: [],
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.deepEqual(db.state.note, []);
+    assert.deepEqual(db.state.bookmark, []);
+    assert.deepEqual(db.state.weekProgress, []);
+    assert.equal(db.calls.includes("note.createMany"), false);
+    assert.equal(db.calls.includes("weekProgress.createMany"), false);
+  });
+
+  it("warns that notes, bookmarks, and progress are replaced", () => {
+    const preview = previewImport(migrateExport(fullFixture), fullFixture);
+    assert.match(preview.warnings.join(" "), /Заметки, закладки и прогресс обучения будут полностью заменены/);
   });
 });
 

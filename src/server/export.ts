@@ -338,6 +338,9 @@ const REPLACE_RECALL_WARNING =
 const KEEP_RECALL_WARNING =
   "Файл версии 1 или 2 не заменяет расписание повторений. Текущие карточки останутся.";
 
+const REPLACE_LEARNER_STATE_WARNING =
+  "Заметки, закладки и прогресс обучения будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
+
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
   return isRecord(raw) && (raw.formatVersion === 2 || raw.formatVersion === 3);
@@ -481,6 +484,7 @@ export function previewImport(
       recallReviews: data.recallReviews.length,
     },
     warnings: [
+      REPLACE_LEARNER_STATE_WARNING,
       importReplacesHistory(raw) ? REPLACE_WARNING : KEEP_HISTORY_WARNING,
       importReplacesRecall(raw) ? REPLACE_RECALL_WARNING : KEEP_RECALL_WARNING,
       ...collectStripWarnings(raw),
@@ -515,17 +519,10 @@ async function persistImport(
       create: { userId, theme: data.settings.theme, locale: data.settings.locale },
     });
   }
-  for (const note of data.notes) {
-    await tx.note.upsert({
-      where: { userId_key: { userId, key: note.key } },
-      update: {
-        body: note.body,
-        weekSlug: note.weekSlug ?? null,
-        lessonId: note.lessonId ?? null,
-        moduleId: note.moduleId ?? null,
-        tags: note.tags ?? [],
-      },
-      create: {
+  await tx.note.deleteMany({ where: { userId } });
+  if (data.notes.length > 0) {
+    await tx.note.createMany({
+      data: data.notes.map((note) => ({
         userId,
         key: note.key,
         body: note.body,
@@ -533,29 +530,25 @@ async function persistImport(
         lessonId: note.lessonId ?? null,
         moduleId: note.moduleId ?? null,
         tags: note.tags ?? [],
-      },
+      })),
     });
   }
-  for (const bookmark of data.bookmarks) {
+  await tx.bookmark.deleteMany({ where: { userId } });
+  const bookmarkRows = data.bookmarks.flatMap((bookmark) => {
     const href = sanitizeBookmarkHrefForImport(bookmark.href);
-    if (!href) continue;
-    await tx.bookmark.upsert({
-      where: {
-        userId_targetType_targetId: {
-          userId,
-          targetType: bookmark.targetType,
-          targetId: bookmark.targetId,
-        },
-      },
-      update: { title: bookmark.title, href },
-      create: {
+    if (!href) return [];
+    return [
+      {
         userId,
         targetType: bookmark.targetType,
         targetId: bookmark.targetId,
         title: bookmark.title,
         href,
       },
-    });
+    ];
+  });
+  if (bookmarkRows.length > 0) {
+    await tx.bookmark.createMany({ data: bookmarkRows });
   }
   for (const item of data.portfolio) {
     const fields = {
@@ -575,97 +568,76 @@ async function persistImport(
       create: { userId, slug: item.slug, ...fields },
     });
   }
-  for (const lesson of data.lessons) {
-    await tx.lessonProgress.upsert({
-      where: { userId_lessonId: { userId, lessonId: lesson.lessonId } },
-      update: { completedAt: lesson.completed ? new Date() : null, weekSlug: lesson.weekSlug },
-      create: {
+  await tx.lessonProgress.deleteMany({ where: { userId } });
+  if (data.lessons.length > 0) {
+    await tx.lessonProgress.createMany({
+      data: data.lessons.map((lesson) => ({
         userId,
         lessonId: lesson.lessonId,
         weekSlug: lesson.weekSlug,
         completedAt: lesson.completed ? new Date() : null,
-      },
+      })),
     });
   }
-  for (const lab of data.labs) {
-    await tx.labProgress.upsert({
-      where: { userId_labId: { userId, labId: lab.labId } },
-      update: { completedAt: lab.completed ? new Date() : null, weekSlug: lab.weekSlug },
-      create: {
+  await tx.labProgress.deleteMany({ where: { userId } });
+  if (data.labs.length > 0) {
+    await tx.labProgress.createMany({
+      data: data.labs.map((lab) => ({
         userId,
         labId: lab.labId,
         weekSlug: lab.weekSlug,
         completedAt: lab.completed ? new Date() : null,
-      },
+      })),
     });
   }
-  for (const exercise of data.exercises) {
-    await tx.exerciseProgress.upsert({
-      where: { userId_exerciseId: { userId, exerciseId: exercise.exerciseId } },
-      update: {
-        completedAt: exercise.completed ? new Date() : null,
-        weekSlug: exercise.weekSlug,
-        hintsUsed: exercise.hintsUsed ?? 0,
-        solutionViewed: exercise.solutionViewed ?? false,
-      },
-      create: {
+  await tx.exerciseProgress.deleteMany({ where: { userId } });
+  if (data.exercises.length > 0) {
+    await tx.exerciseProgress.createMany({
+      data: data.exercises.map((exercise) => ({
         userId,
         exerciseId: exercise.exerciseId,
         weekSlug: exercise.weekSlug,
         completedAt: exercise.completed ? new Date() : null,
         hintsUsed: exercise.hintsUsed ?? 0,
         solutionViewed: exercise.solutionViewed ?? false,
-      },
+      })),
     });
   }
-  for (const answer of data.answers) {
-    await tx.exerciseAnswer.upsert({
-      where: { userId_exerciseId: { userId, exerciseId: answer.exerciseId } },
-      update: {
-        body: answer.body,
-        weekSlug: answer.weekSlug,
-        githubUrl: answer.githubUrl ?? "",
-        resultUrl: answer.resultUrl ?? "",
-      },
-      create: {
+  await tx.exerciseAnswer.deleteMany({ where: { userId } });
+  if (data.answers.length > 0) {
+    await tx.exerciseAnswer.createMany({
+      data: data.answers.map((answer) => ({
         userId,
         exerciseId: answer.exerciseId,
         weekSlug: answer.weekSlug,
         body: answer.body,
         githubUrl: answer.githubUrl ?? "",
         resultUrl: answer.resultUrl ?? "",
-      },
+      })),
     });
   }
-  for (const artifact of data.artifacts) {
-    await tx.artifactProgress.upsert({
-      where: { userId_weekSlug: { userId, weekSlug: artifact.weekSlug } },
-      update: {
-        completed: artifact.completed,
-        githubUrl: artifact.githubUrl ?? "",
-        demoUrl: artifact.demoUrl ?? "",
-        notes: artifact.notes ?? "",
-      },
-      create: {
+  await tx.artifactProgress.deleteMany({ where: { userId } });
+  if (data.artifacts.length > 0) {
+    await tx.artifactProgress.createMany({
+      data: data.artifacts.map((artifact) => ({
         userId,
         weekSlug: artifact.weekSlug,
         completed: artifact.completed,
         githubUrl: artifact.githubUrl ?? "",
         demoUrl: artifact.demoUrl ?? "",
         notes: artifact.notes ?? "",
-      },
+      })),
     });
   }
-  for (const week of data.weekProgress) {
-    await tx.weekProgress.upsert({
-      where: { userId_weekSlug: { userId, weekSlug: week.weekSlug } },
-      update: { percent: week.percent, completedAt: week.completed ? new Date() : null },
-      create: {
+  await tx.weekProgress.deleteMany({ where: { userId } });
+  if (data.weekProgress.length > 0) {
+    await tx.weekProgress.createMany({
+      data: data.weekProgress.map((week) => ({
         userId,
         weekSlug: week.weekSlug,
         percent: week.percent,
         completedAt: week.completed ? new Date() : null,
-      },
+      })),
     });
   }
   if (replaceHistory) {
