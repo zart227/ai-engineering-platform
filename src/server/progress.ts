@@ -141,6 +141,10 @@ async function loadLearningStateData(userId: string) {
 /** Full learning state; deduped per request via React cache(). */
 export const loadLearningState = cache(loadLearningStateData);
 
+export function weekProgressForSlug(state: ProgressSummaryInput, weekSlug: string) {
+  return summarizeWeeks(state).find((item) => item.week.slug === weekSlug);
+}
+
 export function summarizeWeeks(state: ProgressSummaryInput) {
   const completedLessons = new Set(
     state.lessons.filter((item) => item.completedAt).map((item) => item.lessonId)
@@ -172,8 +176,8 @@ export function summarizeWeeks(state: ProgressSummaryInput) {
 }
 
 export async function persistWeekPercent(userId: string, weekSlug: string) {
-  const state = await loadLearningState(userId);
-  const row = summarizeWeeks(state).find((item) => item.week.slug === weekSlug);
+  const state = await loadCourseProgressData(userId);
+  const row = weekProgressForSlug(state, weekSlug);
   if (!row) return;
   await prisma.weekProgress.upsert({
     where: { userId_weekSlug: { userId, weekSlug } },
