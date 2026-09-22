@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { weekLabel, weekPosition } from "@/lib/week-label";
 import { adjacentWeeks, weekHref, weekModule } from "@course";
 import type { WeekClientPayload } from "@/server/week-client-payload";
+import { markRecallReviewedAction } from "@/app/actions/recall";
 import {
   markHintAction,
   markSolutionAction,
@@ -718,25 +719,70 @@ function Recall({
 }) {
   const [open, setOpen] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [recorded, setRecorded] = useState<"recalled" | "missed" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [, startTransition] = useTransition();
+
+  async function recordReview(recalled: boolean) {
+    setError(null);
+    setPending(true);
+    startTransition(async () => {
+      const result = await markRecallReviewedAction(weekSlug, recallIndex, recalled);
+      setPending(false);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setRecorded(recalled ? "recalled" : "missed");
+    });
+  }
 
   return (
     <div className="rounded-2xl border border-border p-4">
       <p className="text-xs text-muted-foreground">{item.fromWeek}</p>
       <p className="mt-1 font-medium">{item.question}</p>
-      <button
-        type="button"
-        className="mt-2 text-sm text-primary"
-        onClick={async () => {
-          if (!open && answer === null) {
-            const result = await revealRecallAnswerAction(weekSlug, recallIndex);
-            if (result.ok) setAnswer(result.answer);
-          }
-          setOpen((value) => !value);
-        }}
-      >
-        {open ? "Скрыть" : "Ответ"}
-      </button>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className="text-sm text-primary"
+          onClick={async () => {
+            if (!open && answer === null) {
+              const result = await revealRecallAnswerAction(weekSlug, recallIndex);
+              if (result.ok) setAnswer(result.answer);
+            }
+            setOpen((value) => !value);
+          }}
+        >
+          {open ? "Скрыть" : "Ответ"}
+        </button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={pending || recorded !== null}
+          onClick={() => recordReview(true)}
+        >
+          Повторил
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={pending || recorded !== null}
+          onClick={() => recordReview(false)}
+        >
+          Не помню
+        </Button>
+      </div>
       {open && answer ? <p className="mt-2 text-sm text-muted-foreground">{answer}</p> : null}
+      {recorded === "recalled" ? (
+        <p className="mt-2 text-sm text-muted-foreground">Повторение записано.</p>
+      ) : null}
+      {recorded === "missed" ? (
+        <p className="mt-2 text-sm text-muted-foreground">Записали пропуск — карточка вернётся завтра.</p>
+      ) : null}
+      {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

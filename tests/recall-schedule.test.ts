@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   intervalDays,
   nextReviewAt,
+  nextReviewCountAfter,
   selectDueRecall,
   startedWeekSlugs,
   type StoredRecallReview,
@@ -157,6 +158,50 @@ describe("review interval", () => {
     );
     const scheduled = nextReviewAt(1, now);
     assert.equal(scheduled.toISOString(), "2026-09-23T12:00:00.000Z");
+  });
+});
+
+describe("review grading", () => {
+  it("starts a new card at count 1 after a successful recall", () => {
+    assert.equal(
+      nextReviewCountAfter({ existingCount: 0, samePrompt: false, recalled: true }),
+      1
+    );
+  });
+
+  it("lengthens the interval after repeated successful recalls", () => {
+    assert.equal(
+      nextReviewCountAfter({ existingCount: 2, samePrompt: true, recalled: true }),
+      3
+    );
+    assert.equal(
+      nextReviewCountAfter({ existingCount: 4, samePrompt: true, recalled: true }),
+      5
+    );
+  });
+
+  it("resets the interval after a miss instead of advancing it", () => {
+    assert.equal(
+      nextReviewCountAfter({ existingCount: 4, samePrompt: true, recalled: false }),
+      1
+    );
+    assert.equal(
+      nextReviewCountAfter({ existingCount: 0, samePrompt: false, recalled: false }),
+      1
+    );
+  });
+
+  it("schedules a shorter next review after a miss than after success at the same stage", () => {
+    const afterMiss = nextReviewAt(
+      nextReviewCountAfter({ existingCount: 3, samePrompt: true, recalled: false }),
+      now
+    );
+    const afterSuccess = nextReviewAt(
+      nextReviewCountAfter({ existingCount: 3, samePrompt: true, recalled: true }),
+      now
+    );
+    assert.equal(afterMiss.toISOString(), "2026-09-23T12:00:00.000Z");
+    assert.equal(afterSuccess.toISOString(), "2026-10-13T12:00:00.000Z");
   });
 });
 

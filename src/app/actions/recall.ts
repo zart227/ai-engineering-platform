@@ -3,10 +3,10 @@
 import { requireUser } from "@/server/auth";
 import { saveRecallReview } from "@/server/learning-lab";
 
-export async function markRecallReviewedAction(weekSlug: string, itemIndex: number) {
+export async function markRecallReviewedAction(weekSlug: string, itemIndex: number, recalled = true) {
   const user = await requireUser();
   try {
-    return await saveRecallReview(user.id, weekSlug, itemIndex);
+    return await saveRecallReview(user.id, weekSlug, itemIndex, recalled);
   } catch {
     return { ok: false as const, error: "Не удалось записать повтор." };
   }
