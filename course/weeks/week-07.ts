@@ -265,6 +265,16 @@ export const week07 = week({
         body: "Оставьте phase=reserved и запустите снова. Второй прогон должен дописать письмо и поставить done, а не пропустить молча.",
         expected: "Ровно одно письмо и phase=done.",
       },
+      {
+        title: "Форма",
+        body: "Шаги этого прогона известны заранее. Запишите таблицу: script, cron, workflow, AI workflow, agent. Для каждой формы: кто выбирает следующий шаг и берёте ли вы её здесь. Agent не брать: шаги известны.",
+        expected: "Пять строк. В строке agent стоит отказ и причина: шаги известны.",
+      },
+      {
+        title: "Контролируемый сбой",
+        body: "Намеренно оставьте SELECT, потом INSERT. Два запуска с одним ключом. Запишите, сколько строк в outbox. Затем только UNIQUE и фазы reserved, done. Снова два запуска. Запишите новое число. Оба числа из вашего прогона.",
+        expected: "Сначала два side effect. После атомарного ключа один.",
+      },
     ],
     troubleshooting: [
       {
@@ -279,6 +289,12 @@ export const week07 = week({
     reflection: [
       "Какое действие в вашей работе нельзя повторять, даже если скрипт «просто ещё раз запустился»?",
       "Где в этой лабе агент был бы лишним?",
+      "Что не сработало на двух запусках с SELECT-then-INSERT?",
+      "На каком ключе вы это увидели?",
+      "Почему проверка и вставка не атомарны?",
+      "Как вы проверили гипотезу вторым процессом?",
+      "Что вы изменили в записи ключа?",
+      "Стало ли лучше и чем это доказано: два числа side effect до и после?",
     ],
   }),
   practice: exercise({
@@ -292,6 +308,7 @@ export const week07 = week({
       "Хотя бы две задачи закрываются script или cron",
       "Хотя бы одна остаётся с человеком перед действием",
       "Ни одна не названа agent только потому, что в тексте есть слово «умный»",
+      "Форма строки одна из: script, cron, workflow, AI workflow, agent. Если шаги известны, agent не выбирать",
       "Для одной задачи набросок ключа идемпотентности",
     ],
     constraints: [
@@ -421,6 +438,45 @@ export const week07 = week({
       1,
       "Гонка живёт между двумя запросами."
     ),
+    q(
+      "w7-q6",
+      "conceptual",
+      "Шаги сверки известны и не менялись месяц. Какую форму не брать?",
+      [
+        "Script или cron с ключом прогона",
+        "Agent: следующий шаг и так уже нарисован",
+        "Workflow с явными ветками",
+        "AI workflow, если модель только заполняет схему, а ветки ваши",
+      ],
+      1,
+      "Известные шаги закрывают script, cron, workflow или AI workflow. Агент выбирает tool сам, здесь это лишнее."
+    ),
+    q(
+      "w7-q7",
+      "architecture",
+      "Чем cron отличается от workflow, если оба не агент?",
+      [
+        "Ничем, оба сами выбирают tool",
+        "Cron стартует скрипт по времени. Workflow хранит граф и состояние прогона",
+        "Workflow не может иметь side effect",
+        "Cron запрещает уникальный ключ",
+      ],
+      1,
+      "Расписание не рисует ветки. Граф рисует. Модель в обоих случаях не выбирает следующий шаг."
+    ),
+    q(
+      "w7-q8",
+      "debugging",
+      "Два запуска SELECT-then-INSERT дали две строки outbox. Что записать и чем чинить?",
+      [
+        "Ноль дублей: cron так задуман",
+        "Число side effect из прогона, затем повтор после UNIQUE. Агента не добавлять",
+        "Поставить агента следить за гонкой",
+        "Удалить ключ, чтобы строки не спорили",
+      ],
+      1,
+      "Метрика из вашего прогона. Лечит атомарная запись, не новый выбиратель шагов."
+    ),
   ]),
   artifact: artifact({
     result: "Таблица пяти рутин и скрипт с одним side effect на ключ.",
@@ -434,6 +490,10 @@ export const week07 = week({
       { id: "automation-fundamentals-a2", text: "UNIQUE-ключ, не SELECT-then-INSERT" },
       { id: "automation-fundamentals-a3", text: "Фаза reserved доделывается" },
       { id: "automation-fundamentals-a4", text: "В README показано, что второй запуск не дублирует" },
+      {
+        id: "automation-fundamentals-a5",
+        text: "Таблица пяти форм и два числа side effect: до UNIQUE и после",
+      },
     ],
   }),
   recall: recall([
@@ -452,7 +512,7 @@ export const week07 = week({
     decision({
       id: "automation-fundamentals-d1",
       title: "Workflow или агент",
-      optionA: "Workflow или скрипт",
+      optionA: "Script, cron, workflow или AI workflow",
       optionB: "Агент",
       useA: [
         "шаги известны",
@@ -466,8 +526,86 @@ export const week07 = week({
         "редкие запутанные кейсы",
       ],
       tradeoffs:
-        "Агент гибче и хуже тестируется. Workflow скучнее и объясняет, почему действие случилось.",
-      mistake: "Агент, чтобы каждый день выгрузить CSV.",
+        "Если шаги известны, агент не нужен. Берите script, cron, workflow или AI workflow: следующий шаг выбирает граф или скрипт. Агент хуже тестируется, потому что tool выбирает модель.",
+      mistake: "Звать агента, когда шаги известны. Ежедневный CSV это скрипт, не агент.",
     }),
   ],
+  learningObjectives: [
+    "Развести script, cron, workflow, AI workflow и agent по тому, кто выбирает следующий шаг.",
+    "Не брать агента, когда шаги известны заранее.",
+    "На двух запусках записать число side effect до атомарного ключа и после.",
+    "Доделать phase=reserved, а не молчать на обрыве.",
+  ],
+  experiments: [
+    {
+      id: "automation-fundamentals-exp-race",
+      question: "Сколько side effect даёт повтор одного ключа без атомарной записи и с ней?",
+      method:
+        "Один job и один день. Сначала SELECT, потом INSERT, два запуска, число строк outbox. Затем UNIQUE и фазы, снова два запуска. Форму выбираете из script, cron, workflow, AI workflow. Agent не использовать: шаги известны. Числа только из этих запусков.",
+      metrics: ["duplicate side effects", "chosen form"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "automation-fundamentals-f1",
+      symptom: "Два запуска с одним ключом дописали две строки outbox.",
+      cause: "SELECT и INSERT не атомарны, второй процесс не видит строку.",
+      check: "Повторить два запуска после UNIQUE. В outbox одна строка. Число записать из прогона.",
+    },
+    {
+      id: "automation-fundamentals-f2",
+      symptom: "Обрыв на reserved больше не шлёт письмо и не ставит done.",
+      cause: "Повтор считает любой существующий ключ завершённым.",
+      check: "Оставить phase=reserved и запустить снова. Одно письмо и phase=done.",
+    },
+  ],
+  metrics: [
+    {
+      name: "duplicate side effects",
+      how: "Сколько лишних строк outbox после второго запуска с тем же ключом. Два числа: до UNIQUE и после. Из вашего прогона.",
+    },
+    {
+      name: "chosen form",
+      how: "Одна из script, cron, workflow, AI workflow, agent. Если шаги известны, agent не записывать как выбор.",
+    },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "automation-fundamentals-r1",
+        name: "Пять форм",
+        weight: 25,
+        evidence: "Таблица называет script, cron, workflow, AI workflow и agent. На известных шагах agent отказан.",
+      },
+      {
+        id: "automation-fundamentals-r2",
+        name: "Гонка",
+        weight: 25,
+        evidence: "Два числа side effect из прогона: SELECT-then-INSERT и UNIQUE.",
+      },
+      {
+        id: "automation-fundamentals-r3",
+        name: "Фаза",
+        weight: 25,
+        evidence: "reserved доделывается одним письмом. done второй раз молчит.",
+      },
+      {
+        id: "automation-fundamentals-r4",
+        name: "Карта рутин",
+        weight: 25,
+        evidence: "Пять задач. Не все агенты. У side effect есть ключ повтора.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "PostgreSQL INSERT ON CONFLICT",
+      url: "https://www.postgresql.org/docs/current/sql-insert.html",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  costNotes: ["Модель на шаг, где хватает словаря или скрипта, лишний вызов. Сначала форма без агента."],
 });

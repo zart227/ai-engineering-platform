@@ -12,6 +12,7 @@ import {
   promptT,
   q,
   quiz,
+  reading,
   recall,
   ul,
   week,
@@ -27,7 +28,7 @@ export const week31 = week({
   status: "ready",
   hours: 12,
   goal:
-    "Посчитать воронку из трёх шагов кодом по своим событиям. Агент возвращает запрос и числа только после исполнения. Неизвестной метрики в схеме нет, значит отказ, а не процент из воздуха.",
+    "Посчитать кодом воронку своих событий: lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed. Агент возвращает запрос и числа только после исполнения. Неизвестной метрики в схеме нет, значит отказ, а не процент из воздуха. week-open код ещё не пишет.",
   technologies: ["events", "funnel", "SQL"],
   overview: {
     why:
@@ -45,24 +46,46 @@ export const week31 = week({
       "an-l1",
       "Имена, которые не плывут",
       16,
-      ["Записать четыре события", "Не плодить синонимы"],
+      ["Записать имена из learn.ts", "Не плодить синонимы"],
       [
         p(
-          "Событие имеет стабильное имя и версию свойств: week_completed, artifact_submitted. Синоним «урок закончен» рядом с week_completed ломает воронку. Для v1 хватает четырёх имён и одной воронки из трёх шагов. Удержание и когорты имеют смысл, когда есть даты и повторные визиты, не на трёх кликах одного вечера."
+          "Событие имеет стабильное имя из кода этой платформы, файл src/app/actions/learn.ts. Список такой: lesson_started, lesson_completed, lab_started, lab_completed, exercise_started, exercise_completed, hint_requested, solution_viewed, artifact_completed, quiz_attempted, quiz_passed, project_updated. Синоним «урок закончен» рядом с lesson_completed ломает воронку. Отдельного события открытия недели нет: week-open ещё не пишется. Удержание и когорты имеют смысл, когда есть даты и повторные визиты, не на трёх кликах одного вечера."
         ),
         code(
           "ts",
-          `type EventName = "task_started" | "result_shown" | "result_accepted" | "abstain_shown";
+          `type EventName =
+  | "lesson_started"
+  | "lesson_completed"
+  | "lab_started"
+  | "lab_completed"
+  | "exercise_started"
+  | "exercise_completed"
+  | "hint_requested"
+  | "solution_viewed"
+  | "artifact_completed"
+  | "quiz_attempted"
+  | "quiz_passed"
+  | "project_updated";
 
 export type ProductEvent = { name: EventName; userId: string; at: string; v: 1 };
 `,
-          "Закрытый список имён и версия свойств"
+          "Имена, которые код уже пишет. week-open в списке нет"
+        ),
+        p(
+          "Воронка этой недели только из этих имён: lesson_started, затем lesson_completed, затем exercise_started или lab_completed, затем quiz_passed, затем artifact_completed. Человек на третьем этапе считается один раз, даже если есть оба события. Остальные имена код тоже пишет. Это не синонимы этапов и не повод добавить week-open."
         ),
         compare(
           "Имя шага",
-          "В один день пишут week_completed, на следующий «урок закончен».",
-          "Одно имя из списка. Новое смысл получает новое имя, не синоним."
+          "В один день пишут lesson_completed, на следующий «урок закончен».",
+          "Одно имя из списка learn.ts. Новое смысл получает новое имя, не синоним."
         ),
+        reading([
+          {
+            title: "SoLAR: What is Learning Analytics",
+            url: "https://www.solaresearch.org/about/what-is-learning-analytics/",
+            note: "Зачем мерить учёбу по данным. Имена событий этой платформы берите из learn.ts, не из чужого каталога.",
+          },
+        ]),
         p(
           "Версия свойств нужна, когда вы добавите поле и старые строки его не имеют. Подсчёт не падает: отсутствующее поле это не другой шаг. Удержание и когорты откладывают, пока в данных нет второй даты у того же userId."
         ),
@@ -79,7 +102,7 @@ export type ProductEvent = { name: EventName; userId: string; at: string; v: 1 }
       ["Посчитать конверсию запросом", "Не просить модель назвать процент"],
       [
         p(
-          "Шаг 1, шаг 2, шаг 3 считаются по таблице или по JSONL. Конверсия это отношение чисел из этого подсчёта. Модель эти числа не угадывает. Если в данных три человека, отчёт так и говорит. Красивый процент без знаменателя выбрасывают."
+          "Этапы считаются по таблице или по JSONL: lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed. Конверсия и drop-off это числа из этого подсчёта. Модель их не угадывает. Если в данных три человека, отчёт так и говорит. Красивый процент без знаменателя выбрасывают."
         ),
         compare(
           "Кто автор числа",
@@ -91,6 +114,29 @@ export type ProductEvent = { name: EventName; userId: string; at: string; v: 1 }
           "знаменатель виден",
           "пустая таблица даёт ноль, не выдумку",
         ]),
+        code(
+          "ts",
+          `type Row = { type: string; userId: string };
+
+const stage3 = new Set(["exercise_started", "lab_completed"]);
+
+export function usersAt(rows: Row[], type: string) {
+  return new Set(rows.filter((row) => row.type === type).map((row) => row.userId)).size;
+}
+
+export function usersPractice(rows: Row[]) {
+  return new Set(rows.filter((row) => stage3.has(row.type)).map((row) => row.userId)).size;
+}
+
+export function dropOff(reached: number, next: number) {
+  return reached - next;
+}
+`,
+          "Drop-off считают по своему списку. Имени вне learn.ts в этапе нет"
+        ),
+        p(
+          "Экспорт одного человека отдаёт learningEvents с полями type, weekSlug, lessonId, payload, createdAt. userId в этот файл не кладут: выгрузка уже его. Для drop-off между людьми соберите короткий список из нескольких userId и только тех type, которые пишет learn.ts. Строку вне этого списка в этап не кладут. week-open в выгрузке не появится, пока код его не пишет."
+        ),
         check(
           "Почему конверсию не просят «на глаз» у модели?",
           "У неё нет вашей таблицы. Любой процент без запроса это выдумка."
@@ -108,7 +154,7 @@ export type ProductEvent = { name: EventName; userId: string; at: string; v: 1 }
         ),
         code(
           "ts",
-          `type Experiment = { lever: string; metric: "result_accepted"; days: number; note: "small-sample" };
+          `type Experiment = { lever: string; metric: "quiz_passed"; days: number; note: "small-sample" };
 
 export function oneLever(row: Experiment) {
   return row.lever.split(",").length === 1;
@@ -136,7 +182,7 @@ export function oneLever(row: Experiment) {
         ),
         code(
           "ts",
-          `const allowed = new Set(["funnel_task"]);
+          `const allowed = new Set(["drop_off"]);
 
 export function answer(metric: string) {
   if (!allowed.has(metric)) return { abstain: true };
@@ -151,7 +197,7 @@ export function answer(metric: string) {
           "security"
         ),
         check(
-          "Модель назвала retention, а такого события нет. Что вернуть?",
+          "Модель назвала retention, а такой метрики в схеме нет. Что вернуть?",
           "Отказ. Число не выдумывают."
         ),
       ]
@@ -179,14 +225,28 @@ export function answer(metric: string) {
   ],
   lab: lab({
     id: "an-lab",
-    title: "Четыре имени и три шага",
-    goal: "Воронка посчитана кодом на фикстуре. Агент на неизвестной метрике отказывается.",
-    setup: ["JSONL или таблица из десятка событий", "четыре разрешённых имени", "функция воронки"],
+    title: "Воронка по именам learn.ts",
+    goal: "Воронка посчитана кодом по маленькому списку событий. Агент на неизвестной метрике отказывается.",
+    setup: [
+      "короткий список событий с type и userId, имена только как в экспорте learningEvents",
+      "имена только из learn.ts",
+      "функция воронки",
+    ],
     steps: [
       {
         title: "Посчитать",
-        body: "Три шага, конверсия с знаменателем. Рядом нет вызова модели.",
-        expected: "Числа сходятся с ручным подсчётом фикстуры.",
+        body: "Этапы: lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed. На каждом этапе уникальные userId и знаменатель. Рядом нет вызова модели. week-open в этапы не входит.",
+        expected: "Числа сходятся с ручным подсчётом вашего списка.",
+      },
+      {
+        title: "Drop-off",
+        body: "Таблица своим списком: этап, людей на этапе, людей на следующем, drop-off. Drop-off это разница соседних этапов. Третий этап объединяет exercise_started и lab_completed без двойного счёта.",
+        expected: "Пять строк. Пустая клетка не заменена процентом из чата.",
+      },
+      {
+        title: "Чужое имя",
+        body: "Контролируемый сбой: добавьте в черновик этап открытия недели. Код такого события не пишет. Уберите этап и пересчитайте drop-off только по именам из learn.ts.",
+        expected: "В таблице нет week-open. Рядом фраза, что это событие ещё не пишется.",
       },
       {
         title: "Отказ",
@@ -204,7 +264,15 @@ export function answer(metric: string) {
         fix: "Число имеет право появиться только в коде после запроса. Ветка модели возвращает query или abstain.",
       },
     ],
-    reflection: ["Какую метрику вы хотели увидеть, хотя событий под неё нет?"],
+    reflection: [
+      "Какую метрику вы хотели увидеть, хотя событий под неё нет?",
+      "Что не сработало в подсчёте drop-off?",
+      "На каких строках списка это видно?",
+      "Почему этап оказался не из learn.ts?",
+      "Как проверить гипотезу о дыре в воронке ещё раз?",
+      "Что вы убрали или переименовали?",
+      "Стало ли лучше и чем это доказано таблицей?",
+    ],
   }),
   practice: exercise({
     id: "an-practice",
@@ -212,8 +280,9 @@ export function answer(metric: string) {
     time: "4 часа",
     context: "Вопрос про воронку идёт через разрешённый запрос. Выдуманная метрика получает отказ.",
     requirements: [
-      "четыре имени событий",
-      "воронка из трёх шагов считается кодом",
+      "имена событий только из learn.ts, без week-open",
+      "воронка lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed считается кодом",
+      "drop-off между этапами посчитан по своему списку, со знаменателем",
       "агент или функция возвращает query либо abstain",
       "тест: неизвестная метрика не содержит числа",
       "запрос виден рядом с результатом",
@@ -250,7 +319,7 @@ export function answer(metric: string) {
       when: "В голове сразу пять изменений.",
       placeholders: ["{{idea}}"],
       text: `Идея: {{idea}}
-Оставь один рычаг и одну метрику из типичной воронки task_started → result_shown → result_accepted.
+Оставь один рычаг и одну метрику из воронки lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed. week-open не добавляй: код его не пишет.
 Назови срок и что будет считаться отказом от вывода на малой выборке.
 Верни JSON {"lever":"...","metric":"...","stop":"..."}.`,
       explanation: "Черновик эксперимента. Метрика всё равно должна быть в вашей схеме.",
@@ -263,17 +332,20 @@ export function answer(metric: string) {
     q("w31-q3", "conceptual", "Сколько рычагов в первом эксперименте?", ["Двенадцать", "Один рычаг и одна метрика", "Сколько успеете", "Ноль, гипотеза не нужна"], 1, "Иначе сдвиг не интерпретировать."),
     q("w31-q4", "conceptual", "Зачем события обучения на этой платформе?", ["Чтобы продать профиль", "Чтобы видеть, где ломается учёба", "Чтобы заменить базу", "Чтобы хранить пароль"], 1, "Продуктовый сигнал, не секрет."),
     q("w31-q5", "debugging", "В схеме нет retention, человек его спрашивает. Что вернуть?", ["Правдоподобный процент", "Отказ без числа", "Случайный SQL на запись", "Ответ из чужого блога"], 1, "Нет имени, нет числа."),
+    q("w31-q6", "conceptual", "Какого события код learn.ts не пишет?", ["lesson_started", "quiz_passed", "week-open", "artifact_completed"], 2, "Открытие недели пока не пишется. Этот этап в воронку не добавляют."),
+    q("w31-q7", "debugging", "Drop-off назвала модель, списка событий на столе нет. Что с числом?", ["Его можно поставить в отчёт", "Оно точнее ручного счёта", "Это выдумка. Считайте по списку и покажите знаменатель", "Достаточно синонима «урок закончен»"], 2, "Drop-off это разница ваших этапов, не процент из чата."),
+    q("w31-q8", "architecture", "Какая цепочка совпадает с воронкой этой недели?", ["week-open, затем lesson_started", "lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed", "project_updated на каждом этапе", "quiz_attempted вместо quiz_passed и отдельное открытие недели"], 1, "Имена из learn.ts. Третий этап считает человека один раз. quiz_attempted код пишет, но в эту цепочку не входит."),
   ]),
   artifact: artifact({
-    result: "Схема событий, воронка кодом и отказ агента на неизвестной метрике.",
+    result: "Схема событий learn.ts, воронка кодом и отказ агента на неизвестной метрике.",
     repository: "Git URL.",
-    demo: "Подсчёт трёх шагов и ответ abstain на выдуманное имя.",
-    readme: ["четыре имени", "как считается воронка", "что агенту запрещено возвращать"],
+    demo: "Drop-off по своему списку и ответ abstain на выдуманное имя.",
+    readme: ["имена из learn.ts", "как считается drop-off", "что week-open ещё не пишется", "что агенту запрещено возвращать"],
     architecture: ["закрытый список имён", "число после запроса", "запрос виден"],
     tests: ["unknown metric", "counts match fixture"],
     checklist: [
-      { id: "an-a1", text: "Четыре стабильных имени событий" },
-      { id: "an-a2", text: "Воронка трёх шагов сходится с фикстурой" },
+      { id: "an-a1", text: "Имена только из learn.ts, week-open не добавлен" },
+      { id: "an-a2", text: "Воронка пяти этапов сходится с ручным счётом списка" },
       { id: "an-a3", text: "Неизвестная метрика даёт отказ без числа" },
       { id: "an-a4", text: "Запрос показан рядом с результатом" },
       { id: "an-a5", text: "В свойствах события нет секрета" },
@@ -303,4 +375,80 @@ export function answer(metric: string) {
       mistake: "Принять процент из чата, не показав запрос и знаменатель.",
     }),
   ],
+  learningObjectives: [
+    "Назвать только события, которые пишет learn.ts, и не добавлять week-open.",
+    "Посчитать воронку lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed по своему списку.",
+    "Посчитать drop-off между соседними этапами и показать знаменатель.",
+    "На неизвестную метрику вернуть отказ без числа.",
+  ],
+  experiments: [
+    {
+      id: "product-analytics-exp-funnel",
+      question:
+        "Где обрывается воронка lesson_started, lesson_completed, exercise_started или lab_completed, quiz_passed, artifact_completed?",
+      method:
+        "Собрать короткий список из нескольких userId. Type только из learn.ts, как в экспорте learningEvents. Посчитать уникальных userId на каждом этапе. Третий этап объединяет exercise_started и lab_completed. Drop-off это разница соседних этапов. Открытие недели в этап не класть: код его не пишет.",
+      metrics: ["drop-off"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "product-analytics-f1",
+      symptom: "В воронке есть этап открытия недели.",
+      cause: "Имя добавили сами. Код week-open не пишет.",
+      check: "Список этапов совпадает с learn.ts. В таблице нет week-open.",
+    },
+    {
+      id: "product-analytics-f2",
+      symptom: "Drop-off есть, знаменателя нет, или число назвала модель.",
+      cause: "Подсчёт не шёл по экспорту.",
+      check: "Таблица: этап, люди на этапе, люди на следующем, drop-off. Сходится с ручным счётом списка.",
+    },
+  ],
+  metrics: [
+    {
+      name: "drop-off",
+      how: "Сколько людей дошли до этапа и не дошли до следующего. Знаменатель это люди на текущем этапе. Считаете по своему списку. Модель число не называет.",
+    },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "product-analytics-r1",
+        name: "Имена",
+        weight: 25,
+        evidence: "В схеме только lesson_started, lesson_completed, lab_started, lab_completed, exercise_started, exercise_completed, hint_requested, solution_viewed, artifact_completed, quiz_attempted, quiz_passed, project_updated. week-open отсутствует.",
+      },
+      {
+        id: "product-analytics-r2",
+        name: "Drop-off",
+        weight: 25,
+        evidence: "Таблица своего списка: пять этапов, знаменатель, drop-off. Третий этап без двойного счёта.",
+      },
+      {
+        id: "product-analytics-r3",
+        name: "Чужое имя",
+        weight: 25,
+        evidence: "Черновик с открытием недели убран. Пересчёт только по learn.ts.",
+      },
+      {
+        id: "product-analytics-r4",
+        name: "Отказ",
+        weight: 25,
+        evidence: "Неизвестная метрика даёт abstain без числа. Запрос виден рядом с результатом подсчёта.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "SoLAR: What is Learning Analytics",
+      url: "https://www.solaresearch.org/about/what-is-learning-analytics/",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["В свойства события не кладут пароль, ключ и заголовок Authorization."],
+  privacyNotes: ["Для воронки хватает type, userId и времени. Сырой ответ урока в событие не кладут."],
 });
