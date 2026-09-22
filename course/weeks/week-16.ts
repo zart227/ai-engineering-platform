@@ -72,6 +72,11 @@ export function meanHit(rows: number[]) {
           "вопрос, которым подгоняли промпт, не единственный: несколько оставьте нетронутыми",
           "ожидание «любой из этих id» записывайте списком, не одним счастливым попаданием",
         ]),
+        compare(
+          "Два провала",
+          "Один столбец «качество RAG» и число Recall из статьи.",
+          "Recall@K считает, попал ли ожидаемый id в top-k. Citation correctness и answer correctness считают ответ. Нет id в top-k: чинят поиск. Id есть, а факт или цитата мимо: чинят генерацию."
+        ),
         check(
           "hit-rate@5 вырос, ответы стали длиннее и без цитат. Что вы измерили?",
           "Только выборку. Текст ответа этим числом не покрыт."
@@ -91,6 +96,11 @@ export function meanHit(rows: number[]) {
           "Перефраз",
           "Модель дописывает факты в запрос, и их ищут как есть.",
           "JSON {\"queries\": string[1..3]}. Сущности, которых не было в исходной фразе, ваш код выкидывает или помечает. Решение принимает hit-rate."
+        ),
+        compare(
+          "Рядом с тем, что уже есть",
+          "Перефраз, гибрид и rerank включают в один день и смотрят на один абзац.",
+          "Multi-query или перефраз это отдельная строка таблицы на том же файле вопросов. Исходная фраза остаётся в списке. Hybrid, если он уже есть, стоит своей строкой."
         ),
         callout(
           "Цена",
@@ -135,6 +145,21 @@ LIMIT 20;
         diagram(
           `вопрос ── FTS top-20 ──┐\n        └ embed top-20 ─┴── RRF ── top-5 в контекст`,
           "Два канала"
+        ),
+        h("Четыре имени"),
+        ul([
+          "dense: сосед по вектору. Нужен, когда общих слов почти нет.",
+          "lexical: словарь. Ловит редкий номер и точную фразу.",
+          "hybrid: оба списка, потом слияние рангов. Это не третий индекс.",
+          "metadata filter: tenant, source, status. Обычная колонка, не расстояние.",
+        ]),
+        compare(
+          "Фильтр и гибрид",
+          "Один ANN на всех, и смысл якобы отсеет чужой отдел.",
+          "WHERE по tenant и status в том же запросе. Dense и lexical сливают только внутри этого среза."
+        ),
+        p(
+          "Графовый поиск идёт по сущностям и связям: документ ссылается на регламент, регламент на роль. Его имеет смысл строить, когда ответ не лежит в одном абзаце, а сущности у вас уже есть. Не стройте граф в первый день на нескольких файлах. Извлечение сущностей врёт, связи устаревают, а dense и lexical на том же наборе ещё не измерены. Пока вопросы не про связи между сущностями, граф остаётся абзацем в отчёте."
         ),
         check(
           "Зачем FTS, если вектор уже находит перефразы?",
@@ -231,6 +256,11 @@ LIMIT 20;
         body: "Оставьте приём только если hit-rate не упал и стоимость вам подходит.",
         expected: "Абзац в README: оставили или откатили и почему.",
       },
+      {
+        title: "Таблица оценки",
+        body: "Один файл вопросов. Строки: dense baseline, hybrid если он уже есть, и отдельно multi-query или перефраз. Колонки своего прогона: Recall@K, citation correctness, answer correctness, latency, cost per query. Нет usage значит cost unknown. Число из статьи не вписывают. Рядом класс промаха: нет ожидаемого id в top-k это retrieval failure, id есть а ответ или цитата мимо это generation failure.",
+        expected: "Одна таблица со своими клетками. Строку hybrid подпишите, если его не включали.",
+      },
     ],
     troubleshooting: [
       {
@@ -245,6 +275,9 @@ LIMIT 20;
     reflection: [
       "Какой приём не окупился? Это тоже результат.",
       "Есть ли в индексе чанк со статусом черновика?",
+      "Какие вопросы это retrieval failure, какие generation failure, и на каких id?",
+      "Почему multi-query или перефраз сдвинул Recall@K? Как проверить на том же файле?",
+      "Что оставили, стало ли лучше по Recall@K и по cost per query, и какая строка это доказывает?",
     ],
   }),
   practice: exercise({
@@ -369,6 +402,45 @@ LIMIT 20;
       1,
       "Приём, который ухудшил то же множество вопросов, не включают."
     ),
+    q(
+      "w16-q6",
+      "conceptual",
+      "Чем metadata filter отличается от dense?",
+      [
+        "Это тоже расстояние в pgvector",
+        "Это условие по колонке: tenant, source, status. Dense ищет соседа по вектору",
+        "Это замена цитатам",
+        "Это граф сущностей",
+      ],
+      1,
+      "Фильтр режет строки. Dense ранжирует векторы внутри среза."
+    ),
+    q(
+      "w16-q7",
+      "debugging",
+      "Ожидаемый id есть в top-k, а факт в ответе неверный. Какой это провал?",
+      [
+        "Generation failure. Выборка здесь нашла чанк",
+        "Retrieval failure, потому что ответ плохой",
+        "Повод вписать Recall из статьи",
+        "Сигнал строить граф до замера dense и lexical",
+      ],
+      0,
+      "Нет id в top-k чинят поиском. Найденный id и плохой ответ чинят генерацией."
+    ),
+    q(
+      "w16-q8",
+      "architecture",
+      "Когда не строить графовый поиск?",
+      [
+        "Его нельзя даже назвать в отчёте",
+        "Его строят в первый день вместо dense",
+        "Пока вопросы не про связи сущностей и пока dense с lexical не измерены на вашем наборе",
+        "Когда уже есть metadata filter",
+      ],
+      2,
+      "Граф окупается вопросами про связи. До этого хватает каналов, которые вы уже замерили."
+    ),
   ]),
   artifact: artifact({
     result: "AI Knowledge Platform: ingest, поиск, цитаты, один измеренный приём, eval и compose.",
@@ -409,4 +481,97 @@ LIMIT 20;
       mistake: "Включить перефраз, гибрид и rerank в один день без второго прогона золотого файла.",
     }),
   ],
+  learningObjectives: [
+    "Посчитать Recall@K на размеченных вопросах отдельно от правильности ответа.",
+    "Назвать dense, lexical, hybrid и metadata filter.",
+    "Записать multi-query или перефраз отдельной строкой рядом с baseline.",
+    "Разделить retrieval failure и generation failure на одних и тех же вопросах.",
+  ],
+  experiments: [
+    {
+      id: "advanced-rag-exp-rewrite",
+      question:
+        "Как multi-query или перефраз меняет Recall@K, citation correctness, answer correctness, latency и cost per query на том же файле относительно dense?",
+      method:
+        "Строка dense. Строка multi-query или перефраза, исходная фраза остаётся в списке. Hybrid, если он есть, своей строкой. Промах без id в top-k это retrieval. Промах при найденном id это generation. Чужое число не вписывают.",
+      metrics: ["Recall@K", "citation correctness", "answer correctness", "latency", "cost per query"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "advanced-rag-f1",
+      symptom: "Ответ мимо, ожидаемого id нет в top-k.",
+      cause: "Retrieval failure: короткий запрос, редкий токен или перефраз увёл тему.",
+      check: "Колонка Recall@K на том же файле. Чинят канал поиска, не рубрику ответа.",
+    },
+    {
+      id: "advanced-rag-f2",
+      symptom: "Ожидаемый id в top-k, цитата чужая или факт не из чанка.",
+      cause: "Generation failure: модель сочинила или назвала id вне retrieved.",
+      check: "Citation correctness и answer correctness отдельно от Recall@K. Чужой id режет код.",
+    },
+  ],
+  metrics: [
+    {
+      name: "Recall@K",
+      how: "Доля вопросов, где ожидаемый id есть в top-k. Считаете по своему файлу. Это та же проверка, что hit-rate@k.",
+    },
+    {
+      name: "citation correctness",
+      how: "Доля ответов, где каждый id цитаты есть в retrieved этого запроса. Чужой id это промах.",
+    },
+    {
+      name: "answer correctness",
+      how: "Доля ответов, где факт совпал с чанком по вашей рубрике. Нет опоры и нет abstain это промах.",
+    },
+    {
+      name: "latency",
+      how: "Медиана миллисекунд вашего прогона на вопрос. В подписи напишите median.",
+    },
+    {
+      name: "cost per query",
+      how: "Вызовы embed и модели или токены usage на один вопрос. Нет usage значит unknown, не ноль.",
+    },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "advanced-rag-r1",
+        name: "Таблица оценки",
+        weight: 25,
+        evidence: "Свои клетки: Recall@K, citation correctness, answer correctness, latency, cost per query.",
+      },
+      {
+        id: "advanced-rag-r2",
+        name: "Строка перефраза",
+        weight: 25,
+        evidence: "Multi-query или перефраз рядом с dense. Hybrid отдельной строкой, если он включён.",
+      },
+      {
+        id: "advanced-rag-r3",
+        name: "Два класса промаха",
+        weight: 25,
+        evidence: "Список вопросов: retrieval failure и generation failure по id.",
+      },
+      {
+        id: "advanced-rag-r4",
+        name: "Решение по замеру",
+        weight: 25,
+        evidence: "Приём оставлен или откатан по вашей таблице. Порог и compose описаны в README.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "pgvector README",
+      url: "https://github.com/pgvector/pgvector",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Черновик и чужой tenant отсекает metadata filter. Citations и кандидаты rerank это allowlist."],
+  privacyNotes: ["В таблицу эвала кладут id и доли, не сырой текст чужого тенанта."],
+  costNotes: ["Multi-query и rerank добавляют вызовы. Cost per query берут из своего usage или пишут unknown."],
 });
