@@ -1,25 +1,36 @@
 # Wave 7 tutor
 
-Baseline: `origin/main` `1592ea9abc595749c8d0c1661c014203cf15d0ba`. GATE 7 is not done. This change does not add a tutor endpoint.
+Baseline: `origin/main` `45cff6084b66ff5cf30d638eec5de2ca3a99a0bd`. GATE 7 is not done. GATE FINAL is not done.
 
-No tutor ships until a provider exists. There is no LLM client in the repo: `package.json` has no model SDK, and `.env.example` has no model key. A provider is not enough on its own. The call still needs a session owner, a context without the answer key, logs without PII, a per-owner cap, and lesson text kept as data.
+V1 is on `main`. `POST /api/tutor` (`src/app/api/tutor/route.ts`) calls `answerTutor` in `src/server/tutor.ts`. The theory tab renders `LessonTutor` per lesson (`src/components/lesson-tutor.tsx`). Provider routing lives in `src/server/llm.ts`. Tests: `tests/tutor.test.ts`.
 
-V1, when built, is the current lesson’s teaching text plus the student question. `TutorContext` does not include `practice.solution`, quiz answers, or recall answers. `check.answer` is not teaching text either. Only `check.question` belongs in that context.
+## Provider split (job-pilot model)
 
-V1 does not call `searchCourse`. `feature-hash-v1` cannot cite a paraphrased lesson. It is a token hash, and a paraphrase that shares no words with the passage does not land on that lesson.
+Routine tasks use cloud Ollama (`get_simple_llm_provider`): `filter`, `scoring`, `chat`, `learning`, `edit_proposal`, `edit_reply`, and `tutor_v1`. Heavy tasks use OpenAI (`get_llm_provider`): `proposal`, `rubric_feedback`, `multi_week_context`, `long_generation`. Only `tutor_v1` is built; the heavy names are reserved and not implemented.
 
-The practice panel already reveals hints and the solution without an attempt. This change does not touch that panel.
+There is no silent cross-provider fallback. A routine call with no Ollama config returns `ollama_not_configured` (503). A heavy call with no OpenAI config returns `openai_not_configured`. Tutor V1 never calls OpenAI even when both keys are set.
 
-V3 needs a real attempt. `ArtifactProgress` is a self-report: notes, URLs, and a completed checkbox, with no attempt history. The rubric lives in Git and is not shown on the artifact tab. V3 is not built here.
+Env keys are documented in `.env.example`: `OLLAMA_*` for the lesson tutor, `OPENAI_*` for future heavy flows.
 
-Evals later: 99 hint cases from the 33 practices (three hints each), and a failure if the solution string appears in the reply. No invented prices.
+## V1 behavior
 
-Login and register rate-limit warnings no longer include the email. Week 24 treats email as PII. The limits stay 8 and 5 attempts per 15 minutes.
+Context is the current lesson’s teaching text plus the student question. `buildTutorPrompt` includes lesson title, objectives, teaching blocks, and `check.question`. It excludes `check.answer`, `practice.solution`, quiz answers, recall answers, other lessons, and other weeks. The route does not call `searchCourse` or read `feature-hash` vectors.
 
-## V1 call
+The route resolves the caller with `getSession()`; a cookie string alone is not enough. The owner is rate-limited at 20 requests per 15 minutes (`tutor:{userId}`). Logs carry `userId`, task, week slug, lesson id, and provider. They do not carry the question, lesson body, or email.
 
-GATE 7 is not done. GATE FINAL is not done.
+A reply that contains `practice.solution` is rejected (`reply_rejected`, 422). A reply that is the next hint text is allowed. The practice hint panel is unchanged: hints and solution still reveal through the existing panel without an attempt gate.
 
-A provider exists, so V1 may call it. The router follows job-pilot: routine tasks use cloud Ollama (`get_simple_llm_provider`: filter, scoring, chat, learning, edit_proposal, edit_reply, plus tutor_v1). Heavy tasks use OpenAI (`get_llm_provider`: proposal, plus rubric_feedback, multi_week_context, long_generation). Those heavy flows are named and not built. A routine call with no Ollama config does not fall through to OpenAI. A heavy call with no OpenAI config does not fall through to Ollama.
+Browser smoke on current `main`: form renders on week 1 theory, Russian reply ~10s, no practice-solution leak (orchestrator browser run, Sep 2026).
 
-V1 context is the current lesson’s teaching text plus the student question. `check.question` is included. `check.answer`, `practice.solution`, quiz answers, recall answers, and other weeks are not. The route does not call `searchCourse`. The practice hint panel is unchanged. The tutor route checks the session owner, rate-limits that owner, and does not log the question, the lesson body, or the email. A reply that contains `practice.solution` is rejected. A reply that is the next hint is returned.
+## Research (T1–T5)
+
+T1–T5 read-only research covers tutor architecture, why V1 must not use hash search, V3 rubric feedback shape, security limits, and a proposed 99-hint offline eval suite. Those rows and TutorContext separation are checked in `action-checklist.md`. GATE 7 stays open until orchestrator sign-off and remaining W7 scope (below) are closed.
+
+## Not built (W7-TUTOR still PARTIAL)
+
+- V2 citations: a retriever other than `feature-hash-v1` / `searchCourse` (T2).
+- V3 rubric feedback on a real attempt history (T3).
+- V4 multi-week context and long generation (heavy OpenAI tasks).
+- The 99-hint golden eval job proposed in T5 (offline fixture + `solutionAbsent`; not in `npm test` yet).
+
+Login and register rate-limit warnings no longer include the email (Wave 7 decision PR). Limits stay 8 and 5 attempts per 15 minutes.
