@@ -84,17 +84,18 @@
 - [x] M3 Fine-tuning decision framework
 - [x] M4 Routing and cost
 - [x] M5 Reliability and privacy taxonomy
-- [ ] GATE 4
+- [x] GATE 4
 
 ## WAVE 5 — Platform as Lab
 
-Сделано от `origin/main` `5820ae5`. P3 и P4 не начинались.
+P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукте: хеш-поиск на pgvector и MCP.
 
 - [x] P1 Learning analytics funnel
 - [x] P2 Spaced repetition «Сегодня повторить»
-- [x] P3 Semantic search только с реальным use case
+- [x] P3 Hash search на pgvector, подпись не семантическая
 - [x] P4 Platform MCP после курса MCP
-- [ ] GATE 5
+- [x] GATE 5
+- [x] GATE 5.1
 
 ## WAVE 6 — Async (conditional)
 
