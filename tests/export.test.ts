@@ -9,6 +9,7 @@ import {
   importReplacesRecall,
   migrateExport,
   previewImport,
+  resolveImportedQuizAttempt,
 } from "../src/server/export";
 
 const fullFixture = {
@@ -385,6 +386,7 @@ type LearnerRow = { id: string };
 const RESTORE_MODELS = [
   "note",
   "bookmark",
+  "portfolioProject",
   "lessonProgress",
   "labProgress",
   "exerciseProgress",
@@ -399,6 +401,7 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
   const state: Record<RestoreModel, LearnerRow[]> = {
     note: [...(initial.note ?? [])],
     bookmark: [...(initial.bookmark ?? [])],
+    portfolioProject: [...(initial.portfolioProject ?? [])],
     lessonProgress: [...(initial.lessonProgress ?? [])],
     labProgress: [...(initial.labProgress ?? [])],
     exerciseProgress: [...(initial.exerciseProgress ?? [])],
@@ -438,7 +441,7 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
             if (RESTORE_MODELS.includes(name as RestoreModel)) {
               return makeModel(name as RestoreModel);
             }
-            if (name === "capstoneProject" || name === "userSettings" || name === "portfolioProject") {
+            if (name === "capstoneProject" || name === "userSettings") {
               return { upsert: async () => calls.push(`${name}.upsert`) };
             }
             if (
@@ -565,9 +568,224 @@ describe("importExport learner restore", () => {
     assert.equal(db.calls.includes("weekProgress.createMany"), false);
   });
 
-  it("warns that notes, bookmarks, and progress are replaced", () => {
+  it("warns that notes, bookmarks, progress, and portfolio are replaced", () => {
     const preview = previewImport(migrateExport(fullFixture), fullFixture);
-    assert.match(preview.warnings.join(" "), /Заметки, закладки и прогресс обучения будут полностью заменены/);
+    assert.match(
+      preview.warnings.join(" "),
+      /Заметки, закладки, прогресс обучения и проекты портфолио будут полностью заменены/
+    );
+  });
+});
+
+describe("importExport portfolio restore", () => {
+  it("removes portfolio projects that are absent from the backup file", async () => {
+    const db = createRestoreImportDb({
+      portfolioProject: [{ id: "stale-project" }, { id: "also-stale" }],
+    });
+
+    const payload = {
+      ...fullFixture,
+      portfolio: [
+        {
+          slug: "only",
+          title: "Only",
+          description: "desc",
+          status: "done",
+          stack: ["ts"],
+          skills: ["zod"],
+          githubUrl: "",
+          demoUrl: "",
+          readme: "# hi",
+          weekSlug: "environment-llm-api",
+        },
+      ],
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.state.portfolioProject.length, 1);
+    assert.equal(db.calls.includes("portfolioProject.deleteMany"), true);
+    assert.equal(db.calls.includes("portfolioProject.createMany"), true);
+    assert.equal(db.calls.includes("portfolioProject.upsert"), false);
+  });
+
+  it("wipes portfolio when the backup file has none", async () => {
+    const db = createRestoreImportDb({
+      portfolioProject: [{ id: "stale-project" }],
+    });
+
+    const payload = { ...fullFixture, portfolio: [] as typeof fullFixture.portfolio };
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.deepEqual(db.state.portfolioProject, []);
+    assert.equal(db.calls.includes("portfolioProject.createMany"), false);
+  });
+});
+
+describe("resolveImportedQuizAttempt", () => {
+  const weekSlug = "environment-llm-api";
+  const passingAnswers = [1, 1, 1, 1, 1, 1, 0, 0];
+
+  it("recomputes score and passed from curriculum when answers are present", () => {
+    const resolved = resolveImportedQuizAttempt({
+      weekSlug,
+      answers: passingAnswers,
+      score: 42,
+      passed: false,
+    });
+    assert.equal(resolved.score, 75);
+    assert.equal(resolved.passed, true);
+    assert.deepEqual(resolved.answers, passingAnswers);
+  });
+
+  it("rejects a forged passed flag when answers are missing", () => {
+    const resolved = resolveImportedQuizAttempt({
+      weekSlug,
+      answers: null,
+      score: 100,
+      passed: true,
+    });
+    assert.equal(resolved.passed, false);
+    assert.equal(resolved.score, 100);
+  });
+
+  it("rejects a forged passed flag when answers are not numeric indices", () => {
+    const resolved = resolveImportedQuizAttempt({
+      weekSlug,
+      answers: ["0", "1"],
+      score: 100,
+      passed: true,
+    });
+    assert.equal(resolved.passed, false);
+  });
+});
+
+type StoredQuizAttempt = {
+  weekSlug: string;
+  answers: unknown;
+  score: number;
+  passed: boolean;
+};
+
+function createQuizImportDb(initial: StoredQuizAttempt[] = []) {
+  const stored: StoredQuizAttempt[] = initial.map((item) => ({ ...item }));
+  const calls: string[] = [];
+  const db = {
+    calls,
+    get stored() {
+      return stored;
+    },
+    async $transaction(fn: (tx: never) => Promise<unknown>) {
+      const tx = new Proxy(
+        {},
+        {
+          get(_target, prop) {
+            const name = String(prop);
+            if (RESTORE_MODELS.includes(name as RestoreModel)) {
+              return {
+                deleteMany: async () => {
+                  calls.push(`${name}.deleteMany`);
+                  return { count: 0 };
+                },
+                createMany: async () => ({ count: 0 }),
+                upsert: async () => calls.push(`${name}.upsert`),
+              };
+            }
+            if (name === "capstoneProject" || name === "userSettings") {
+              return { upsert: async () => calls.push(`${name}.upsert`) };
+            }
+            if (name === "quizAttempt") {
+              return {
+                deleteMany: async () => {
+                  calls.push(`${name}.deleteMany`);
+                  stored.length = 0;
+                  return { count: 0 };
+                },
+                createMany: async ({
+                  data,
+                }: {
+                  data: StoredQuizAttempt[];
+                }) => {
+                  calls.push(`${name}.createMany`);
+                  stored.push(...data.map((row) => ({ ...row })));
+                  return { count: data.length };
+                },
+              };
+            }
+            if (name === "learningEvent" || name === "recallReview") {
+              return {
+                deleteMany: async () => {
+                  calls.push(`${name}.deleteMany`);
+                  return { count: 0 };
+                },
+                createMany: async () => {
+                  calls.push(`${name}.createMany`);
+                  return { count: 0 };
+                },
+              };
+            }
+            return undefined;
+          },
+        }
+      );
+      await fn(tx as never);
+    },
+  };
+  return db;
+}
+
+describe("importExport quiz restore", () => {
+  it("stores recomputed quiz scores instead of trusting imported passed flags", async () => {
+    const db = createQuizImportDb([
+      {
+        weekSlug: "environment-llm-api",
+        answers: [0, 0, 0, 0, 0, 0, 0, 0],
+        score: 0,
+        passed: false,
+      },
+    ]);
+
+    const payload = {
+      ...fullFixture,
+      quizAttempts: [
+        {
+          weekSlug: "environment-llm-api",
+          answers: [1, 1, 1, 1, 1, 1, 0, 0],
+          score: 42,
+          passed: false,
+          createdAt: "2026-09-21T12:00:00.000Z",
+        },
+      ],
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.stored.length, 1);
+    assert.equal(db.stored[0]?.score, 75);
+    assert.equal(db.stored[0]?.passed, true);
+    assert.equal(db.calls.includes("quizAttempt.deleteMany"), true);
+  });
+
+  it("clears forged quiz passes when answers cannot be verified", async () => {
+    const db = createQuizImportDb();
+
+    const payload = {
+      ...fullFixture,
+      quizAttempts: [
+        {
+          weekSlug: "environment-llm-api",
+          answers: null,
+          score: 100,
+          passed: true,
+          createdAt: "2026-09-21T12:00:00.000Z",
+        },
+      ],
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.stored[0]?.passed, false);
+    assert.equal(db.stored[0]?.score, 100);
   });
 });
 
