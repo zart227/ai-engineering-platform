@@ -339,6 +339,74 @@ describe("llm task router", () => {
     assert.deepEqual(openaiBody.input, [{ role: "user", content: "heavy input" }]);
     assert.equal(openaiBody.temperature, 0.7);
     assert.equal("messages" in openaiBody, false);
+    assert.equal(ollamaHeaders.has("cookie"), false);
+  });
+
+  it("reads OpenAI text from output content when output_text is absent", async () => {
+    const fixture = JSON.parse(readFileSync("tests/fixtures/openai-response-output-text.json", "utf8")) as {
+      status?: unknown;
+      output_text?: unknown;
+      output?: { content?: { type?: unknown; text?: unknown }[] }[];
+    };
+    assert.equal(fixture.status, "completed");
+    assert.equal(fixture.output_text, undefined);
+    assert.equal(fixture.output?.[0]?.content?.[0]?.type, "output_text");
+    const calls: string[] = [];
+    const fetchImpl: FetchLike = async (url) => {
+      calls.push(url);
+      return new Response(JSON.stringify(fixture), { status: 200 });
+    };
+    const openai = createOpenAIClient({ OPENAI_API_KEY: "sk-test-openai" }, fetchImpl);
+    assert.ok(openai);
+    assert.equal(await openai.complete({ system: "instructions", user: "heavy input" }), "nested-openai-ok");
+    assert.deepEqual(calls, ["https://api.openai.com/v1/responses"]);
+  });
+
+  it("keeps a top-level output_text string and rejects a non-output_text part", async () => {
+    const preferred: FetchLike = async () =>
+      new Response(JSON.stringify({
+        output_text: "top-level-openai-ok",
+        output: [{ content: [{ type: "output_text", text: "nested-should-lose" }] }],
+      }), { status: 200 });
+    const preferredClient = createOpenAIClient({ OPENAI_API_KEY: "sk-test-openai" }, preferred);
+    assert.ok(preferredClient);
+    assert.equal(await preferredClient.complete({ system: "s", user: "u" }), "top-level-openai-ok");
+
+    const refused: FetchLike = async () =>
+      new Response(JSON.stringify({
+        status: "completed",
+        output: [{ content: [{ type: "refusal", text: "hidden" }] }],
+      }), { status: 200 });
+    const refusedClient = createOpenAIClient({ OPENAI_API_KEY: "sk-test-openai" }, refused);
+    assert.ok(refusedClient);
+    await assert.rejects(
+      () => refusedClient.complete({ system: "s", user: "u" }),
+      (error: unknown) => error instanceof Error && error.message === "openai_empty",
+    );
+  });
+
+  it("does not fall through to OpenAI when Ollama chat returns 402", async () => {
+    const calls: string[] = [];
+    const fetchImpl: FetchLike = async (url) => {
+      calls.push(url);
+      return new Response("payment required", { status: 402 });
+    };
+    const resolved = resolveTaskClient("tutor_v1", {
+      env: {
+        OLLAMA_API_KEY: "ollama-test-key",
+        OLLAMA_BASE_URL: "https://ollama.test",
+        OPENAI_API_KEY: "sk-test-openai",
+      },
+      fetchImpl,
+    });
+    assert.equal(resolved.ok, true);
+    if (!resolved.ok) return;
+    assert.equal(resolved.provider, "ollama");
+    await assert.rejects(
+      () => resolved.client.complete({ system: "s", user: "u" }),
+      (error: unknown) => error instanceof Error && error.message === "ollama_http_402",
+    );
+    assert.deepEqual(calls, ["https://ollama.test/api/chat"]);
   });
 
   it("uses Ollama for tutor_v1 even when both clients are configured", async () => {

@@ -1,0 +1,19 @@
+{
+  "id": "resp_fixture",
+  "object": "response",
+  "status": "completed",
+  "output": [
+    {
+      "id": "msg_fixture",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "nested-openai-ok",
+          "annotations": []
+        }
+      ]
+    }
+  ]
+}

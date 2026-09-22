@@ -85,6 +85,23 @@ function textContent(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
+function openAIReplyText(payload: unknown) {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as { output_text?: unknown; output?: unknown };
+  const top = textContent(record.output_text);
+  if (top) return top;
+  if (!Array.isArray(record.output) || record.output.length === 0) return null;
+  const first = record.output[0];
+  if (!first || typeof first !== "object") return null;
+  const content = (first as { content?: unknown }).content;
+  if (!Array.isArray(content) || content.length === 0) return null;
+  const part = content[0];
+  if (!part || typeof part !== "object") return null;
+  const item = part as { type?: unknown; text?: unknown };
+  if (item.type !== "output_text") return null;
+  return textContent(item.text);
+}
+
 export function createOllamaClient(env: LlmEnv, fetchImpl: FetchLike = fetch): LlmClient | null {
   const apiKey = requiredSecret(env.OLLAMA_API_KEY);
   const host = ollamaHost(env.OLLAMA_BASE_URL);
@@ -149,8 +166,7 @@ export function createOpenAIClient(env: LlmEnv, fetchImpl: FetchLike = fetch): L
       if (!response.ok) {
         throw new Error(`openai_http_${response.status}`);
       }
-      const payload = (await response.json()) as { output_text?: unknown };
-      const content = textContent(payload.output_text);
+      const content = openAIReplyText(await response.json());
       if (!content) throw new Error("openai_empty");
       return content;
     },
