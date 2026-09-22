@@ -421,7 +421,7 @@ export function completionBody(args: {
       id: "context-structured-output-exp-ab",
       question: "Чем plain JSON отличается от json_schema strict по ошибкам, latency и токенам?",
       method:
-        "Минимум 8 одних текстов. A: промпт просит JSON, response_format нет, затем JSON.parse и Zod. B: тот же промпт, response_format json_schema, strict true. Ремонт в таблицу не входит. Latency — медиана, токены — сумма usage.",
+        "Минимум 8 одних текстов. A: промпт просит JSON, response_format нет, затем JSON.parse и Zod. B: тот же промпт, response_format json_schema, strict true. Ремонт в таблицу не входит. Latency: медиана. Токены: сумма usage.",
       metrics: ["parse failures", "schema failures", "latency ms", "prompt tokens", "completion tokens"],
     },
   ],
@@ -436,7 +436,7 @@ export function completionBody(args: {
       id: "context-structured-output-f2",
       symptom: "Ответ в ```json падает или молча считается успехом.",
       cause: "Ограду не отделили от ошибки схемы.",
-      check: "JSON.parse не прошёл — parse failure. JSON есть, Zod нет — schema failure.",
+      check: "JSON.parse не прошёл: parse failure. JSON есть, Zod нет: schema failure.",
     },
   ],
   metrics: [

@@ -49,6 +49,14 @@ export const glossary: GlossaryTerm[] = [
   { id: "checkpoint", term: "Checkpoint", definition: "Сделанные узлы плана, которые при срыве не исполняют заново. Хвост пересобирают отдельно.", weekSlug: "planning", related: ["workflow"] },
   { id: "held-out", term: "Held-out", definition: "Часть набора оценки, которую не используют, чтобы подгонять промпт. По ней считают порог.", weekSlug: "evals", related: ["golden-set"] },
   { id: "runbook", term: "Runbook", definition: "Страница дежурства: секреты, копия данных, лимит, что сказать человеку при 429 и как откатить выкладку.", weekSlug: "production-ai", related: ["trace"] },
+  { id: "agent-budget", term: "Agent budget", definition: "Потолок цикла: maxSteps и по желанию maxTokens, maxCost, timeoutMs, toolBudget. Останавливает первое заданное поле.", weekSlug: "agent-loop", related: ["agent-loop"] },
+  { id: "recall-at-k", term: "Recall@K", definition: "Доля вопросов, где ожидаемый id есть в top-k. Это поиск, не правильность ответа.", weekSlug: "advanced-rag", related: ["hit-rate", "rag"] },
+  { id: "tool-shadowing", term: "Tool shadowing", definition: "Чужой сервер объявил то же имя инструмента. Host вызывает сервер из своего списка.", weekSlug: "mcp", related: ["mcp", "tool-calling"] },
+  { id: "at-most-once", term: "At-most-once", definition: "Доставка без повтора. Если процесс умер до записи, событие потеряно.", weekSlug: "event-driven-automation", related: ["idempotency", "dlq"] },
+  { id: "at-least-once", term: "At-least-once", definition: "Брокер может доставить событие снова. Повтор безопасен только с ключом идемпотентности.", weekSlug: "event-driven-automation", related: ["idempotency", "exactly-once"] },
+  { id: "exactly-once", term: "Exactly-once", definition: "Иллюзия одной доставки от брокера. Её приближают at-least-once и сохранённый ключ.", weekSlug: "event-driven-automation", related: ["idempotency", "at-least-once"] },
+  { id: "pii", term: "PII", definition: "Данные, по которым узнают человека: почта, имя, телефон. В лог и портфолио их не кладут.", weekSlug: "ai-security", related: ["audit-log"] },
+  { id: "percentile", term: "Percentile", definition: "p50, p95 и p99 по своим замерам задержки. Среднее прячет хвост.", weekSlug: "observability", related: ["trace"] },
 ];
 
 export function getGlossaryTerm(id: string) {

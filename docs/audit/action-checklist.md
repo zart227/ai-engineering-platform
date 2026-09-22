@@ -55,34 +55,36 @@
 
 ## WAVE 3 — Curriculum Deepening
 
-Содержание C1–C10 влито. Квиз 8 вопросов, `passScore` 70, рубрика 4×25 на всех 33 неделях. `npm test` (40), typecheck и lint прошли. Чекбоксы ниже закрываются после CR1–CR5.
+Содержание C1–C10 влито в #15. Ревью и правки указателей, которые не попали в squash, в этой ветке. Сравнение одного агента с несколькими остаётся на неделе 20.
 
-- [ ] C1 Weeks 1–4 final pass
-- [ ] C2 Weeks 5–10
-- [ ] C3 Weeks 11–12
-- [ ] C4 Weeks 13–16
-- [ ] C5 Weeks 17–18
-- [ ] C6 Weeks 19–23
-- [ ] C7 Weeks 24–26
-- [ ] C8 Weeks 27–28
-- [ ] C9 Weeks 29–32
-- [ ] C10 Capstone
-- [ ] Experiments / failure modes / debugging / metrics / error analysis / rubric / trade-offs
-- [ ] CR1 progression
-- [ ] CR2 duplication
-- [ ] CR3 prerequisites
-- [ ] CR4 depth
-- [ ] CR5 portfolio value
-- [ ] GATE 3
+- [x] C1 Weeks 1–4 final pass
+- [x] C2 Weeks 5–10
+- [x] C3 Weeks 11–12
+- [x] C4 Weeks 13–16
+- [x] C5 Weeks 17–18
+- [x] C6 Weeks 19–23
+- [x] C7 Weeks 24–26
+- [x] C8 Weeks 27–28
+- [x] C9 Weeks 29–32
+- [x] C10 Capstone
+- [x] Experiments / failure modes / debugging / metrics / error analysis / rubric / trade-offs
+- [x] CR1 progression
+- [x] CR2 duplication
+- [x] CR3 prerequisites
+- [x] CR4 depth
+- [x] CR5 portfolio value
+- [x] GATE 3
 
 ## WAVE 4 — Missing Topics (встраивание, не Week 34+)
 
-- [ ] M1 Local models
-- [ ] M2 Model serving fundamentals
-- [ ] M3 Fine-tuning decision framework
-- [ ] M4 Routing and cost
-- [ ] M5 Reliability and privacy taxonomy
-- [ ] GATE 4
+Эти шаги были на ветке после squash #15 и в `main` не вошли.
+
+- [x] M1 Local models
+- [x] M2 Model serving fundamentals
+- [x] M3 Fine-tuning decision framework
+- [x] M4 Routing and cost
+- [x] M5 Reliability and privacy taxonomy
+- [x] GATE 4
 
 ## WAVE 5 — Platform as Lab
 
