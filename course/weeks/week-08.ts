@@ -298,6 +298,16 @@ return unique;
         body: "Отдельный workflow с Error Trigger. В настройках основного выберите его. Уроните Stop And Error и найдите прогон обработчика.",
         expected: "В данных обработчика видно имя упавшего workflow или узла.",
       },
+      {
+        title: "Таблица двух способов",
+        body: "Тот же маршрут type соберите графом и функцией route. Заполните таблицу по своему прогону. Строки: n8n и TypeScript. Колонки: development speed, testability, debugging, version control, observability, deployment, maintainability. Чужие оценки в клетки не копировать.",
+        expected: "Семь колонок заполнены для обоих способов.",
+      },
+      {
+        title: "Контролируемый сбой",
+        body: "Снимите error workflow в Settings. Холст не трогайте: Stop And Error остаётся, и ветка выглядит обработанной. Пошлите type=unknown. Запишите, упал ли execution и стартовал ли обработчик. Затем снова выберите error workflow и повторите. Оба факта из ваших прогонов.",
+        expected: "Сначала обработчик молчит. После назначения в Settings его прогон есть.",
+      },
     ],
     troubleshooting: [
       {
@@ -312,6 +322,12 @@ return unique;
     reflection: [
       "Какое правило из графа вы бы перенесли в тест на TypeScript?",
       "Что оказалось в данных execution лишнего?",
+      "Что не сработало, когда error workflow не был выбран?",
+      "На каком type вы это увидели?",
+      "Почему холст выглядел готовым?",
+      "Как вы проверили, что обработчик молчит?",
+      "Что вы изменили в Settings?",
+      "Стало ли лучше и чем это доказано: два прогона до и после?",
     ],
   }),
   practice: exercise({
@@ -323,7 +339,7 @@ return unique;
     requirements: [
       "Экспорт workflow в git без секретов",
       "Функция route(type), покрытая тестом",
-      "Таблица: где быстрее собрать, где проще ревью, где виден секрет, где виден сбой",
+      "Таблица одного процесса двумя способами. Колонки: development speed, testability, debugging, version control, observability, deployment, maintainability. Клетки из вашего прогона",
       "Честный вывод, что оставите",
     ],
     constraints: [
@@ -449,6 +465,45 @@ return unique;
       1,
       "Идемпотентность денег не оставляют в выражении без теста."
     ),
+    q(
+      "w8-q6",
+      "scenario",
+      "Один маршрут собран в n8n и в route(). Что обязано быть в таблице?",
+      [
+        "Только ощущение, что GUI быстрее",
+        "Колонки development speed, testability, debugging, version control, observability, deployment, maintainability по вашему прогону",
+        "Чужая таблица из блога",
+        "Только цена подписки",
+      ],
+      1,
+      "Сравнение одного процесса двумя способами. Клетки заполняете вы."
+    ),
+    q(
+      "w8-q7",
+      "debugging",
+      "На холсте unknown ведёт в Stop And Error. Error workflow в Settings не выбран. Что увидеть?",
+      [
+        "Обработчик всегда стартует сам",
+        "Execution может упасть, обработчик молчит. Записать оба факта и затем назначить error workflow",
+        "Секрет удалится из экспорта сам",
+        "Тест route() запустится внутри n8n",
+      ],
+      1,
+      "Узел на холсте не включает обработчик. Его выбирают в Settings."
+    ),
+    q(
+      "w8-q8",
+      "architecture",
+      "Правило надо покрыть тестом. Где в сравнении обычно сильнее репозиторий?",
+      [
+        "Только development speed на готовых коннекторах",
+        "Testability и version control: diff и unit-тест. n8n может звать этот код",
+        "Observability бывает только у холста",
+        "Deployment есть только у GUI",
+      ],
+      1,
+      "Код выигрывает там, где ошибку ловит тест и diff. Коннекторы остаются доводом за n8n."
+    ),
   ]),
   artifact: artifact({
     result: "Экспорт workflow с веткой и error path плюс сравнение с функцией route.",
@@ -462,6 +517,10 @@ return unique;
       { id: "n8n-a2", text: "Неизвестный type не молчит" },
       { id: "n8n-a3", text: "Error workflow назначен" },
       { id: "n8n-a4", text: "Есть письменное сравнение с кодом" },
+      {
+        id: "n8n-a5",
+        text: "Таблица: development speed, testability, debugging, version control, observability, deployment, maintainability",
+      },
     ],
   }),
   recall: recall([
@@ -497,4 +556,113 @@ return unique;
       mistake: "Переписать биллинг кликами, потому что холст наглядный.",
     }),
   ],
+  learningObjectives: [
+    "Собрать webhook, ветку bug или billing и error workflow с Error Trigger.",
+    "Заполнить таблицу n8n и TypeScript по одному процессу: development speed, testability, debugging, version control, observability, deployment, maintainability.",
+    "Увидеть молчащий обработчик, когда Stop And Error есть, а error workflow в Settings не выбран.",
+    "Не класть секреты в экспорт workflow.",
+  ],
+  experiments: [
+    {
+      id: "n8n-exp-compare",
+      question: "Чем один маршрут type отличается в n8n и в TypeScript по семи колонкам?",
+      method:
+        "Один вход: bug, billing, unknown. Граф и функция route. Таблица из своего прогона, колонки development speed, testability, debugging, version control, observability, deployment, maintainability. Отдельно: unknown без error workflow в Settings и с ним.",
+      metrics: [
+        "development speed",
+        "testability",
+        "debugging",
+        "version control",
+        "observability",
+        "deployment",
+        "maintainability",
+      ],
+    },
+  ],
+  failureModes: [
+    {
+      id: "n8n-f1",
+      symptom: "Unknown роняет execution, error workflow не стартует.",
+      cause: "Stop And Error на холсте, обработчик не выбран в Settings этого workflow.",
+      check: "Два прогона: до назначения и после. Во втором в обработчике есть имя упавшего узла.",
+    },
+    {
+      id: "n8n-f2",
+      symptom: "В экспорте или в execution лежит токен.",
+      cause: "Секрет в параметре узла или заголовок Authorization принят и открыт в просмотре.",
+      check: "В JSON нет значений секретов. Кто видит Executions, тот не видит лишний заголовок.",
+    },
+  ],
+  metrics: [
+    {
+      name: "development speed",
+      how: "Ваша заметка: сколько заняла сборка графа и сколько функция route. Не чужой бенчмарк.",
+    },
+    {
+      name: "testability",
+      how: "Где вы запустили проверку сами: unit на route или только ручной POST. Напишите, что именно гоняли.",
+    },
+    {
+      name: "debugging",
+      how: "Где вы увидели сбой unknown: execution, error workflow или вывод теста.",
+    },
+    {
+      name: "version control",
+      how: "Что легло в git: экспорт без секретов и diff функции. Что осталось только на холсте.",
+    },
+    {
+      name: "observability",
+      how: "Какой след прогона вы открыли: Executions или лог теста. Что в нём лишнего.",
+    },
+    {
+      name: "deployment",
+      how: "Что нужно опубликовать, чтобы production URL ожил, и как вы запускаете функцию локально.",
+    },
+    {
+      name: "maintainability",
+      how: "Куда вы положите следующую правку правила: выражение или тест. Одна фраза из вашего сравнения.",
+    },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "n8n-r1",
+        name: "Граф и ошибка",
+        weight: 25,
+        evidence: "Экспорт без секретов. Unknown не молчит. Error workflow назначен.",
+      },
+      {
+        id: "n8n-r2",
+        name: "Таблица семи колонок",
+        weight: 25,
+        evidence:
+          "Строки n8n и TypeScript. Колонки development speed, testability, debugging, version control, observability, deployment, maintainability из своего прогона.",
+      },
+      {
+        id: "n8n-r3",
+        name: "Контролируемый сбой",
+        weight: 25,
+        evidence: "Без error workflow в Settings обработчик молчит. После назначения прогон обработчика есть.",
+      },
+      {
+        id: "n8n-r4",
+        name: "route()",
+        weight: 25,
+        evidence: "Тест на bug, billing и unknown. Тот же маршрут, что у графа.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "n8n documentation",
+      url: "https://docs.n8n.io/",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Credentials отдельно от экспорта. Webhook без аутентификации не оставлять: URL утекает."],
+  privacyNotes: ["Execution может содержать Authorization и тело запроса. В заметку URL с токеном не копировать."],
+  costNotes: ["Отдельный n8n это ещё один рантайм. Три стабильных шага без коннектора дешевле скриптом."],
 });
