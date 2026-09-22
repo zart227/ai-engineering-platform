@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { sanitizeBookmarkHrefForImport } from "@/server/bookmark-href";
 import { prisma } from "@/server/db";
 
 const EXPORT_ERROR = "Файл не похож на экспорт ai-engineering-platform.";
@@ -536,6 +537,8 @@ async function persistImport(
     });
   }
   for (const bookmark of data.bookmarks) {
+    const href = sanitizeBookmarkHrefForImport(bookmark.href);
+    if (!href) continue;
     await tx.bookmark.upsert({
       where: {
         userId_targetType_targetId: {
@@ -544,13 +547,13 @@ async function persistImport(
           targetId: bookmark.targetId,
         },
       },
-      update: { title: bookmark.title, href: bookmark.href },
+      update: { title: bookmark.title, href },
       create: {
         userId,
         targetType: bookmark.targetType,
         targetId: bookmark.targetId,
         title: bookmark.title,
-        href: bookmark.href,
+        href,
       },
     });
   }
