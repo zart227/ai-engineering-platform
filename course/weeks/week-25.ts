@@ -12,6 +12,7 @@ import {
   promptT,
   q,
   quiz,
+  reading,
   recall,
   ul,
   week,
@@ -100,7 +101,7 @@ export function heldout(cases: Case[]) {
       "eval-l3",
       "Несколько чисел, одна выборка",
       16,
-      ["Назвать task success, tool accuracy, стоимость", "Сравнивать модели на одном и том же held-out"],
+      ["Назвать task success, tool accuracy, стоимость", "Сравнивать модели на одном и том же held-out", "Сравнить две конфигурации по пяти числам"],
       [
         p(
           "Отчёт держит несколько чисел: успех задачи, точность инструмента, hit-rate, доля отказов там, где опоры нет, задержки, стоимость. Доля выдумок часто proxy: вы пометили её правилом, а не юридическим фактом. Две модели сравнивают на одном held-out и одном id модели в отчёте. Иначе победитель случайный."
@@ -122,6 +123,39 @@ export function heldout(cases: Case[]) {
         p(
           "Стоимость в том же отчёте, даже если на моке она ноль. Иначе дешёвая модель с худшей долей выглядит победителем только потому, что цену не записали. Долю выдумок подписывают как proxy: правило пометки грубое, это не суд."
         ),
+        p(
+          "Строка сравнения держит пять полей. Task success: доля кейсов, где ожидание задачи выполнено. Format compliance: доля кейсов, где ответ прошёл схему. Дальше latency, tokens и cost. Две конфигурации отличаются одним рычагом и стоят на одном datasetId. Фразы «кажется лучше» в отчёте нет."
+        ),
+        code(
+          "ts",
+          `export type ReportRow = {
+  config: string;
+  datasetId: string;
+  taskSuccess: number;
+  formatCompliance: number;
+  latencyMs: number;
+  tokens: number | "unknown";
+  costUsd: number;
+};
+
+export function sameDataset(a: ReportRow, b: ReportRow) {
+  return a.datasetId === b.datasetId && a.config !== b.config;
+}
+`,
+          "Две строки, один набор"
+        ),
+        compare(
+          "Выбор конфигурации",
+          "B кажется лучше на одном письме. Кейсы у B другие.",
+          "A и B на одном datasetId. Пять чисел в каждой строке. Победитель назван по ним."
+        ),
+        reading([
+          {
+            title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena",
+            url: "https://arxiv.org/abs/2306.05685",
+            note: "Судья-модель это proxy. Проценты согласия из статьи в свой отчёт не копируют. Task success и format compliance считают по своему набору.",
+          },
+        ]),
         check(
           "Что неверно при сравнении двух моделей на разных десяти кейсах?",
           "Выборка разная. Разница может быть из-за кейсов, не из-за модели."
@@ -185,6 +219,11 @@ export function heldout(cases: Case[]) {
         body: "Подмените ожидание или ответ так, чтобы доля упала ниже порога.",
         expected: "Код выхода 1. В отчёте видно, какие id провалились.",
       },
+      {
+        title: "Две конфигурации",
+        body: "Один JSON кейсов. A и B отличаются одним рычагом: версия промпта или model id. Заполните две строки: task success, format compliance, latency, tokens, cost.",
+        expected: "datasetId совпадает. В таблице нет «кажется лучше».",
+      },
     ],
     troubleshooting: [
       {
@@ -196,7 +235,14 @@ export function heldout(cases: Case[]) {
         fix: "Обязательные проверки оставьте детерминированными. Вызов модели вынесите в отдельную команду.",
       },
     ],
-    reflection: ["Какое число в отчёте является proxy, а не прямой истиной?"],
+    reflection: [
+      "Какое число в отчёте является proxy, а не прямой истиной?",
+      "Что не сработало и на каких id: task success или format compliance?",
+      "Почему провал на этих примерах, а не на всём наборе?",
+      "Как вы проверили гипотезу: смена конфигурации или ошибка кейса?",
+      "Что изменено: промпт, схема или ожидание?",
+      "Стало ли лучше на том же datasetId и какие пять чисел это показали?",
+    ],
   }),
   practice: exercise({
     id: "eval-practice",
@@ -209,6 +255,9 @@ export function heldout(cases: Case[]) {
       "в отчёте стоимость или ноль для мока и id модели",
       "намеренный слом красит команду",
       "ключ провайдера не нужен для обязательного прогона",
+      "две конфигурации на одном datasetId",
+      "в каждой строке task success, format compliance, latency, tokens, cost",
+      "в отчёте нет фразы «кажется лучше»",
     ],
     constraints: ["не подгонять промпт по held-out", "не сравнивать две модели на разных выборках", "не писать секреты в report"],
     acceptance: ["деградация ломает прогон", "отчёт читается без чата"],
@@ -288,7 +337,46 @@ export function heldout(cases: Case[]) {
       1,
       "Одна выборка, иначе разница необъяснима."
     ),
-  ]),
+    q(
+      "w25-q6",
+      "scenario",
+      "На одном письме B кажется лучше. Наборы у A и B разные. Какой вывод о конфигурации?",
+      [
+        "Катить B, тон важнее таблицы",
+        "Вывода нет. Нужны две строки на одном datasetId",
+        "Катить ту, что дешевле, task success не смотреть",
+        "Дописать held-out под B и сравнить снова",
+      ],
+      1,
+      "Ощущение по одному ответу не заменяет пять чисел на одном наборе."
+    ),
+    q(
+      "w25-q7",
+      "debugging",
+      "Task success высокий, format compliance низкий на одном и том же наборе. Что видно?",
+      [
+        "Всё хорошо: успех задачи закрывает схему",
+        "Ответ часто не проходит схему. Format compliance считают отдельно",
+        "Latency не записана, значит оба числа ложные всегда",
+        "Порог надо убрать, чтобы строка стала зелёной",
+      ],
+      1,
+      "Задача может сойтись текстом, а JSON нет. Это разные колонки отчёта."
+    ),
+    q(
+      "w25-q8",
+      "architecture",
+      "Что обязано быть в строке сравнения двух конфигураций?",
+      [
+        "Фраза «кажется лучше» и один удачный пример",
+        "Task success, format compliance, latency, tokens, cost и один datasetId",
+        "Только стоимость победителя",
+        "Разные десять кейсов у каждой конфигурации",
+      ],
+      1,
+      "Пять полей и одна выборка. Иначе разница смешивает рычаг и набор."
+    ),
+  ], 70),
   artifact: artifact({
     result: "Скрипт оценки с held-out, отчётом и кодом выхода при провале порога.",
     repository: "Git URL.",
@@ -302,6 +390,7 @@ export function heldout(cases: Case[]) {
       { id: "eval-a3", text: "Слом фикстуры красит команду" },
       { id: "eval-a4", text: "Отчёт содержит размер, ok и model id или mock" },
       { id: "eval-a5", text: "Обязательный прогон не требует ключа" },
+      { id: "eval-a6", text: "Две конфигурации на одном datasetId: task success, format compliance, latency, tokens, cost" },
     ],
   }),
   recall: recall([
@@ -327,5 +416,93 @@ export function heldout(cases: Case[]) {
       tradeoffs: "Код стабилен и узок. Судья покрывает прозу и сам ошибается, поэтому не сторожит деньги один.",
       mistake: "Отдать порог релиза единственному судье-модели без детерминированной проверки.",
     }),
+    decision({
+      id: "eval-d2",
+      title: "Кажется лучше или пять чисел",
+      optionA: "Один удачный ответ",
+      optionB: "Две строки на одном наборе",
+      useA: ["черновик формулировки, который ещё не в отчёте"],
+      useB: ["выбор конфигурации", "спор, какой промпт катить", "регресс в CI"],
+      tradeoffs:
+        "Один ответ быстрее и не показывает счёт. Таблица дольше и отделяет task success от format compliance, latency, tokens и cost.",
+      mistake: "Написать «B кажется лучше» и не приложить тот же datasetId.",
+    }),
   ],
+  learningObjectives: [
+    "Положить кейсы в git со split tune и heldout и не подгонять промпт по held-out.",
+    "Собрать отчёт с полями task success, format compliance, latency, tokens и cost.",
+    "Сравнить две конфигурации на одном datasetId по этим числам, без «кажется лучше».",
+    "Завершить прогон с кодом 1, когда порог на held-out не достигнут, без ключа для обязательных проверок.",
+  ],
+  experiments: [
+    {
+      id: "eval-exp-configs",
+      question: "Чем две конфигурации отличаются на одном наборе по task success, format compliance, latency, tokens и cost?",
+      method:
+        "Один JSON кейсов. A и B отличаются одним рычагом: версия промпта или model id. Две строки отчёта. Held-out не открывают для подгонки. Нет usage значит tokens unknown.",
+      metrics: ["task success", "format compliance", "latency ms", "tokens", "cost"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "eval-f1",
+      symptom: "В отчёте написано, что B кажется лучше.",
+      cause: "Нет двух строк на одном datasetId.",
+      check: "У строк один datasetId и пять чисел. Фразы «кажется лучше» нет.",
+    },
+    {
+      id: "eval-f2",
+      symptom: "Task success высокий, а ответы не проходят схему.",
+      cause: "Format compliance не попал в отчёт и смешался с успехом задачи.",
+      check: "Колонка format compliance отдельно. Провальные id перечислены.",
+    },
+  ],
+  metrics: [
+    { name: "task success", how: "Доля кейсов вашего datasetId, где ожидание задачи выполнено." },
+    { name: "format compliance", how: "Доля тех же кейсов, где ответ прошёл схему. Отдельно от task success." },
+    { name: "latency ms", how: "Медиана времени вашей конфигурации. В подписи напишите median." },
+    { name: "tokens", how: "Сумма prompt и completion из usage. Нет usage значит unknown, не ноль." },
+    { name: "cost", how: "Из usage и вашего тарифа. На моке без вызова пишут 0 и помечают mock." },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "eval-r1",
+        name: "Один набор",
+        weight: 25,
+        evidence: "Кейсы в git со split. Две конфигурации ссылаются на один datasetId.",
+      },
+      {
+        id: "eval-r2",
+        name: "Пять чисел",
+        weight: 25,
+        evidence: "В каждой строке task success, format compliance, latency, tokens, cost. Нет «кажется лучше».",
+      },
+      {
+        id: "eval-r3",
+        name: "Порог",
+        weight: 25,
+        evidence: "Слом фикстуры даёт код выхода 1 и список провальных id.",
+      },
+      {
+        id: "eval-r4",
+        name: "Без ключа",
+        weight: 25,
+        evidence: "Обязательный прогон детерминированный. В report нет секрета.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena",
+      url: "https://arxiv.org/abs/2306.05685",
+      kind: "paper",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Ключ провайдера не нужен для обязательного прогона и не попадает в report."],
+  privacyNotes: ["В кейсы и report не кладут секреты и лишний PII. Held-out не используют, чтобы дописать промпт."],
+  costNotes: ["Cost берут из usage или пишут 0 для мока. Дешёвая конфигурация с худшим task success не победитель."],
 });
