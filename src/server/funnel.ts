@@ -8,6 +8,9 @@ export const FUNNEL_STEPS = [
   { id: "week_completed", label: "Неделя завершена", types: ["week_completed"] },
 ] as const;
 
+/** Event types that affect funnel stage counts; used to bound home-page reads. */
+export const FUNNEL_EVENT_TYPES = [...new Set(FUNNEL_STEPS.flatMap((step) => step.types))];
+
 export type FunnelStepId = (typeof FUNNEL_STEPS)[number]["id"];
 
 export type FunnelStep = {
