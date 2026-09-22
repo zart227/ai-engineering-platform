@@ -254,6 +254,11 @@ export function completionBody(args: {
         body: "Колонки: mode, parse failures, schema failures, latency ms, prompt tokens, completion tokens. latency ms это медиана по N, подпишите median. Токены это сумма usage. Нет usage значит unknown, не ноль.",
         expected: "Две строки, mode prompt и mode strict. Пустых клеток нет.",
       },
+      {
+        title: "Контролируемый сбой ограды",
+        body: "Соберите один объект схемы: intent, due, confidence. Оберните его в ```json и прогоните тем же JSON.parse, которым считаете parse failures. Затем уберите ограду и прогоните JSON.parse и Zod. В таблицу A/B эти две строки не входят.",
+        expected: "Две строки одного объекта. Первая: parse failure. Вторая: parse прошёл, Zod дал pass или schema failure.",
+      },
     ],
     troubleshooting: [
       { problem: "Модель оборачивает JSON в markdown", fix: "Стрипайте ``` или включите strict json mode провайдера плюс свой parse." },
@@ -263,6 +268,8 @@ export function completionBody(args: {
       "Нужен ли он в проде всегда?",
       "Где ремонт замаскировал бы плохой промпт, если смотреть только финальный pass?",
       "На ваших числах strict schema окупил latency или нет?",
+      "Что не сработало на объекте в ограде: какой объект, JSON.parse или Zod и почему это parse failure?",
+      "Как проверить гипотезу: что изменено во втором прогоне, стало ли лучше и чем это доказано отдельно от таблицы A/B?",
     ],
   }),
   practice: exercise({
