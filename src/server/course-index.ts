@@ -3,13 +3,17 @@ import { glossary } from "@course/glossary";
 import type { ContentBlock } from "@course/types";
 import { EMBEDDING_MODEL, embedText } from "@/server/embeddings";
 
-export type CourseChunk = {
+export type CourseChunkDescriptor = {
   id: string;
   kind: "lesson" | "glossary";
   weekSlug: string | null;
   title: string;
   href: string;
   body: string;
+  embedSource: string;
+};
+
+export type CourseChunk = CourseChunkDescriptor & {
   embedding: number[];
 };
 
@@ -22,11 +26,11 @@ function blockText(block: ContentBlock) {
   return "";
 }
 
-export function buildCourseChunks(): CourseChunk[] {
+export function buildCourseChunkDescriptors(): CourseChunkDescriptor[] {
   const lessons = weeks.flatMap((week) =>
     week.lessons.map((lesson) => {
       const body = [week.title, lesson.title, ...lesson.blocks.map(blockText)].join("\n").slice(0, 4000);
-      const lead = [lesson.title, lesson.title, ...lesson.objectives, body.slice(0, 900)].join("\n");
+      const embedSource = [lesson.title, lesson.title, ...lesson.objectives, body.slice(0, 900)].join("\n");
       return {
         id: `lesson:${lesson.id}`,
         kind: "lesson" as const,
@@ -34,7 +38,7 @@ export function buildCourseChunks(): CourseChunk[] {
         title: lesson.title,
         href: `/week/${week.slug}`,
         body,
-        embedding: embedText(lead),
+        embedSource,
       };
     })
   );
@@ -47,13 +51,24 @@ export function buildCourseChunks(): CourseChunk[] {
       title: term.term,
       href: `/glossary#${term.id}`,
       body,
-      embedding: embedText(body),
+      embedSource: body,
     };
   });
   return [...lessons, ...terms];
 }
 
-export function courseIndexStamp(chunks: CourseChunk[]) {
+export function buildCourseChunks(descriptors = buildCourseChunkDescriptors()): CourseChunk[] {
+  return descriptors.map((descriptor) => ({
+    ...descriptor,
+    embedding: embedText(descriptor.embedSource),
+  }));
+}
+
+export function expectedCourseIndexStamp(descriptors = buildCourseChunkDescriptors()) {
+  return courseIndexStamp(descriptors);
+}
+
+export function courseIndexStamp(chunks: Array<Pick<CourseChunkDescriptor, "id" | "body">>) {
   const payload = chunks.map((chunk) => `${chunk.id}\n${chunk.body}`).join("\n");
   let hash = 2166136261;
   for (let i = 0; i < payload.length; i += 1) {

@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildCourseChunks } from "../src/server/course-index";
+import {
+  buildCourseChunks,
+  buildCourseChunkDescriptors,
+  courseIndexStamp,
+  expectedCourseIndexStamp,
+} from "../src/server/course-index";
+import { prisma } from "../src/server/db";
 import { EMBEDDING_DIMENSIONS } from "../src/server/embeddings";
-import { rankChunks, semanticSearchStatement } from "../src/server/semantic-search";
+import { ensureCourseIndex, rankChunks, semanticSearchStatement } from "../src/server/semantic-search";
 
 describe("semantic course search", () => {
   it("indexes lessons and ranks a local-model query above an unrelated week", () => {
@@ -21,5 +27,55 @@ describe("semantic course search", () => {
     assert.match(text, /<=>/);
     assert.match(text, /::vector/);
     assert.equal(statement.values.length, 0);
+  });
+
+  it("builds descriptors without embeddings and matches the full index stamp", () => {
+    const descriptors = buildCourseChunkDescriptors();
+    assert.ok(descriptors.length > 30);
+    assert.equal(descriptors.every((descriptor) => descriptor.embedSource.length > 0), true);
+    assert.equal(descriptors.some((descriptor) => "embedding" in descriptor), false);
+    assert.equal(expectedCourseIndexStamp(descriptors), courseIndexStamp(buildCourseChunks(descriptors)));
+  });
+
+  it("short-circuits ensureCourseIndex when the stored stamp is current", async () => {
+    const stamp = expectedCourseIndexStamp();
+    const originalFindUnique = prisma.courseChunk.findUnique;
+    const originalTransaction = prisma.$transaction;
+    let transactionCalls = 0;
+    prisma.courseChunk.findUnique = (async () => ({ body: stamp })) as unknown as typeof prisma.courseChunk.findUnique;
+    prisma.$transaction = (async () => {
+      transactionCalls += 1;
+      throw new Error("ensureCourseIndex should not rebuild a warm index");
+    }) as unknown as typeof prisma.$transaction;
+    try {
+      const result = await ensureCourseIndex();
+      assert.equal(result, stamp);
+      assert.equal(transactionCalls, 0);
+    } finally {
+      prisma.courseChunk.findUnique = originalFindUnique;
+      prisma.$transaction = originalTransaction;
+    }
+  });
+
+  it("rebuilds ensureCourseIndex when the stored stamp is stale", async () => {
+    const stamp = expectedCourseIndexStamp();
+    const originalFindUnique = prisma.courseChunk.findUnique;
+    const originalTransaction = prisma.$transaction;
+    let transactionCalls = 0;
+    prisma.courseChunk.findUnique = (async () => ({ body: "stale-stamp" })) as unknown as typeof prisma.courseChunk.findUnique;
+    prisma.$transaction = (async (callback: (tx: { $executeRaw: () => Promise<number> }) => Promise<void>) => {
+      transactionCalls += 1;
+      await callback({
+        $executeRaw: async () => 1,
+      });
+    }) as unknown as typeof prisma.$transaction;
+    try {
+      const result = await ensureCourseIndex();
+      assert.equal(result, stamp);
+      assert.equal(transactionCalls, 1);
+    } finally {
+      prisma.courseChunk.findUnique = originalFindUnique;
+      prisma.$transaction = originalTransaction;
+    }
   });
 });
