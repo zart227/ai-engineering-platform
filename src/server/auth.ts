@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/server/db";
 import { createSessionToken, hashPassword, hashToken, verifyPassword } from "@/server/crypto";
 import { logInfo, logWarn } from "@/server/logger";
-import { rateLimit } from "@/server/rate-limit";
+import { rateLimitPersisted } from "@/server/rate-limit";
 
 export const SESSION_COOKIE = "aep_session";
 const SESSION_DAYS = 30;
@@ -73,7 +73,7 @@ export async function requireUser() {
 export async function registerUser(input: { email: string; name: string; password: string }) {
   const email = input.email.trim().toLowerCase();
   const key = `register:${email}`;
-  if (!rateLimit(key, 5, 15 * 60 * 1000).ok) {
+  if (!(await rateLimitPersisted(key, 5, 15 * 60 * 1000)).ok) {
     logWarn("register_rate_limited");
     return { ok: false as const, error: "Слишком много попыток. Подождите немного." };
   }
@@ -105,7 +105,7 @@ export async function registerUser(input: { email: string; name: string; passwor
 export async function loginUser(input: { email: string; password: string }) {
   const email = input.email.trim().toLowerCase();
   const key = `login:${email}`;
-  if (!rateLimit(key, 8, 15 * 60 * 1000).ok) {
+  if (!(await rateLimitPersisted(key, 8, 15 * 60 * 1000)).ok) {
     logWarn("login_rate_limited");
     return { ok: false as const, error: "Слишком много попыток. Подождите немного." };
   }
