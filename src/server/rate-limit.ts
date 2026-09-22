@@ -21,7 +21,10 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   return { ok: true, remaining: limit - current.count };
 }
 
-/** Postgres-backed counter for auth paths; survives restarts and shares state across instances. */
+/**
+ * Postgres-backed counter for auth paths; survives restarts and shares state across instances.
+ * Uses row-level locking (SELECT … FOR UPDATE) plus atomic increment to avoid read-modify-write races.
+ */
 export async function rateLimitPersisted(
   key: string,
   limit: number,
@@ -31,22 +34,44 @@ export async function rateLimitPersisted(
   const windowEnd = new Date(now.getTime() + windowMs);
 
   return prisma.$transaction(async (tx) => {
-    const current = await tx.rateLimitBucket.findUnique({ where: { key } });
-    if (!current || current.resetAt < now) {
-      await tx.rateLimitBucket.upsert({
+    await tx.rateLimitBucket.upsert({
+      where: { key },
+      create: { key, count: 0, resetAt: windowEnd },
+      update: {},
+    });
+
+    const rows = await tx.$queryRaw<{ count: number; resetAt: Date }[]>`
+      SELECT count, "resetAt" FROM "RateLimitBucket" WHERE key = ${key} FOR UPDATE
+    `;
+    const current = rows[0];
+    if (!current) {
+      return { ok: true, remaining: limit - 1 };
+    }
+
+    if (current.resetAt < now) {
+      await tx.rateLimitBucket.update({
         where: { key },
-        create: { key, count: 1, resetAt: windowEnd },
-        update: { count: 1, resetAt: windowEnd },
+        data: { count: 1, resetAt: windowEnd },
       });
       return { ok: true, remaining: limit - 1 };
     }
+
     if (current.count >= limit) {
       return { ok: false, remaining: 0 };
     }
+
     const updated = await tx.rateLimitBucket.update({
       where: { key },
-      data: { count: current.count + 1 },
+      data: { count: { increment: 1 } },
     });
     return { ok: true, remaining: limit - updated.count };
   });
+}
+
+/** Deletes buckets whose window has expired. Safe to run periodically (index on resetAt). */
+export async function cleanupExpiredRateLimitBuckets(asOf: Date = new Date()): Promise<number> {
+  const { count } = await prisma.rateLimitBucket.deleteMany({
+    where: { resetAt: { lt: asOf } },
+  });
+  return count;
 }
