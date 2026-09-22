@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db";
-import { buildCourseChunks, courseIndexStamp, type CourseChunk } from "@/server/course-index";
+import { buildCourseChunks, buildCourseChunkDescriptors, expectedCourseIndexStamp, type CourseChunk } from "@/server/course-index";
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, cosineSimilarity, embedText } from "@/server/embeddings";
 
 const STAMP_ID = "__index_stamp__";
@@ -92,14 +92,16 @@ async function upsertChunk(
   `;
 }
 
-export async function ensureCourseIndex(chunks = buildCourseChunks()) {
-  if (chunks.length === 0) throw new Error("course index is empty");
-  const stamp = courseIndexStamp(chunks);
+export async function ensureCourseIndex() {
   const current = await prisma.courseChunk.findUnique({
     where: { id: STAMP_ID },
     select: { body: true },
   });
+  const stamp = expectedCourseIndexStamp();
   if (current?.body === stamp) return stamp;
+  const descriptors = buildCourseChunkDescriptors();
+  if (descriptors.length === 0) throw new Error("course index is empty");
+  const chunks = buildCourseChunks(descriptors);
   const zero = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
   await prisma.$transaction(
     async (tx) => {
