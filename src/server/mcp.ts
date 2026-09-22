@@ -236,6 +236,10 @@ async function callTool(
   sessionUserId: string | null,
   deps: McpDeps
 ) {
+  if (!sessionUserId) {
+    return toolResult(id, "Нужна сессия владельца. Наличие cookie без проверки сессии недостаточно.", true);
+  }
+
   if (name === "course.search") {
     const query = typeof argumentsObject.query === "string" ? argumentsObject.query : "";
     if (query.trim().length < 2) return toolResult(id, "Нужна фраза query не короче двух символов.", true);
@@ -251,9 +255,6 @@ async function callTool(
     return toolResult(id, JSON.stringify(lesson), false);
   }
 
-  if (!sessionUserId) {
-    return toolResult(id, "Нужна сессия владельца. Наличие cookie без проверки сессии недостаточно.", true);
-  }
   const weekSlug = typeof argumentsObject.weekSlug === "string" ? argumentsObject.weekSlug : undefined;
   if (name === "user.progress") {
     const rows = await deps.progress(sessionUserId, weekSlug);

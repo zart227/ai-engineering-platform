@@ -22,31 +22,35 @@ export default async function GlossaryPage() {
       <p className="mt-3 text-sm text-muted-foreground">
         Короткие определения. Урок рядом, если термин привязан к неделе.
       </p>
-      <div className="mt-8 space-y-4">
-        {glossary.map((term) => {
-          const week = term.weekSlug ? getWeek(term.weekSlug) : null;
-          return (
-            <article key={term.id} id={term.id} className="rounded-2xl border border-border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="font-heading text-2xl">{term.term}</h2>
-                <BookmarkButton
-                  targetType="glossary"
-                  targetId={term.id}
-                  title={term.term}
-                  href={`/glossary#${term.id}`}
-                  initial={ids.has(term.id)}
-                />
-              </div>
-              <p className="mt-2 text-sm leading-6">{term.definition}</p>
-              {week ? (
-                <Link className="mt-2 inline-block text-sm text-primary" href={weekHref(week)}>
-                  {weekLabel(week)}. {week.short}
-                </Link>
-              ) : null}
-            </article>
-          );
-        })}
-      </div>
+      {session ? (
+        <div className="mt-8 space-y-4">
+          {glossary.map((term) => {
+            const week = term.weekSlug ? getWeek(term.weekSlug) : null;
+            return (
+              <article key={term.id} id={term.id} className="rounded-2xl border border-border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-heading text-2xl">{term.term}</h2>
+                  <BookmarkButton
+                    targetType="glossary"
+                    targetId={term.id}
+                    title={term.term}
+                    href={`/glossary#${term.id}`}
+                    initial={ids.has(term.id)}
+                  />
+                </div>
+                <p className="mt-2 text-sm leading-6">{term.definition}</p>
+                {week ? (
+                  <Link className="mt-2 inline-block text-sm text-primary" href={weekHref(week)}>
+                    {weekLabel(week)}. {week.short}
+                  </Link>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-8 text-sm text-muted-foreground">Нужна сессия.</p>
+      )}
     </div>
   );
 }
