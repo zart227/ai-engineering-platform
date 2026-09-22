@@ -1,7 +1,7 @@
 # Action Checklist
 
 Закрывает checkbox только Orchestrator после implementation, tests, review и integration.
-Источник: multi-agent plan + сверка с `origin/main` `cac6473` (PRs #7–#25).
+Источник: multi-agent plan + сверка с `origin/main` `5fa4fc6` (PRs #7–#29).
 
 ## Правила
 
@@ -110,7 +110,7 @@ P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукт
 
 ## WAVE 8 — Final Validation
 
-Сверка с `origin/main` `cac6473` (PRs #7–#25). Orchestrator закрывает GATE FINAL только после integration review.
+Сверка с `origin/main` `5fa4fc6` (PRs #7–#29). Integration review: 17/17 PASS, 0 BLOCKER (orchestrator run Sep 2026).
 
 ### Security review
 
@@ -153,9 +153,9 @@ P1 и P2 сделаны от `origin/main` `5820ae5`. P3 и P4 в продукт
 
 ### Residual / process
 
-- [ ] In-memory login/register rate limit (`P0-RATELIMIT` PARTIAL; trim fixed PR #23; multi-instance not addressed)
-- [ ] Full validation (orchestrator integration review)
-- [ ] GATE FINAL
+- [x] Login/register rate limit in Postgres (`RateLimitBucket`, `rateLimitPersisted`; email trim PR #23) — PR #28
+- [x] Full validation (orchestrator integration review — 17/17 PASS; `wave-8-integration-validation.md`)
+- [x] GATE FINAL (orchestrator sign-off Sep 2026; Tutor V2–V4 not built)
 
 ## Definition of Done — Week
 

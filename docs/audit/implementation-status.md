@@ -1,6 +1,6 @@
 # Implementation Status
 
-Baseline: `origin/main` `839f135` (старт Wave 0). Последняя сверка Wave 8: `cac6473` (PRs #7–#25).
+Baseline: `origin/main` `839f135` (старт Wave 0). Последняя сверка Wave 8 / GATE FINAL: `5fa4fc6` (PRs #7–#29).
 Аудит-документы описывают тот же коммит. Расхождения с кодом ниже — результат сверки R1–R6 и Wave 8, а не повторного доверия к DOCX.
 
 Статусы: `NOT_STARTED` | `PARTIAL` | `READY_FOR_VERIFICATION` | `DONE` | `BLOCKED` | `NOT_APPLICABLE`.
@@ -17,7 +17,7 @@ Baseline: `origin/main` `839f135` (старт Wave 0). Последняя све
 | P0-CAPSTONE-UI | 32 недели + отдельный Capstone, без семантики «Неделя 33» | DONE | `weekLabel`: capstone → «Финальный проект». Глоссарий использует тот же helper | Agent A | — | Закрыто |
 | P0-I18N | Русские подписи интерфейса | DONE | Хром: «Продолжить», «Сохранено», «Подготовка», «Что уже нужно», статусы портфолио по-русски. Названия модулей в curriculum не переводились | Agent A | — | Закрыто |
 | P0-DEAD | Подтверждённый мёртвый код | DONE | `compact.ts` удалён. `course/legacy/README.md` помечает архив | Agent A | — | Закрыто |
-| P0-RATELIMIT | In-memory rate limit не production-safe для нескольких инстансов | PARTIAL | `src/server/rate-limit.ts`, только login/register. Register key нормализует email через `trim().toLowerCase()` (PR #23). Multi-instance по-прежнему не покрыт | Wave 6 | Доказанный use case | Не добавлять Redis в Wave 1 |
+| P0-RATELIMIT | Auth rate limit shared across instances | DONE | `rateLimitPersisted` + `RateLimitBucket` (migration `20260922120900_rate_limit_bucket`); login 8 / register 5 per 15m; email `trim().toLowerCase()` (PR #23); `tests/rate-limit-store.test.ts`, `tests/auth-rate-limit.test.ts`. Tutor stays in-process `rateLimit` (per-user, single-process OK). PR #28. Проверено на `5fa4fc6` | Wave 8 | — | Закрыто |
 | P0-PROXY | Cookie presence = UX gate, сессия проверяется на сервере | DONE | `src/proxy.ts` смотрит cookie; `getSession()` проверяет hash и срок | — | — | Оставить границу явной в доке |
 | P0-DEEPLINK | `?next=` после логина | DONE | `loginAction` читает `next` и зовёт `safeInternalPath`. Внешний URL, `//`, `\` и значение без ведущего `/` остаются на `/`. Проверено на `1592ea9` | Wave 5.1 | — | Закрыто |
 | C-W1 | Week 1: streaming vs normal, TTFT и total latency, retries в lab | DONE | Lab: stream false/true, TTFT, total, retry 429, без retry 401 | Agent C | — | Закрыто для Wave 1. Финальный проход ещё в C1 |
