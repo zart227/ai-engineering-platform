@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Manrope, Source_Serif_4 } from "next/font/google";
 import { AppHeader } from "@/components/app-header";
+import { systemThemeBootScript } from "@/components/theme-boot";
 import { ThemeProvider } from "@/components/theme-provider";
 import { getSession } from "@/server/auth";
 import { prisma } from "@/server/db";
@@ -56,6 +57,9 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        {theme === "system" ? (
+          <script dangerouslySetInnerHTML={{ __html: systemThemeBootScript() }} />
+        ) : null}
         <ThemeProvider theme={theme}>
           <AppHeader percent={percent} email={session?.user.email} />
           <main className="flex-1">{children}</main>

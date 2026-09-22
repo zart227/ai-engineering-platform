@@ -29,7 +29,7 @@ export function LearningFunnel({ snapshot }: { snapshot: FunnelSnapshot }) {
               <p className="mt-2 font-heading text-3xl">{step.count}</p>
               {index > 0 ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Конверсия {percent(step.conversion)}, отсев {step.dropout}
+                  Конверсия {percent(step.conversion)}, отсев {step.dropout} ({percent(step.dropoutRate)})
                 </p>
               ) : null}
             </li>

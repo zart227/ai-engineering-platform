@@ -35,6 +35,9 @@ describe("platform MCP", () => {
     const tools = textOf(result).result?.tools?.map((tool) => tool.name);
     assert.deepEqual(tools, MCP_TOOLS.map((tool) => tool.name));
     assert.deepEqual(tools, ["course.search", "course.lesson", "user.progress", "user.notes"]);
+    const searchTool = MCP_TOOLS.find((tool) => tool.name === "course.search");
+    assert.match(searchTool?.description ?? "", /Хеш-поиск/);
+    assert.doesNotMatch(searchTool?.description ?? "", /Семантический поиск/);
   });
 
   it("returns course search hits and a lesson", async () => {

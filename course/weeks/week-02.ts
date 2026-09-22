@@ -336,21 +336,22 @@ async function sample(
       "Локальная модель: Ollama, GGUF и quantization",
       18,
       [
-        "Назвать Ollama, GGUF и quantization своими словами",
+        "Объяснить llama.cpp как движок: CPU и GPU, зачем GGUF, чем он не Ollama",
         "Сравнить RAM, VRAM, CPU и GPU inference",
-        "Отделить то, что остаётся на машине, от того, что утекает промптом и логами",
+        "По одному prompt выбрать hosted API или local",
       ],
       [
         p(
-          "Локальный inference значит, что веса лежат на этой машине и ответ считает она. Ollama это один такой runtime: он качает модель, держит её в памяти и отдаёт локальный HTTP. Файл весов для этого класса runtime чаще в формате GGUF. Пометка local unavailable не закрывает тему: карточка ниже заполняется и без запущенного демона."
+          "Локальный inference значит, что веса лежат на этой машине и ответ считает она. Движок, который читает файл GGUF и считает следующий токен, это llama.cpp. У него есть бэкенд на CPU и бэкенд на GPU: веса и KV попадают в RAM или в VRAM. GGUF сделан как один файл этих весов, чтобы движок отобразил его в память без отдельной конвертации на каждом запуске. Ollama это другой слой: демон, библиотека моделей и локальный HTTP. Он не заменяет движок, он его вызывает. Пометка local unavailable и карточка терминов шаг не закрывают. Одной пометки local unavailable недостаточно: нужен замер одного prompt на hosted API и на local и письменный выбор, где жить продукту."
         ),
         h("Quantization, RAM и VRAM"),
         p(
           "Quantization уменьшает точность чисел в весах, чтобы модель влезла в RAM или VRAM. Q4 занимает меньше Q8 и обычно теряет качество на сложной инструкции. CPU inference идёт через оперативную память и ядра процессора. GPU inference держит веса в VRAM. Если VRAM меньше файла, рантайм либо откажется, либо будет сбрасывать слои в RAM и станет медленным."
         ),
         ul([
-          "Ollama: локальный демон и библиотека моделей, не облачный счёт.",
-          "GGUF: файл квантованных весов, который читает llama.cpp и Ollama.",
+          "llama.cpp: движок инференса. Считает токены на CPU или на GPU. Это не каталог моделей и не HTTP-демон.",
+          "Ollama: демон, библиотека моделей и локальный HTTP. Сам формат токена не задаёт: считает движок вроде llama.cpp.",
+          "GGUF: файл квантованных весов для llama.cpp. Ollama читает тот же файл, потому что опирается на этот движок.",
           "Quantization: меньше RAM и VRAM, другая ошибка на том же промпте.",
           "CPU vs GPU: CPU медленнее на больших моделях, GPU упирается в VRAM.",
           "Local embeddings: тот же принцип, отдельная модель. Вектор вопроса и документа должен быть одной локальной моделью.",
@@ -365,14 +366,19 @@ async function sample(
           "security"
         ),
         check(
-          "Почему local unavailable не закрывает шаг?",
-          "Карточка Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy заполняется и без демона."
+          "Почему карточка терминов не закрывает шаг?",
+          "Нужны две строки одного prompt, hosted и local: куда ушёл промпт, TTFT, total, output tokens, стоимость или 0. Выбор hosted или local опирается на privacy, лицензию весов, RAM или VRAM и CPU или GPU. Одной пометки local unavailable недостаточно."
         ),
         reading([
           {
+            title: "llama.cpp",
+            url: "https://github.com/ggml-org/llama.cpp",
+            note: "Движок инференса и формат GGUF. Лицензию весов смотрите у конкретной модели, не у кода движка.",
+          },
+          {
             title: "Ollama",
             url: "https://github.com/ollama/ollama",
-            note: "Локальный runtime и формат библиотеки. Лицензию весов смотрите у конкретной модели.",
+            note: "Демон, библиотека и локальный HTTP поверх движка. Это не замена llama.cpp.",
           },
         ]),
       ]
@@ -420,9 +426,9 @@ async function sample(
         expected: "Две строки одного prompt. Первая: finish_reason=length, JSON.parse не прошёл. Вторая: JSON разбирается.",
       },
       {
-        title: "Один prompt, API и local",
-        body: "Тот же prompt. Две строки замера: hosted API и local. Колонки: куда ушёл промпт, TTFT ms, total ms, output tokens, стоимость или «0 provider». Hosted API это провайдер. Local это эта машина, если Ollama или другой runtime уже запущен. Если демона нет, в строке замера напишите, что runtime не установлен, и всё равно заполните карточку: Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU inference, local embeddings, licensing, privacy. Одной пометки local unavailable недостаточно.",
-        expected: "Строка API заполнена. Строка local это замер или явная пометка, что runtime не установлен. Карточка называет Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy. Одной пометки local unavailable недостаточно.",
+        title: "Один prompt, hosted и local",
+        body: "Тот же prompt. Две строки замера, обе обязательны: hosted API и local. Колонки: куда ушёл промпт, TTFT ms, total ms, output tokens, стоимость или «0 provider». Hosted это провайдер, промпт уходит с машины. Local это эта машина: llama.cpp читает GGUF на CPU или GPU, либо Ollama отдаёт локальный HTTP и зовёт тот же класс движка. Карточка терминов без двух строк замера шаг не закрывает. Одной пометки local unavailable недостаточно. После таблицы выберите, где жить продукту: hosted или local. В выборе четыре опоры: privacy (промпт ушёл провайдеру или остался на машине), licensing весов, влезает ли файл в RAM или VRAM, CPU или GPU.",
+        expected: "Две заполненные строки одного prompt: hosted и local, с TTFT, total, output tokens и куда ушёл промпт. Выбор hosted или local опирается на privacy, лицензию весов, RAM/VRAM и CPU vs GPU. Карточка терминов без замера не принимается. Одной пометки local unavailable недостаточно.",
       },
     ],
     troubleshooting: [
@@ -442,6 +448,7 @@ async function sample(
       "Что не сработало на обрыве: на каком prompt, какой finish_reason и почему причина в max tokens?",
       "Как проверить гипотезу: что изменено в max tokens, стало ли лучше и чем это доказано во второй строке?",
       "Что в локальном прогоне осталось на машине, а что всё равно могло утечь логом?",
+      "По двум строкам одного prompt вы оставили hosted или local, и какая из четырёх опор это решила?",
     ],
   }),
   practice: exercise({
@@ -533,12 +540,12 @@ async function sample(
       "На ноутбуке нет Ollama. Как закрыть тему локальной модели?",
       [
         "Написать local unavailable и сдать только строку hosted API",
-        "Заполнить карточку: GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy, даже без демона",
-        "Считать, что локальная модель ничего не пишет в лог",
+        "Заполнить карточку терминов и не замерять local",
+        "Поставить llama.cpp или Ollama, снять тот же prompt на hosted и на local и выбрать, где жить продукту",
         "Смешать векторы hosted embeddings и local embeddings в одном индексе",
       ],
-      1,
-      "Замер runtime необязателен. Карточка обязательна. Privacy: на машине остаются веса, наружу уходит то, что вы сами отправили."
+      2,
+      "Замер одного prompt на hosted и на local обязателен. Карточка терминов его не заменяет. Выбор опирается на privacy, лицензию весов, RAM/VRAM и CPU vs GPU."
     ),
   ]),
   artifact: artifact({
@@ -553,6 +560,7 @@ async function sample(
       { id: "how-llms-work-a2", text: "Есть вывод для продакшен-профиля" },
       { id: "how-llms-work-a3", text: "Стоимость эксперимента посчитана" },
       { id: "how-llms-work-a4", text: "Токены en, ru, json и code записаны с одной модели" },
+      { id: "how-llms-work-a5", text: "Один prompt: строки hosted и local и выбор, где жить продукту" },
     ],
   }),
   recall: [
@@ -573,13 +581,24 @@ async function sample(
       tradeoffs: "Большая модель дороже и медленнее. Маленькая тупее на длинной логике, если не дать структуру.",
       mistake: "Reasoning-модель на каждом нажатии «сохранить заметку».",
     }),
+    decision({
+      id: "how-llms-work-d2",
+      title: "Hosted API или local",
+      optionA: "Hosted API",
+      optionB: "Local",
+      useA: ["веса нельзя класть на эту машину", "нужен провайдерский SLA", "файла нет в RAM и VRAM"],
+      useB: ["промпт не должен уходить с машины", "лицензия весов это разрешает", "GGUF влезает в RAM или VRAM"],
+      tradeoffs: "Hosted забирает промпт и берёт плату провайдера. Local оставляет промпт на машине, стоит 0 провайдеру и упирается в лицензию весов, RAM или VRAM и в CPU или GPU. llama.cpp считает токены. Ollama даёт демон и локальный HTTP.",
+      mistake: "Сдать карточку терминов вместо двух строк одного prompt.",
+    }),
   ],
   learningObjectives: [
     "Показать, что вне context window для модели ничего нет, пока это не в запросе.",
     "Записать prompt_tokens одного смысла в формах en, ru, json и code на одной модели.",
     "Сравнить temperature и top_p по одному рычагу и посчитать долю валидного JSON.",
     "По пяти повторам записать distinct и spread completion_tokens при temperature 0.8 и 0.",
-    "Объяснить Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy локального прогона.",
+    "Объяснить llama.cpp как движок под GGUF и чем демон Ollama от него отличается.",
+    "По одному prompt сравнить hosted и local и выбрать, где жить продукту.",
   ],
   experiments: [
     {
@@ -588,6 +607,13 @@ async function sample(
       method:
         "Один prompt. Сетка temperature 0, 0.3, 0.8, 1.2 по 3 прогона, top_p не менять. Отдельно temperature 0.8 и top_p 0.1 против 1. Пять повторов при 0.8 и при 0. Четыре формы одного смысла: ru, en, json, code, одна модель.",
       metrics: ["prompt_tokens", "доля валидного JSON", "distinct", "spread completion_tokens"],
+    },
+    {
+      id: "how-llms-work-exp-hosted-local",
+      question: "На одном prompt этот продукт остаётся на hosted API или переезжает на local?",
+      method:
+        "Один prompt. Две строки: куда ушёл промпт, TTFT, total, output tokens, стоимость или 0. Local считает llama.cpp или Ollama на этой машине. Затем выбор: privacy, лицензия весов, RAM/VRAM, CPU vs GPU. Карточка терминов замер не заменяет.",
+      metrics: ["TTFT ms", "total ms", "output tokens", "provider cost"],
     },
   ],
   failureModes: [
@@ -603,38 +629,52 @@ async function sample(
       cause: "Промпт не был байт-в-байт одним или провайдер оставил шум.",
       check: "Сверьте messages и model id. Если вход один, запишите недетерминизм провайдера.",
     },
+    {
+      id: "how-llms-work-f3",
+      symptom: "В отчёте карточка Ollama и GGUF, а строки local с TTFT нет.",
+      cause: "Термины заменили замер одного prompt на hosted и на local.",
+      check: "Две строки одного prompt и выбор hosted или local по privacy, лицензии весов, RAM/VRAM и CPU vs GPU.",
+    },
   ],
   metrics: [
     { name: "prompt_tokens", how: "usage.prompt_tokens для en, ru, json и code. Одна модель, один system." },
     { name: "доля валидного JSON", how: "Доля ответов, которые парсятся в { ok, reason }, по ячейке сетки." },
     { name: "distinct", how: "Число разных текстов после trim в пяти повторах." },
     { name: "spread completion_tokens", how: "max минус min по пяти отдельным usage. Нет пяти чисел значит null." },
+    { name: "TTFT ms", how: "Время до первого токена на том же prompt для hosted и для local. Нет замера значит шаг не сдан." },
   ],
   artifactRubric: {
     criteria: [
       {
         id: "how-llms-work-r1",
         name: "Сетка temperature",
-        weight: 25,
+        weight: 20,
         evidence: "Таблица 4 температуры × 3 прогона: доля валидного JSON и средние токены, top_p не менялся.",
       },
       {
         id: "how-llms-work-r2",
         name: "top_p отдельно",
-        weight: 25,
+        weight: 20,
         evidence: "Две строки при temperature 0.8: top_p 0.1 и 1, тот же prompt.",
       },
       {
         id: "how-llms-work-r3",
         name: "Пять повторов",
-        weight: 25,
+        weight: 20,
         evidence: "Две строки temperature 0.8 и 0: distinct и spread completion_tokens.",
       },
       {
         id: "how-llms-work-r4",
         name: "Четыре формы и профиль",
-        weight: 25,
+        weight: 20,
         evidence: "prompt_tokens en, ru, json, code с одной модели, выбранный профиль и стоимость сетки.",
+      },
+      {
+        id: "how-llms-work-r5",
+        name: "Hosted и local",
+        weight: 20,
+        evidence:
+          "Один prompt, две строки замера hosted и local: куда ушёл промпт, TTFT, total, output tokens, стоимость или 0. Выбор hosted или local по privacy, лицензии весов, RAM/VRAM и CPU vs GPU. Карточка терминов без замера не проходит.",
       },
     ],
   },
@@ -644,6 +684,12 @@ async function sample(
       url: "https://arxiv.org/abs/1706.03762",
       kind: "paper",
       checkedAt: "2026-09-21",
+    },
+    {
+      title: "llama.cpp",
+      url: "https://github.com/ggml-org/llama.cpp",
+      kind: "reference",
+      checkedAt: "2026-09-22",
     },
     {
       title: "Ollama",

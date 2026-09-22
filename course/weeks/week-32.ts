@@ -186,9 +186,10 @@ export const week32 = week({
       "prod-l6",
       "Inference server: vLLM, batching и KV cache",
       16,
-      [
+        [
         "Отличить один запрос от serving",
-        "Назвать continuous batching, KV cache, concurrency, throughput и GPU memory",
+        "Пройти Request → Scheduler → Batch → Model → Token",
+        "Выбрать latency одного или throughput многих",
       ],
       [
         p(
@@ -196,7 +197,15 @@ export const week32 = week({
         ),
         h("vLLM и continuous batching"),
         p(
-          "vLLM это inference server. Он держит модель в GPU memory и собирает одновременно идущие генерации. Обычный batching ждёт, пока наберётся пачка, и тогда считает её целиком. Continuous batching подсаживает новый запрос в уже идущую пачку, когда у другого запроса шаг закончился. Так растёт throughput, а не только latency одного вызова."
+          "vLLM это inference server. Он держит модель в GPU memory и собирает одновременно идущие генерации. Обычный batching ждёт, пока наберётся пачка, и тогда считает её целиком. Continuous batching подсаживает новый запрос в уже идущую пачку, когда у другого запроса шаг закончился."
+        ),
+        h("Request → Scheduler → Batch → Model → Token"),
+        p(
+          "Запрос приходит в inference server и не идёт сразу в матрицы. Scheduler решает, когда этот запрос получит шаг, и кладёт его в batch вместе с другими незавершёнными генерациями. Model делает один шаг пачки: для каждого активного запроса считает следующий токен. Этот токен уходит клиенту, запрос остаётся в пачке, пока не будет стоп или лимит. Новый запрос scheduler может подсадить на следующем шаге. Пять вызовов подряд из вашего цикла этой цепочки не проходят: там нет scheduler и нет общей пачки."
+        ),
+        h("Latency одного и throughput многих"),
+        p(
+          "Latency это время до ответа одному пользователю: TTFT и total. Throughput это сколько запросов сервер заканчивает за то же время. Маленький batch и низкий concurrency берегут latency одного вызова и оставляют GPU пустой, когда людей много. Большой batch и высокий concurrency поднимают throughput и делят GPU memory между KV cache чужих запросов, поэтому шаг каждого длится дольше. Интерактивный чат бережёт latency одного. Очередь документов бережёт throughput. Этот выбор не заменяется замером одного запроса, пяти подряд и короткого timeout."
         ),
         ul([
           "KV cache хранит ключи и значения attention уже посчитанных токенов. Повтор префикса дешевле, пока кэш жив.",
@@ -254,6 +263,11 @@ export const week32 = week({
         body: "Сделайте один онлайн запрос. Запишите TTFT и total. Нет стрима: TTFT равен total. Нет замера: unknown. Потом сами отправьте тот же промпт пять раз подряд. Это пакет. Новую очередь не заводите. Первый запрос это холодный старт. Напишите, стали ли поздние быстрее. Отдельным запросом поставьте короткий таймаут, чтобы вызов упал нарочно.",
         expected: "Строка одного запроса с вашими TTFT и total. Пять строк одного промпта и ответ, быстрее ли поздние. Строка короткого таймаута со сбоем. Чужих чисел нет.",
       },
+      {
+        title: "Scheduler, batch и выбор latency или throughput",
+        body: "Отдельным шагом от клиента нарисуйте цепочку своего сервиса: Request → Scheduler → Batch → Model → Token. Для одного пришедшего запроса напишите, кто ставит его в пачку, какой шаг делает модель и куда уходит следующий токен. Затем выберите, что беречь: latency одного пользователя или throughput многих. Напишите, что при этом происходит с очередью и с GPU memory под KV cache. Шаг «один запрос, пять подряд, таймаут» этот выбор не закрывает.",
+        expected: "Пять звеньев на вашем сервисе. Выбор один: latency или throughput, и чем платит другая сторона. Чужих чисел из блога нет.",
+      },
     ],
     troubleshooting: [
       {
@@ -273,6 +287,7 @@ export const week32 = week({
       "Как проверить выбор модели ещё раз на том же наборе?",
       "Что вы изменили в логе или в запасном пути?",
       "Стало ли лучше и чем это доказано вашей таблицей?",
+      "Вы бережёте latency одного или throughput многих, и что при этом происходит с KV cache?",
     ],
   }),
   practice: exercise({
@@ -349,6 +364,19 @@ export const week32 = week({
       1,
       "Пять подряд и короткий timeout остаются замером клиента. Serving это общая GPU memory и пачка генераций."
     ),
+    q(
+      "w32-q10",
+      "architecture",
+      "Куда попадает новый запрос внутри inference server до следующего токена?",
+      [
+        "Сразу в матрицы, scheduler нет",
+        "Request → Scheduler → Batch → Model → Token",
+        "В пять последовательных вызовов клиента",
+        "В таблицу quality, latency и cost",
+      ],
+      1,
+      "Scheduler ставит запрос в batch. Model считает следующий токен пачки. Пять подряд из цикла эту цепочку не заменяют."
+    ),
   ]),
   artifact: artifact({
     result: "Runbook, схема контейнеров и фикстура видимого 429.",
@@ -365,6 +393,7 @@ export const week32 = week({
       { id: "prod-a5", text: "В логе инцидента нет ключа" },
       { id: "prod-a6", text: "Чеклист своего прогона: p95, стоимость запроса, fallback 429, лог и вырезание" },
       { id: "prod-a7", text: "Две модели: качество, задержка и стоимость из своего набора, не из прайса" },
+      { id: "prod-a8", text: "Цепочка Request → Scheduler → Batch → Model → Token и выбор latency или throughput" },
     ],
   }),
   recall: recall([
@@ -390,6 +419,16 @@ export const week32 = week({
       tradeoffs: "Сервис добавляет сеть, ночные сбои и дежурство. Монолит проще, пока граница искусственная.",
       mistake: "Вынести три маршрута модели в отдельный сервис «как у больших команд».",
     }),
+    decision({
+      id: "prod-d2",
+      title: "Latency одного или throughput многих",
+      optionA: "Latency одного",
+      optionB: "Throughput многих",
+      useA: ["интерактивный чат", "человек ждёт первый токен"],
+      useB: ["пачка документов", "ночная очередь, человека на ответе нет"],
+      tradeoffs: "Маленький batch бережёт ожидание одного и оставляет GPU пустой на пике. Большой batch заканчивает больше запросов и удлиняет шаг каждого, потому что KV cache делит GPU memory.",
+      mistake: "Считать пять подряд из цикла замером throughput сервера.",
+    }),
   ],
   learningObjectives: [
     "Заполнить чеклист своего сервиса: p95, стоимость запроса, fallback на 429, что в логе и что вырезано.",
@@ -397,6 +436,7 @@ export const week32 = week({
     "Показать человеку текст, когда провайдер вернул 429.",
     "Не копировать в таблицу цены и latency с чужого прайса.",
     "Отличить inference server (vLLM, continuous batching, KV cache, concurrency, throughput, GPU memory) от пяти запросов подряд.",
+    "Пройти Request → Scheduler → Batch → Model → Token и выбрать latency одного или throughput многих.",
   ],
   experiments: [
     {
@@ -420,6 +460,12 @@ export const week32 = week({
       cause: "Нет ветки fallback и нет вырезания секрета.",
       check: "Фикстура 429 показывает текст. В логе request id и статус, без ключа и Authorization.",
     },
+    {
+      id: "production-ai-f3",
+      symptom: "Throughput списан с пяти запросов подряд.",
+      cause: "Нет цепочки Request → Scheduler → Batch → Model → Token и нет выбора latency или throughput.",
+      check: "Пять звеньев на сервисе. Выбор один, с ценой для другой стороны. Шаг клиента этот выбор не закрывает.",
+    },
   ],
   metrics: [
     {
@@ -440,26 +486,33 @@ export const week32 = week({
       {
         id: "production-ai-r1",
         name: "Чеклист",
-        weight: 25,
+        weight: 20,
         evidence: "Свои клетки: p95 latency, cost per request, fallback при 429, что в логе, что вырезано.",
       },
       {
         id: "production-ai-r2",
         name: "Две модели",
-        weight: 25,
+        weight: 20,
         evidence: "Две строки своего набора: quality, latency, cost. Нет usage значит unknown, не цена с сайта.",
       },
       {
         id: "production-ai-r3",
         name: "429",
-        weight: 25,
+        weight: 20,
         evidence: "Мок ограничения показывает текст. Запасной путь в runbook совпадает с фикстурой.",
       },
       {
         id: "production-ai-r4",
         name: "Лог",
-        weight: 25,
+        weight: 20,
         evidence: "В журнале инцидента request id и статус. Ключа и Authorization нет.",
+      },
+      {
+        id: "production-ai-r5",
+        name: "Scheduler и выбор",
+        weight: 20,
+        evidence:
+          "Цепочка Request → Scheduler → Batch → Model → Token на своём сервисе. Выбор latency одного или throughput многих, с ценой для другой стороны. Пять подряд и timeout этот критерий не закрывают.",
       },
     ],
   },

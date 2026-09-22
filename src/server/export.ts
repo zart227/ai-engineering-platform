@@ -331,6 +331,12 @@ const REPLACE_WARNING =
 const KEEP_HISTORY_WARNING =
   "Файл версии 1 не содержит попытки квизов и события обучения. Они останутся как есть.";
 
+const REPLACE_RECALL_WARNING =
+  "Расписание повторений будет полностью заменено файлом версии 3. Карточки, которых нет в файле, удалятся. Если повторений в файле ноль, текущее расписание стирается целиком.";
+
+const KEEP_RECALL_WARNING =
+  "Файл версии 1 или 2 не заменяет расписание повторений. Текущие карточки останутся.";
+
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
   return isRecord(raw) && (raw.formatVersion === 2 || raw.formatVersion === 3);
@@ -475,6 +481,7 @@ export function previewImport(
     },
     warnings: [
       importReplacesHistory(raw) ? REPLACE_WARNING : KEEP_HISTORY_WARNING,
+      importReplacesRecall(raw) ? REPLACE_RECALL_WARNING : KEEP_RECALL_WARNING,
       ...collectStripWarnings(raw),
     ],
   };
@@ -836,12 +843,16 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
   });
 }
 
-export async function importExport(userId: string, raw: unknown) {
+type ImportDb = {
+  $transaction(fn: (tx: Prisma.TransactionClient) => Promise<unknown>): Promise<unknown>;
+};
+
+export async function importExport(userId: string, raw: unknown, db: ImportDb = prisma) {
   const parsed = parseExport(raw);
   if (!parsed.ok) return { ok: false as const, error: parsed.error };
   const imported = previewImport(parsed.data, raw).counts;
   try {
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       await persistImport(
         tx,
         userId,
