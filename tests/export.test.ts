@@ -279,6 +279,22 @@ function createImportDb(initialRecall: RecallCard[], throwOn?: string) {
     recall: initialRecall.map((item) => ({ prompt: item.prompt })),
   };
   const calls: string[] = [];
+  const capstoneModel = {
+    deleteMany: async () => {
+      calls.push("capstoneProject.deleteMany");
+      if (throwOn === "capstoneProject") throw new Error("boom");
+      return { count: 0 };
+    },
+    create: async () => {
+      calls.push("capstoneProject.create");
+      if (throwOn === "capstoneProject") throw new Error("boom");
+      return { userId: "user-1" };
+    },
+    upsert: async () => {
+      calls.push("capstoneProject.upsert");
+      if (throwOn === "capstoneProject") throw new Error("boom");
+    },
+  };
   return {
     calls,
     get state() {
@@ -294,11 +310,23 @@ function createImportDb(initialRecall: RecallCard[], throwOn?: string) {
         {
           get(_target, prop) {
             const name = String(prop);
+            if (name === "capstoneProject") {
+              return {
+                deleteMany: async () => {
+                  await capstoneModel.deleteMany();
+                  draft.capstone = false;
+                },
+                create: async () => {
+                  await capstoneModel.create();
+                  draft.capstone = true;
+                },
+                upsert: capstoneModel.upsert,
+              };
+            }
             return {
               upsert: async () => {
                 calls.push(`${name}.upsert`);
                 if (throwOn === name) throw new Error("boom");
-                if (name === "capstoneProject") draft.capstone = true;
               },
               deleteMany: async () => {
                 calls.push(`${name}.deleteMany`);
@@ -331,6 +359,13 @@ describe("importExport bookmark href", () => {
           {
             get(_target, prop) {
               const name = String(prop);
+              if (name === "capstoneProject") {
+                return {
+                  deleteMany: async () => ({ count: 0 }),
+                  create: async () => ({ userId: "user-1" }),
+                  upsert: async () => ({ count: 0 }),
+                };
+              }
               return {
                 upsert: async () => ({ count: 0 }),
                 deleteMany: async () => ({ count: 0 }),
@@ -441,7 +476,21 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
             if (RESTORE_MODELS.includes(name as RestoreModel)) {
               return makeModel(name as RestoreModel);
             }
-            if (name === "capstoneProject" || name === "userSettings") {
+            if (name === "capstoneProject") {
+              return {
+                deleteMany: async () => {
+                  calls.push("capstoneProject.deleteMany");
+                  return { count: 0 };
+                },
+                create: async () => {
+                  calls.push("capstoneProject.create");
+                },
+                upsert: async () => {
+                  calls.push("capstoneProject.upsert");
+                },
+              };
+            }
+            if (name === "userSettings") {
               return { upsert: async () => calls.push(`${name}.upsert`) };
             }
             if (
@@ -568,12 +617,149 @@ describe("importExport learner restore", () => {
     assert.equal(db.calls.includes("weekProgress.createMany"), false);
   });
 
-  it("warns that notes, bookmarks, progress, and portfolio are replaced", () => {
+  it("warns that notes, bookmarks, progress, capstone, and portfolio are replaced", () => {
     const preview = previewImport(migrateExport(fullFixture), fullFixture);
     assert.match(
       preview.warnings.join(" "),
-      /Заметки, закладки, прогресс обучения и проекты портфолио будут полностью заменены/
+      /Заметки, закладки, прогресс обучения, капстоун и проекты портфолио будут полностью заменены/
     );
+  });
+});
+
+type CapstoneSnapshot = {
+  name?: string;
+  oneLiner?: string;
+  problem?: string;
+};
+
+function createCapstoneImportDb(initial: CapstoneSnapshot | null) {
+  let state: CapstoneSnapshot | null = initial ? { ...initial } : null;
+  const calls: string[] = [];
+
+  const db = {
+    calls,
+    get state() {
+      return state;
+    },
+    async $transaction(fn: (tx: never) => Promise<unknown>) {
+      const tx = new Proxy(
+        {},
+        {
+          get(_target, prop) {
+            const name = String(prop);
+            if (name === "capstoneProject") {
+              return {
+                deleteMany: async () => {
+                  calls.push("capstoneProject.deleteMany");
+                  state = null;
+                  return { count: initial ? 1 : 0 };
+                },
+                create: async ({ data }: { data: CapstoneSnapshot & { userId: string } }) => {
+                  calls.push("capstoneProject.create");
+                  const { userId: ignoredUserId, ...fields } = data;
+                  void ignoredUserId;
+                  state = fields;
+                },
+                upsert: async () => {
+                  calls.push("capstoneProject.upsert");
+                },
+              };
+            }
+            if (name === "userSettings") {
+              return { upsert: async () => calls.push("userSettings.upsert") };
+            }
+            if (RESTORE_MODELS.includes(name as RestoreModel)) {
+              return {
+                deleteMany: async () => {
+                  calls.push(`${name}.deleteMany`);
+                  return { count: 0 };
+                },
+                createMany: async () => {
+                  calls.push(`${name}.createMany`);
+                  return { count: 0 };
+                },
+              };
+            }
+            if (
+              name === "quizAttempt" ||
+              name === "learningEvent" ||
+              name === "recallReview"
+            ) {
+              return {
+                deleteMany: async () => {
+                  calls.push(`${name}.deleteMany`);
+                  return { count: 0 };
+                },
+                createMany: async () => {
+                  calls.push(`${name}.createMany`);
+                  return { count: 0 };
+                },
+              };
+            }
+            return undefined;
+          },
+        }
+      );
+      await fn(tx as never);
+    },
+  };
+
+  return db;
+}
+
+describe("importExport capstone restore", () => {
+  it("replaces stale capstone fields from the backup file", async () => {
+    const db = createCapstoneImportDb({
+      name: "Stale project",
+      oneLiner: "old pitch",
+      problem: "old problem",
+    });
+
+    const payload = {
+      ...fullFixture,
+      capstone: {
+        name: "From file",
+        oneLiner: "new pitch",
+        targetUser: "dev",
+        problem: "new problem",
+        hypothesis: "h",
+        valueProposition: "v",
+        assumptions: "a",
+        competitors: "c",
+        prd: "prd",
+        architecture: "arch",
+        stack: "ts",
+        githubUrl: "",
+        demoUrl: "",
+        analytics: "",
+        notes: "",
+      },
+    };
+
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.state?.name, "From file");
+    assert.equal(db.state?.oneLiner, "new pitch");
+    assert.equal(db.state?.problem, "new problem");
+    assert.equal(db.calls.includes("capstoneProject.deleteMany"), true);
+    assert.equal(db.calls.includes("capstoneProject.create"), true);
+    assert.equal(db.calls.includes("capstoneProject.upsert"), false);
+  });
+
+  it("clears capstone when the backup file has none", async () => {
+    const db = createCapstoneImportDb({
+      name: "Stale project",
+      oneLiner: "old pitch",
+      problem: "old problem",
+    });
+
+    const payload = { ...fullFixture, capstone: {} as typeof fullFixture.capstone };
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.deepEqual(db.state, {});
+    assert.equal(db.calls.includes("capstoneProject.deleteMany"), true);
+    assert.equal(db.calls.includes("capstoneProject.create"), true);
+    assert.equal(db.calls.includes("capstoneProject.upsert"), false);
   });
 });
 
@@ -691,7 +877,21 @@ function createQuizImportDb(initial: StoredQuizAttempt[] = []) {
                 upsert: async () => calls.push(`${name}.upsert`),
               };
             }
-            if (name === "capstoneProject" || name === "userSettings") {
+            if (name === "capstoneProject") {
+              return {
+                deleteMany: async () => {
+                  calls.push("capstoneProject.deleteMany");
+                  return { count: 0 };
+                },
+                create: async () => {
+                  calls.push("capstoneProject.create");
+                },
+                upsert: async () => {
+                  calls.push("capstoneProject.upsert");
+                },
+              };
+            }
+            if (name === "userSettings") {
               return { upsert: async () => calls.push(`${name}.upsert`) };
             }
             if (name === "quizAttempt") {
@@ -805,6 +1005,8 @@ describe("importExport schedule and rollback", () => {
     if (!result.ok) assert.match(result.error, /импорт/i);
     assert.equal(db.state.capstone, false);
     assert.deepEqual(db.state.recall, [{ prompt: "keep-me" }]);
-    assert.equal(db.calls.includes("capstoneProject.upsert"), true);
+    assert.equal(db.calls.includes("capstoneProject.deleteMany"), true);
+    assert.equal(db.calls.includes("capstoneProject.create"), true);
+    assert.equal(db.calls.includes("capstoneProject.upsert"), false);
   });
 });

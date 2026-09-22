@@ -341,7 +341,7 @@ const KEEP_RECALL_WARNING =
   "Файл версии 1 или 2 не заменяет расписание повторений. Текущие карточки останутся.";
 
 const REPLACE_LEARNER_STATE_WARNING =
-  "Заметки, закладки, прогресс обучения и проекты портфолио будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
+  "Заметки, закладки, прогресс обучения, капстоун и проекты портфолио будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
 
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
@@ -538,13 +538,10 @@ async function persistImport(
   replaceRecall: boolean
 ) {
   const capstone = pickCapstone(data.capstone);
-  if (Object.keys(capstone).length > 0) {
-    await tx.capstoneProject.upsert({
-      where: { userId },
-      update: capstone,
-      create: { userId, ...capstone },
-    });
-  }
+  await tx.capstoneProject.deleteMany({ where: { userId } });
+  await tx.capstoneProject.create({
+    data: { userId, ...capstone },
+  });
   if (data.settings) {
     await tx.userSettings.upsert({
       where: { userId },
