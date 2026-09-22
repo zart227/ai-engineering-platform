@@ -4,6 +4,7 @@ import { Manrope, Source_Serif_4 } from "next/font/google";
 import { AppHeader } from "@/components/app-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { getSession } from "@/server/auth";
+import { prisma } from "@/server/db";
 import { coursePercent, loadLearningState, summarizeWeeks } from "@/server/progress";
 import { courseMeta } from "@course";
 import "./globals.css";
@@ -33,11 +34,16 @@ export default async function RootLayout({
 }) {
   let session: Awaited<ReturnType<typeof getSession>> = null;
   let percent = 0;
+  let theme = "system";
   try {
     session = await getSession();
     if (session) {
-      const state = await loadLearningState(session.user.id);
+      const [state, settings] = await Promise.all([
+        loadLearningState(session.user.id),
+        prisma.userSettings.findUnique({ where: { userId: session.user.id }, select: { theme: true } }),
+      ]);
       percent = coursePercent(summarizeWeeks(state));
+      theme = settings?.theme ?? "system";
     }
   } catch {
     session = null;
@@ -50,7 +56,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider>
+        <ThemeProvider theme={theme}>
           <AppHeader percent={percent} email={session?.user.email} />
           <main className="flex-1">{children}</main>
         </ThemeProvider>

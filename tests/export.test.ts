@@ -4,6 +4,7 @@ import {
   ExportFormatError,
   exportSchema,
   exportSchemaV2,
+  exportSchemaV3,
   migrateExport,
   previewImport,
 } from "../src/server/export";
@@ -122,7 +123,8 @@ describe("export schema v2", () => {
 describe("migrateExport", () => {
   it("maps a minimal v1 export onto v2 and fills missing collections", () => {
     const migrated = migrateExport(minimalV1);
-    assert.equal(migrated.formatVersion, 2);
+    assert.equal(migrated.formatVersion, 3);
+    assert.deepEqual(migrated.recallReviews, []);
     assert.equal(migrated.exportedAt, minimalV1.exportedAt);
     assert.deepEqual(migrated.user, { email: "ada@example.com", name: "Ada" });
     assert.equal(migrated.settings, null);
@@ -140,7 +142,8 @@ describe("migrateExport", () => {
       ...fullFixture,
       portfolio: [{ ...fullFixture.portfolio[0], id: "db-id" }],
     });
-    assert.equal(migrated.formatVersion, 2);
+    assert.equal(migrated.formatVersion, 3);
+    assert.deepEqual(migrated.recallReviews, []);
     assert.equal(migrated.portfolio.length, 1);
     assert.equal("id" in migrated.portfolio[0], false);
     assert.equal(migrated.notes[0]?.moduleId, "m01");
@@ -197,6 +200,7 @@ describe("previewImport", () => {
       weekProgress: 1,
       quizAttempts: 1,
       learningEvents: 1,
+      recallReviews: 0,
     });
     assert.match(preview.warnings.join(" "), /замен/i);
   });
@@ -209,5 +213,41 @@ describe("previewImport", () => {
     assert.match(text, /неизвестн/i);
     assert.match(text, /останутся/i);
     assert.doesNotMatch(text, /будут заменены/i);
+  });
+});
+
+describe("recall review roundtrip", () => {
+  it("keeps 1, 3, 7 and 21 day schedules in formatVersion 3", () => {
+    const now = Date.parse("2026-09-22T00:00:00.000Z");
+    const days = [1, 3, 7, 21];
+    const recallReviews = days.map((day, index) => ({
+      weekSlug: "how-llms-work",
+      itemIndex: index,
+      prompt: `вопрос ${index}`,
+      nextReviewAt: new Date(now + day * 24 * 60 * 60 * 1000).toISOString(),
+      reviewCount: index + 1,
+    }));
+    const raw = { ...fullFixture, formatVersion: 3 as const, recallReviews };
+    const migrated = migrateExport(raw);
+    assert.equal(migrated.formatVersion, 3);
+    assert.equal(exportSchemaV3.safeParse(raw).success, true);
+    assert.deepEqual(
+      migrated.recallReviews.map((item) => item.reviewCount),
+      [1, 2, 3, 4]
+    );
+    migrated.recallReviews.forEach((item, index) => {
+      const delta = Date.parse(item.nextReviewAt) - now;
+      assert.equal(delta, days[index] * 24 * 60 * 60 * 1000);
+      assert.equal(item.prompt, recallReviews[index].prompt);
+      assert.equal(item.weekSlug, "how-llms-work");
+      assert.equal(item.itemIndex, index);
+    });
+    assert.equal(previewImport(migrated, raw).counts.recallReviews, 4);
+  });
+
+  it("accepts v2 and does not invent recall rows", () => {
+    const migrated = migrateExport(fullFixture);
+    assert.equal(migrated.formatVersion, 3);
+    assert.deepEqual(migrated.recallReviews, []);
   });
 });

@@ -352,8 +352,11 @@ export async function changePasswordAction(current: string, next: string) {
   return changePassword(user.id, current, next);
 }
 
+const THEMES = new Set(["system", "light", "dark"]);
+
 export async function saveSettingsAction(theme: string) {
   const user = await requireUser();
+  if (!THEMES.has(theme)) return { ok: false as const, error: "Неизвестная тема." };
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: { theme },

@@ -1,30 +1,22 @@
-import { weeks } from "@course";
-import { glossary } from "@course/glossary";
 import { SearchClient } from "./search-client";
+import { searchCourse } from "@/server/semantic-search";
 
-export default function SearchPage() {
-  const lessons = weeks.flatMap((week) =>
-    week.lessons.map((lesson) => ({
-      type: "lesson" as const,
-      title: lesson.title,
-      href: `/week/${week.slug}`,
-      text: lesson.blocks
-        .map((block) => ("text" in block ? block.text : ""))
-        .join(" ")
-        .slice(0, 280),
-    }))
-  );
-  const terms = glossary.map((item) => ({
-    type: "glossary" as const,
-    title: item.term,
-    href: `/glossary#${item.id}`,
-    text: item.definition,
-  }));
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const query = typeof params.q === "string" ? params.q : "";
+  const result = query.trim().length >= 2 ? await searchCourse(query) : { ok: true as const, hits: [] };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="font-heading text-4xl">Поиск</h1>
-      <SearchClient items={[...lessons, ...terms]} />
+      <p className="mt-2 text-sm text-muted-foreground">
+        Семантический поиск по урокам и глоссарию. Векторы лежат в pgvector, модель {`feature-hash-v1`}.
+      </p>
+      <SearchClient key={query} query={query} hits={result.hits} error={result.ok ? "" : result.error} />
     </div>
   );
 }

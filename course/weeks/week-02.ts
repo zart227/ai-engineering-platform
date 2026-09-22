@@ -331,6 +331,52 @@ async function sample(
         ]),
       ]
     ),
+    lesson(
+      "how-llms-work-l6",
+      "Локальная модель: Ollama, GGUF и quantization",
+      18,
+      [
+        "Назвать Ollama, GGUF и quantization своими словами",
+        "Сравнить RAM, VRAM, CPU и GPU inference",
+        "Отделить то, что остаётся на машине, от того, что утекает промптом и логами",
+      ],
+      [
+        p(
+          "Локальный inference значит, что веса лежат на этой машине и ответ считает она. Ollama это один такой runtime: он качает модель, держит её в памяти и отдаёт локальный HTTP. Файл весов для этого класса runtime чаще в формате GGUF. Пометка local unavailable не закрывает тему: карточка ниже заполняется и без запущенного демона."
+        ),
+        h("Quantization, RAM и VRAM"),
+        p(
+          "Quantization уменьшает точность чисел в весах, чтобы модель влезла в RAM или VRAM. Q4 занимает меньше Q8 и обычно теряет качество на сложной инструкции. CPU inference идёт через оперативную память и ядра процессора. GPU inference держит веса в VRAM. Если VRAM меньше файла, рантайм либо откажется, либо будет сбрасывать слои в RAM и станет медленным."
+        ),
+        ul([
+          "Ollama: локальный демон и библиотека моделей, не облачный счёт.",
+          "GGUF: файл квантованных весов, который читает llama.cpp и Ollama.",
+          "Quantization: меньше RAM и VRAM, другая ошибка на том же промпте.",
+          "CPU vs GPU: CPU медленнее на больших моделях, GPU упирается в VRAM.",
+          "Local embeddings: тот же принцип, отдельная модель. Вектор вопроса и документа должен быть одной локальной моделью.",
+        ]),
+        h("Лицензия и приватность"),
+        p(
+          "Licensing читают до скачивания. Веса бывают с запретом на коммерцию или на дообучение. Apache и MIT у кода рантайма не равны лицензии весов. Privacy локальной модели: промпт и ответ не уходят провайдеру, если вы сами не отправили их дальше. На машине остаются файл GGUF, кэш Ollama и ваши логи. Утекает то, что вы положили в промпт и что процесс записал в журнал: ключ, почта, кусок документа. Локальный runtime не лечит лог, который вы сами отправили в чужой сборщик."
+        ),
+        callout(
+          "Что остаётся и что уходит",
+          "На машине: GGUF, процесс Ollama, local embeddings, ответ, который вы не переслали. Уходит: любой промпт, который вы всё же послали в hosted API, и поля, которые ваш код пишет во внешний лог.",
+          "security"
+        ),
+        check(
+          "Почему local unavailable не закрывает шаг?",
+          "Карточка Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy заполняется и без демона."
+        ),
+        reading([
+          {
+            title: "Ollama",
+            url: "https://github.com/ollama/ollama",
+            note: "Локальный runtime и формат библиотеки. Лицензию весов смотрите у конкретной модели.",
+          },
+        ]),
+      ]
+    ),
   ],
   lab: lab({
     id: "how-llms-work-lab",
@@ -375,8 +421,8 @@ async function sample(
       },
       {
         title: "Один prompt, API и local",
-        body: "Тот же prompt. Если локальный runtime уже есть, заполните две строки: API и local. Колонки: куда ушёл промпт, TTFT ms, total ms, output tokens, стоимость или «0 provider». Куда ушёл промпт: провайдер или эта машина. TTFT это миллисекунды до первого токена. Total это миллисекунды до конца ответа. Без стрима TTFT равен total. У строки local в колонке стоимости пишите 0 provider. Если локального runtime нет, напишите local unavailable и всё равно заполните строку API.",
-        expected: "Один и тот же prompt. Строка API заполнена. Строка local содержит замер или local unavailable.",
+        body: "Тот же prompt. Две строки замера: hosted API и local. Колонки: куда ушёл промпт, TTFT ms, total ms, output tokens, стоимость или «0 provider». Hosted API это провайдер. Local это эта машина, если Ollama или другой runtime уже запущен. Если демона нет, в строке замера напишите, что runtime не установлен, и всё равно заполните карточку: Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU inference, local embeddings, licensing, privacy. Одной пометки local unavailable недостаточно.",
+        expected: "Строка API заполнена. Строка local это замер или явная пометка, что runtime не установлен. Карточка называет Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy. Одной пометки local unavailable недостаточно.",
       },
     ],
     troubleshooting: [
@@ -395,6 +441,7 @@ async function sample(
       "На ваших числах русский и код дороже английского того же смысла или нет?",
       "Что не сработало на обрыве: на каком prompt, какой finish_reason и почему причина в max tokens?",
       "Как проверить гипотезу: что изменено в max tokens, стало ли лучше и чем это доказано во второй строке?",
+      "Что в локальном прогоне осталось на машине, а что всё равно могло утечь логом?",
     ],
   }),
   practice: exercise({
@@ -480,6 +527,19 @@ async function sample(
       0,
       "Для схемы нужен низкий sampling и валидация. Идеи терпят больший разброс. Один 0.8 на весь продукт смешивает задачи."
     ),
+    q(
+      "w2-q9",
+      "scenario",
+      "На ноутбуке нет Ollama. Как закрыть тему локальной модели?",
+      [
+        "Написать local unavailable и сдать только строку hosted API",
+        "Заполнить карточку: GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy, даже без демона",
+        "Считать, что локальная модель ничего не пишет в лог",
+        "Смешать векторы hosted embeddings и local embeddings в одном индексе",
+      ],
+      1,
+      "Замер runtime необязателен. Карточка обязательна. Privacy: на машине остаются веса, наружу уходит то, что вы сами отправили."
+    ),
   ]),
   artifact: artifact({
     result: "Отчёт экспериментов с параметрами и выбранный профиль генерации.",
@@ -519,6 +579,7 @@ async function sample(
     "Записать prompt_tokens одного смысла в формах en, ru, json и code на одной модели.",
     "Сравнить temperature и top_p по одному рычагу и посчитать долю валидного JSON.",
     "По пяти повторам записать distinct и spread completion_tokens при temperature 0.8 и 0.",
+    "Объяснить Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing и privacy локального прогона.",
   ],
   experiments: [
     {
@@ -583,6 +644,12 @@ async function sample(
       url: "https://arxiv.org/abs/1706.03762",
       kind: "paper",
       checkedAt: "2026-09-21",
+    },
+    {
+      title: "Ollama",
+      url: "https://github.com/ollama/ollama",
+      kind: "reference",
+      checkedAt: "2026-09-22",
     },
   ],
   contentVersion: "2026.09",

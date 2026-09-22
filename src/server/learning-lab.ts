@@ -1,21 +1,14 @@
 import { getWeek, weeks } from "@course";
 import { prisma } from "@/server/db";
-import { funnelFromTypeCounts } from "@/server/funnel";
+import { countFunnel } from "@/server/funnel";
 import { DUE_RECALL_LIMIT, nextReviewAt, selectDueRecall, startedWeekSlugs } from "@/server/recall-schedule";
 
 export async function loadLearningFunnel(userId: string) {
-  const rows = await prisma.learningEvent.groupBy({
-    by: ["type"],
+  const rows = await prisma.learningEvent.findMany({
     where: { userId },
-    _count: { _all: true },
+    select: { userId: true, type: true, weekSlug: true },
   });
-  const byType: Record<string, number> = {};
-  let eventCount = 0;
-  for (const row of rows) {
-    byType[row.type] = row._count._all;
-    eventCount += row._count._all;
-  }
-  return funnelFromTypeCounts(byType, eventCount);
+  return countFunnel(rows, userId);
 }
 
 export async function loadStartedWeekSlugs(userId: string) {

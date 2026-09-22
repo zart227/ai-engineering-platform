@@ -2,6 +2,7 @@ import type { LearningMapNode } from "./types";
 
 export const engineeringPath: LearningMapNode[] = [
   { id: "llm", label: "LLM", track: "engineering", weekSlug: "environment-llm-api" },
+  { id: "local", label: "Local models", track: "engineering", weekSlug: "how-llms-work" },
   { id: "prompting", label: "Prompting", track: "engineering", weekSlug: "prompt-engineering" },
   { id: "context", label: "Context", track: "engineering", weekSlug: "context-structured-output" },
   { id: "tools", label: "Tools", track: "engineering", weekSlug: "tool-calling" },
@@ -13,7 +14,9 @@ export const engineeringPath: LearningMapNode[] = [
   { id: "multi", label: "Multi-agent", track: "engineering", weekSlug: "multi-agent-fundamentals" },
   { id: "planning", label: "Planning", track: "engineering", weekSlug: "planning" },
   { id: "evals", label: "Evals", track: "engineering", weekSlug: "evals" },
+  { id: "finetune", label: "Fine-tune", track: "engineering", weekSlug: "evals" },
   { id: "production", label: "Production", track: "engineering", weekSlug: "production-ai" },
+  { id: "serving", label: "Serving", track: "engineering", weekSlug: "production-ai" },
 ];
 
 export const automationPath: LearningMapNode[] = [
@@ -23,6 +26,7 @@ export const automationPath: LearningMapNode[] = [
   { id: "api", label: "API", track: "automation", weekSlug: "apis-webhooks" },
   { id: "webhook", label: "Webhook", track: "automation", weekSlug: "apis-webhooks" },
   { id: "ai-wf", label: "AI workflow", track: "automation", weekSlug: "ai-automation" },
+  { id: "provider-routing", label: "Provider routing", track: "automation", weekSlug: "ai-automation" },
   { id: "events", label: "Events", track: "automation", weekSlug: "event-driven-automation" },
   { id: "queue", label: "Queue", track: "automation", weekSlug: "event-driven-automation" },
   { id: "agentic", label: "Agentic automation", track: "automation", weekSlug: "agentic-automation" },

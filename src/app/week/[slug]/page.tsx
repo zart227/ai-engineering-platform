@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { WeekWorkspace } from "@/components/week-workspace";
 import { getWeek, weeks } from "@course";
 import { requireUser } from "@/server/auth";
-import { loadLearningState, summarizeWeeks } from "@/server/progress";
+import { loadLearningState, recordWeekOpened, summarizeWeeks } from "@/server/progress";
 import { weekLabel } from "@/lib/week-label";
 
 export function generateStaticParams() {
@@ -29,6 +29,7 @@ export default async function WeekPage({
   const { slug } = await params;
   const week = getWeek(slug);
   if (!week) notFound();
+  await recordWeekOpened(user.id, week.slug);
   const state = await loadLearningState(user.id);
   const row = summarizeWeeks(state).find((item) => item.week.slug === slug);
   const answer = state.answers.find((item) => item.exerciseId === week.practice.id);

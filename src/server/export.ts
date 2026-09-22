@@ -4,7 +4,7 @@ import { prisma } from "@/server/db";
 
 const EXPORT_ERROR = "Файл не похож на экспорт ai-engineering-platform.";
 
-/** Thrown when a parsed JSON value is not a v1 or v2 export document. */
+/** Thrown when a parsed JSON value is not a v1, v2, or v3 export document. */
 export class ExportFormatError extends Error {
   constructor() {
     super(EXPORT_ERROR);
@@ -243,9 +243,28 @@ export const exportSchemaV2 = z
   })
   .strip();
 
+const recallReviewSchema = z
+  .object({
+    weekSlug: z.string(),
+    itemIndex: z.number().int().nonnegative(),
+    prompt: z.string(),
+    nextReviewAt: timestamp,
+    reviewCount: z.number().int().nonnegative(),
+  })
+  .strip();
+
+export const exportSchemaV3 = exportSchemaV2
+  .omit({ formatVersion: true })
+  .extend({
+    formatVersion: z.literal(3),
+    recallReviews: z.array(recallReviewSchema),
+  })
+  .strip();
+
 export type ExportPayloadV1 = z.infer<typeof exportSchema>;
 export type ExportPayloadV2 = z.infer<typeof exportSchemaV2>;
-export type ExportPayload = ExportPayloadV2;
+export type ExportPayloadV3 = z.infer<typeof exportSchemaV3>;
+export type ExportPayload = ExportPayloadV3;
 
 export type ImportCounts = {
   capstone: number;
@@ -261,6 +280,7 @@ export type ImportCounts = {
   weekProgress: number;
   quizAttempts: number;
   learningEvents: number;
+  recallReviews: number;
 };
 
 const SECRET_KEYS = new Set(["passwordHash", "tokenHash", "session", "token", "ip", "userAgent"]);
@@ -299,6 +319,8 @@ const V2_ROOT = new Set([
   "learningEvents",
 ]);
 
+const V3_ROOT = new Set([...V2_ROOT, "recallReviews"]);
+
 const USER_KEYS = new Set(["email", "name"]);
 const SETTINGS_KEYS = new Set(["theme", "locale"]);
 const CAPSTONE_KEYS = new Set<string>(capstoneFields);
@@ -311,7 +333,12 @@ const KEEP_HISTORY_WARNING =
 
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
-  return isRecord(raw) && raw.formatVersion === 2;
+  return isRecord(raw) && (raw.formatVersion === 2 || raw.formatVersion === 3);
+}
+
+/** Only v3 carries RecallReview. v1 and v2 must not wipe the schedule. */
+export function importReplacesRecall(raw: unknown): boolean {
+  return isRecord(raw) && raw.formatVersion === 3;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -361,25 +388,33 @@ function v1ToV2(data: ExportPayloadV1): ExportPayloadV2 {
   });
 }
 
-export function migrateExport(raw: unknown): ExportPayloadV2 {
+function v2ToV3(data: ExportPayloadV2): ExportPayloadV3 {
+  return exportSchemaV3.parse({ ...data, formatVersion: 3, recallReviews: [] });
+}
+
+export function migrateExport(raw: unknown): ExportPayloadV3 {
   if (!isRecord(raw)) throw new ExportFormatError();
-  if ("formatVersion" in raw) {
-    if (raw.formatVersion !== 2) throw new ExportFormatError();
-    const parsed = exportSchemaV2.safeParse(raw);
+  if (raw.formatVersion === 3) {
+    const parsed = exportSchemaV3.safeParse(raw);
     if (!parsed.success) throw new ExportFormatError();
     return parsed.data;
   }
-  if (raw.version === 1) {
+  if (raw.formatVersion === 2) {
+    const parsed = exportSchemaV2.safeParse(raw);
+    if (!parsed.success) throw new ExportFormatError();
+    return v2ToV3(parsed.data);
+  }
+  if (raw.version === 1 && !("formatVersion" in raw)) {
     const parsed = exportSchema.safeParse(raw);
     if (!parsed.success) throw new ExportFormatError();
-    return v1ToV2(parsed.data);
+    return v2ToV3(v1ToV2(parsed.data));
   }
   throw new ExportFormatError();
 }
 
 export function parseExport(
   raw: unknown
-): { ok: true; data: ExportPayloadV2; warnings: string[] } | { ok: false; error: string } {
+): { ok: true; data: ExportPayloadV3; warnings: string[] } | { ok: false; error: string } {
   try {
     const data = migrateExport(raw);
     return { ok: true, data, warnings: previewImport(data, raw).warnings };
@@ -401,7 +436,9 @@ function noteStrippedKeys(value: unknown, allowed: Set<string>, flags: { secrets
 function collectStripWarnings(raw: unknown): string[] {
   if (!isRecord(raw)) return [];
   const flags = { secrets: false, unknown: false };
-  noteStrippedKeys(raw, raw.formatVersion === 2 ? V2_ROOT : V1_ROOT, flags);
+  const root =
+    raw.formatVersion === 3 ? V3_ROOT : raw.formatVersion === 2 ? V2_ROOT : V1_ROOT;
+  noteStrippedKeys(raw, root, flags);
   noteStrippedKeys(raw.user, USER_KEYS, flags);
   noteStrippedKeys(raw.settings, SETTINGS_KEYS, flags);
   noteStrippedKeys(raw.capstone, CAPSTONE_KEYS, flags);
@@ -416,7 +453,7 @@ function countCapstone(capstone: ExportPayloadV2["capstone"]): number {
 }
 
 export function previewImport(
-  data: ExportPayloadV2,
+  data: ExportPayloadV3,
   raw?: unknown
 ): { counts: ImportCounts; warnings: string[] } {
   return {
@@ -434,6 +471,7 @@ export function previewImport(
       weekProgress: data.weekProgress.length,
       quizAttempts: data.quizAttempts.length,
       learningEvents: data.learningEvents.length,
+      recallReviews: data.recallReviews.length,
     },
     warnings: [
       importReplacesHistory(raw) ? REPLACE_WARNING : KEEP_HISTORY_WARNING,
@@ -450,8 +488,9 @@ function jsonInput(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNu
 async function persistImport(
   tx: Prisma.TransactionClient,
   userId: string,
-  data: ExportPayloadV2,
-  replaceHistory: boolean
+  data: ExportPayloadV3,
+  replaceHistory: boolean,
+  replaceRecall: boolean
 ) {
   const capstone = pickCapstone(data.capstone);
   if (Object.keys(capstone).length > 0) {
@@ -647,6 +686,21 @@ async function persistImport(
       });
     }
   }
+  if (replaceRecall) {
+    await tx.recallReview.deleteMany({ where: { userId } });
+    if (data.recallReviews.length > 0) {
+      await tx.recallReview.createMany({
+        data: data.recallReviews.map((item) => ({
+          userId,
+          weekSlug: item.weekSlug,
+          itemIndex: item.itemIndex,
+          prompt: item.prompt,
+          nextReviewAt: new Date(item.nextReviewAt),
+          reviewCount: item.reviewCount,
+        })),
+      });
+    }
+  }
 }
 
 export async function buildExport(userId: string): Promise<ExportPayload> {
@@ -668,11 +722,12 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
       weekProgress: true,
       quizAttempts: { orderBy: { createdAt: "asc" } },
       learningEvents: { orderBy: { createdAt: "asc" } },
+      recallReviews: { orderBy: [{ weekSlug: "asc" }, { itemIndex: "asc" }] },
     },
   });
 
-  return exportSchemaV2.parse({
-    formatVersion: 2,
+  return exportSchemaV3.parse({
+    formatVersion: 3,
     exportedAt: new Date().toISOString(),
     user: { email: user.email, name: user.name },
     settings: user.settings ? { theme: user.settings.theme, locale: user.settings.locale } : null,
@@ -771,6 +826,13 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
       payload: item.payload ?? null,
       createdAt: item.createdAt.toISOString(),
     })),
+    recallReviews: user.recallReviews.map((item) => ({
+      weekSlug: item.weekSlug,
+      itemIndex: item.itemIndex,
+      prompt: item.prompt,
+      nextReviewAt: item.nextReviewAt.toISOString(),
+      reviewCount: item.reviewCount,
+    })),
   });
 }
 
@@ -780,7 +842,13 @@ export async function importExport(userId: string, raw: unknown) {
   const imported = previewImport(parsed.data, raw).counts;
   try {
     await prisma.$transaction(async (tx) => {
-      await persistImport(tx, userId, parsed.data, importReplacesHistory(raw));
+      await persistImport(
+        tx,
+        userId,
+        parsed.data,
+        importReplacesHistory(raw),
+        importReplacesRecall(raw)
+      );
     });
   } catch {
     return { ok: false as const, error: "Не удалось импортировать данные." };

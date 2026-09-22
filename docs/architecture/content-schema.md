@@ -37,24 +37,28 @@ weekComplete = all of the above are done
 
 Artifact is mandatory. Checking lessons only cannot yield 100%.
 
-## Optional quality contract
+## Quality contract
 
-These `Week` fields are optional. A week that omits them still typechecks and still loads. Do not add them as required fields.
+TypeScript keeps these fields optional so an `outlined` week still loads. For `status: "ready"` the quality test requires:
 
-- `learningObjectives?: string[]`
-- `experiments?: ExperimentSpec[]`
-- `failureModes?: FailureMode[]`
-- `metrics?: MetricSpec[]`
-- `artifactRubric?: ArtifactRubric`
-- `sources?: CourseSource[]`
-- `contentVersion?: string`
-- `lastReviewedAt?: string`
-- `securityNotes?: string[]`
-- `privacyNotes?: string[]`
-- `costNotes?: string[]`
-- `productionNotes?: string[]`
+- `learningObjectives`
+- `experiments`
+- `failureModes`
+- `metrics`
+- `artifactRubric`
+- `sources`
+- `contentVersion`
+- `lastReviewedAt`
+- at least 8 quiz questions
 
-When `artifactRubric` is present, its `criteria` weights are positive numbers and should sum to 100.
+These stay optional even on a ready week:
+
+- `securityNotes`
+- `privacyNotes`
+- `costNotes`
+- `productionNotes`
+
+When a rubric is present, its `criteria` weights are positive numbers and sum to 100. A ready week must have a rubric.
 
 `sources` use `CourseSource`: `title`, `url`, `kind` (`official-docs`, `paper`, or `reference`), and `checkedAt`.
 

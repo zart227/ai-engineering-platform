@@ -123,7 +123,7 @@
 
 ## D. Target Architecture
 
-**Modular monolith.** Один Next.js-процесс, PostgreSQL, контент в Git. Никакого NestJS «для разделения». Redis, очередь, pgvector, n8n, MCP появляются только когда курс доходит до соответствующей недели и платформе это реально нужно.
+**Modular monolith.** Один Next.js-процесс, PostgreSQL, контент в Git. Никакого NestJS «для разделения». Redis и очередь не стоят, пока нет измеренной задачи. pgvector стоит, потому что ученик ищет по материалам курса. MCP платформы отдаёт `course.search`, `course.lesson`, `user.progress` и `user.notes`.
 
 ```
 Browser
@@ -149,11 +149,10 @@ Browser
 Эволюция (не ставить заранее):
 
 ```
-сейчас: Next.js + PostgreSQL
-week 14: pgvector
+сейчас: Next.js + PostgreSQL + pgvector (поиск ученика) + MCP /api/mcp
 week 26: tracing/logs как учебный слой
 week 27: Redis + queue, когда появится реальная задача
-позже: AI Tutor, MCP, evals
+позже: AI Tutor, evals
 ```
 
 Auth (self-hosted, без Clerk):
