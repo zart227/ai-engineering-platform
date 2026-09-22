@@ -6,7 +6,7 @@ import { systemThemeBootScript } from "@/components/theme-boot";
 import { ThemeProvider } from "@/components/theme-provider";
 import { getSession } from "@/server/auth";
 import { prisma } from "@/server/db";
-import { coursePercent, loadLearningState, summarizeWeeks } from "@/server/progress";
+import { coursePercent, loadCourseProgress, summarizeWeeks } from "@/server/progress";
 import { courseMeta } from "@course";
 import "./globals.css";
 
@@ -39,11 +39,11 @@ export default async function RootLayout({
   try {
     session = await getSession();
     if (session) {
-      const [state, settings] = await Promise.all([
-        loadLearningState(session.user.id),
+      const [progress, settings] = await Promise.all([
+        loadCourseProgress(session.user.id),
         prisma.userSettings.findUnique({ where: { userId: session.user.id }, select: { theme: true } }),
       ]);
-      percent = coursePercent(summarizeWeeks(state));
+      percent = coursePercent(summarizeWeeks(progress));
       theme = settings?.theme ?? "system";
     }
   } catch {

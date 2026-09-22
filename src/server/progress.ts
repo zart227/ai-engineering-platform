@@ -1,7 +1,24 @@
 import { weeks } from "@course";
 import { weekComplete, weekParts, weekPercent } from "@course/completion";
+import { cache } from "react";
 import { prisma } from "@/server/db";
 import { logError } from "@/server/logger";
+
+export type ProgressSummaryInput = {
+  lessons: { lessonId: string; completedAt: Date | null }[];
+  labs: { labId: string; completedAt: Date | null }[];
+  exercises: { exerciseId: string; completedAt: Date | null }[];
+  artifacts: { weekSlug: string; completed: boolean }[];
+  quizzes: Map<string, { passed: boolean }>;
+};
+
+function latestQuizByWeek<T extends { weekSlug: string }>(quizzes: T[]) {
+  const latest = new Map<string, T>();
+  for (const attempt of quizzes) {
+    if (!latest.has(attempt.weekSlug)) latest.set(attempt.weekSlug, attempt);
+  }
+  return latest;
+}
 
 async function ensureWeekOpened(userId: string, weekSlug: string) {
   const existing = await prisma.learningEvent.findFirst({
@@ -41,7 +58,44 @@ export async function recordEvent(
   });
 }
 
-export async function loadLearningState(userId: string) {
+async function loadCourseProgressData(userId: string): Promise<ProgressSummaryInput> {
+  const [lessons, labs, exercises, artifacts, quizzes] = await Promise.all([
+    prisma.lessonProgress.findMany({
+      where: { userId },
+      select: { lessonId: true, completedAt: true },
+    }),
+    prisma.labProgress.findMany({
+      where: { userId },
+      select: { labId: true, completedAt: true },
+    }),
+    prisma.exerciseProgress.findMany({
+      where: { userId },
+      select: { exerciseId: true, completedAt: true },
+    }),
+    prisma.artifactProgress.findMany({
+      where: { userId },
+      select: { weekSlug: true, completed: true },
+    }),
+    prisma.quizAttempt.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { weekSlug: true, passed: true },
+    }),
+  ]);
+
+  return {
+    lessons,
+    labs,
+    exercises,
+    artifacts,
+    quizzes: latestQuizByWeek(quizzes),
+  };
+}
+
+/** Slim progress read for header percent — skips notes, bookmarks, answers, capstone, portfolio. */
+export const loadCourseProgress = cache(loadCourseProgressData);
+
+async function loadLearningStateData(userId: string) {
   const [
     lessons,
     labs,
@@ -69,17 +123,12 @@ export async function loadLearningState(userId: string) {
     prisma.portfolioProject.findMany({ where: { userId } }),
   ]);
 
-  const latestQuiz = new Map<string, (typeof quizzes)[number]>();
-  for (const attempt of quizzes) {
-    if (!latestQuiz.has(attempt.weekSlug)) latestQuiz.set(attempt.weekSlug, attempt);
-  }
-
   return {
     lessons,
     labs,
     exercises,
     artifacts,
-    quizzes: latestQuiz,
+    quizzes: latestQuizByWeek(quizzes),
     allQuizzes: quizzes,
     answers,
     notes,
@@ -89,7 +138,10 @@ export async function loadLearningState(userId: string) {
   };
 }
 
-export function summarizeWeeks(state: Awaited<ReturnType<typeof loadLearningState>>) {
+/** Full learning state; deduped per request via React cache(). */
+export const loadLearningState = cache(loadLearningStateData);
+
+export function summarizeWeeks(state: ProgressSummaryInput) {
   const completedLessons = new Set(
     state.lessons.filter((item) => item.completedAt).map((item) => item.lessonId)
   );
