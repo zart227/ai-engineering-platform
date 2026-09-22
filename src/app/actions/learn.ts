@@ -8,8 +8,13 @@ import { ExportFormatError, importExport, migrateExport, previewImport } from "@
 import { recordEvent, safePersistWeek } from "@/server/progress";
 import { changePassword } from "@/server/auth";
 import {
+  validateArtifactCompletion,
+  validateLabCompletion,
   validateLabInWeek,
+  validateLessonCompletion,
   validateLessonInWeek,
+  validatePracticeAnswerFields,
+  validatePracticeCompletion,
   validatePracticeInWeek,
   validateWeekSlug,
 } from "@/server/week-progress-validation";
@@ -49,6 +54,8 @@ export async function saveNoteAction(input: {
 export async function toggleLessonAction(lessonId: string, weekSlug: string, completed: boolean) {
   const validated = validateLessonInWeek(weekSlug, lessonId);
   if (!validated.ok) return validated;
+  const completion = validateLessonCompletion(validated.week, completed);
+  if (!completion.ok) return completion;
   const user = await requireUser();
   const existing = await prisma.lessonProgress.findUnique({
     where: { userId_lessonId: { userId: user.id, lessonId } },
@@ -77,6 +84,8 @@ export async function toggleLessonAction(lessonId: string, weekSlug: string, com
 export async function toggleLabAction(labId: string, weekSlug: string, completed: boolean) {
   const validated = validateLabInWeek(weekSlug, labId);
   if (!validated.ok) return validated;
+  const completion = validateLabCompletion(validated.week, completed);
+  if (!completion.ok) return completion;
   const user = await requireUser();
   await prisma.labProgress.upsert({
     where: { userId_labId: { userId: user.id, labId } },
@@ -100,7 +109,17 @@ export async function togglePracticeAction(
 ) {
   const validated = validatePracticeInWeek(weekSlug, exerciseId);
   if (!validated.ok) return validated;
+  const completion = validatePracticeCompletion(validated.week, exerciseId, completed);
+  if (!completion.ok) return completion;
   const user = await requireUser();
+  if (completed) {
+    const answer = await prisma.exerciseAnswer.findUnique({
+      where: { userId_exerciseId: { userId: user.id, exerciseId } },
+      select: { body: true, githubUrl: true, resultUrl: true },
+    });
+    const answerCheck = validatePracticeAnswerFields(completed, answer);
+    if (!answerCheck.ok) return answerCheck;
+  }
   await prisma.exerciseProgress.upsert({
     where: { userId_exerciseId: { userId: user.id, exerciseId } },
     update: { completedAt: completed ? new Date() : null, weekSlug },
@@ -214,6 +233,12 @@ export async function saveArtifactAction(input: {
 }) {
   const validated = validateWeekSlug(input.weekSlug);
   if (!validated.ok) return validated;
+  const completion = validateArtifactCompletion(input.completed, {
+    notes: input.notes,
+    githubUrl: input.githubUrl,
+    demoUrl: input.demoUrl,
+  });
+  if (!completion.ok) return completion;
   const user = await requireUser();
   try {
     await prisma.artifactProgress.upsert({

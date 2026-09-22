@@ -40,4 +40,15 @@ describe("learn toggle actions", () => {
     });
     assert.deepEqual(result, { ok: false, error: "Неделя не найдена." });
   });
+
+  it("saveArtifactAction rejects completed=true without a repository link", async () => {
+    const result = await saveArtifactAction({
+      weekSlug: week01.slug,
+      notes: "notes only",
+      githubUrl: "",
+      demoUrl: "",
+      completed: true,
+    });
+    assert.deepEqual(result, { ok: false, error: "Укажите ссылку на репозиторий." });
+  });
 });
