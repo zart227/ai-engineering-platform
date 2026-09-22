@@ -38,6 +38,7 @@ Modular monolith. Поиск ученика по материалам идёт �
 
 ```bash
 cp .env.example .env
+# Set POSTGRES_PASSWORD in .env to a local-only secret (Compose refuses to start without it).
 docker compose up -d
 ```
 
@@ -73,6 +74,7 @@ npm start
 
 См. `.env.example`.
 
+- `POSTGRES_PASSWORD` - пароль Postgres для Compose; без него `docker compose up` не стартует
 - `DATABASE_URL` - Postgres
 - `AUTH_SECRET` - длинная случайная строка для cookie-подписи
 - `APP_URL` - публичный URL. Если начинается с `https://`, cookie ставится как Secure

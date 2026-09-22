@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: aep
-      POSTGRES_PASSWORD: aep_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env before docker compose up}
       POSTGRES_DB: ai-engineering-platform
     volumes:
       - ai-engineering-platform-pgdata:/var/lib/postgresql/data
@@ -15,7 +15,7 @@ services:
       timeout: 5s
       retries: 20
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   ai-engineering-platform-app:
     build:
@@ -27,16 +27,16 @@ services:
       ai-engineering-platform-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://aep:aep_dev_password@ai-engineering-platform-db:5432/ai-engineering-platform
+      DATABASE_URL: postgresql://aep:${POSTGRES_PASSWORD}@ai-engineering-platform-db:5432/ai-engineering-platform
       AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production-use-a-long-random-value}
       APP_URL: http://127.0.0.1:43127
       NODE_ENV: production
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-https://ollama.com}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-[REDACTED]}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-minimax-m2.5}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_MODEL: ${OPENAI_MODEL:-[REDACTED]}
       OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-30}
       PORT: 43127
       HOSTNAME: 0.0.0.0
