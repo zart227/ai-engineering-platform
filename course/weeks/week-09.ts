@@ -244,6 +244,16 @@ export function signed(raw: Buffer, secret: string, headerHex: string) {
         body: "Timestamp старше окна отклоняется даже с верной подписью.",
         expected: "Старый запрос не делает side effect.",
       },
+      {
+        title: "Таблица приёма",
+        body: "Заполните по своим тестам. Колонки: подпись верна или нет, это повтор или первый POST, статус ответа, сколько side effect, duplicate deliveries after retry. Последняя колонка: сколько лишних действий появилось после повтора того же event id.",
+        expected: "Строки из вашего прогона, без чужих чисел.",
+      },
+      {
+        title: "Контролируемый сбой",
+        body: "Два сбоя нарочно. Replay: верная подпись, ключа ещё нет, тот же event id приходит снова, как повтор провайдера. Запишите duplicate deliveries after retry. Signature failure: подпись битая или timestamp вне окна, а обработчик всё равно пишет действие. Потом почините: битая подпись даёт 0 действий, повтор даёт 0 новых. Оба числа до и после из тестов.",
+        expected: "До правки повтор плодит доставку, битая подпись не молчит. После правки оба нуля лишних действий.",
+      },
     ],
     troubleshooting: [
       {
@@ -258,6 +268,12 @@ export function signed(raw: Buffer, secret: string, headerHex: string) {
     reflection: [
       "Где в вашем тесте секрет мог утечь в вывод?",
       "Что ответите провайдеру, если БД недоступна: 500, чтобы он повторил, или 200?",
+      "Что не сработало на повторе и на битой подписи?",
+      "На каких event id вы это увидели?",
+      "Почему повтор создал вторую доставку?",
+      "Как вы проверили гипотезу тестом без сети?",
+      "Что вы изменили в проверке подписи и в ключе?",
+      "Стало ли лучше и чем это доказано: duplicate deliveries after retry до и после?",
     ],
   }),
   practice: exercise({
@@ -386,6 +402,45 @@ export function signed(raw: Buffer, secret: string, headerHex: string) {
       1,
       "200 до ключа гасит ретрай."
     ),
+    q(
+      "w9-q6",
+      "debugging",
+      "Верная подпись, затем тот же event id ещё раз. В журнале два платежа. Какая метрика?",
+      [
+        "Ноль: оба ответа были 200",
+        "Duplicate deliveries after retry: лишние действия после повтора. Ключ должен оставить одно",
+        "Число страниц курсора",
+        "Latency модели",
+      ],
+      1,
+      "Повтор доставки не имеет права на второе действие. Число берёте из своего теста."
+    ),
+    q(
+      "w9-q7",
+      "scenario",
+      "Подпись не сошлась. Обработчик создал заказ и ответил 401. Что это?",
+      [
+        "Нормальный отказ",
+        "Signature failure: при неверной подписи side effect быть не должно",
+        "Повод отключить HMAC и принять тело",
+        "Сигнал звать агента решать, чей заказ",
+      ],
+      1,
+      "Отказ подписи до записи. Иначе битый запрос уже меняет мир."
+    ),
+    q(
+      "w9-q8",
+      "architecture",
+      "Повтор пришёл после вашего 200, ключ уже done. Сколько новых действий верно?",
+      [
+        "Ещё одно, иначе провайдер пришлёт третье",
+        "Ноль новых. Доставке ответить успехом, действие не повторять",
+        "Столько, сколько было ретраев",
+        "Удалить первый заказ и создать заново",
+      ],
+      1,
+      "Done означает действие уже было. Duplicate deliveries after retry здесь 0."
+    ),
   ]),
   artifact: artifact({
     result: "Модуль приёма webhook с тестами подписи и клиент страниц с потолком.",
@@ -400,6 +455,10 @@ export function signed(raw: Buffer, secret: string, headerHex: string) {
       { id: "apis-webhooks-a3", text: "200 не раньше записи ключа" },
       { id: "apis-webhooks-a4", text: "Ретрай не на 400" },
       { id: "apis-webhooks-a5", text: "Секрет не в логе и не в git" },
+      {
+        id: "apis-webhooks-a6",
+        text: "Таблица: signature failure и duplicate deliveries after retry из своего прогона",
+      },
     ],
   }),
   recall: recall([
@@ -426,4 +485,80 @@ export function signed(raw: Buffer, secret: string, headerHex: string) {
       mistake: "Хранить пароль пользователя, потому что OAuth «долго читать».",
     }),
   ],
+  learningObjectives: [
+    "Проверять HMAC по сырым байтам и отклонять подпись вне окна времени.",
+    "На повторе того же event id записать duplicate deliveries after retry из своего теста.",
+    "Показать signature failure: битая подпись не создаёт side effect.",
+    "Повторять 429 и 5xx с потолком, не повторять 400.",
+  ],
+  experiments: [
+    {
+      id: "apis-webhooks-exp-replay",
+      question: "Сколько лишних действий даёт повтор доставки и даёт ли действие битая подпись?",
+      method:
+        "Тест без сети. Сначала нет уникального ключа: два POST с одним event id и верной подписью. Записать duplicate deliveries after retry. Затем битая подпись и старый timestamp. После правки оба случая дают 0 новых действий. Числа только из этих тестов.",
+      metrics: ["duplicate deliveries after retry"],
+    },
+  ],
+  failureModes: [
+    {
+      id: "apis-webhooks-f1",
+      symptom: "Второй POST с тем же event id создал второе действие.",
+      cause: "Ключ не записан до side effect, или 200 ушёл до INSERT.",
+      check: "Повторить тот же id. Duplicate deliveries after retry из прогона равно 0, ответ доставки успешный.",
+    },
+    {
+      id: "apis-webhooks-f2",
+      symptom: "Битая подпись или старый timestamp всё равно пишет действие.",
+      cause: "Проверка подписи после side effect или сравнение не по сырым байтам.",
+      check: "Тест с подменой тела и тест со старым окном. Оба: 0 действий.",
+    },
+  ],
+  metrics: [
+    {
+      name: "duplicate deliveries after retry",
+      how: "Сколько лишних side effect появилось после повтора того же event id. Считаете по своему тесту до правки и после. Чужое число не подставлять.",
+    },
+  ],
+  artifactRubric: {
+    criteria: [
+      {
+        id: "apis-webhooks-r1",
+        name: "Подпись",
+        weight: 25,
+        evidence: "HMAC от сырых байт, длина буфера, timingSafeEqual. Секрет не в логе.",
+      },
+      {
+        id: "apis-webhooks-r2",
+        name: "Повтор",
+        weight: 25,
+        evidence: "В таблице duplicate deliveries after retry из своего прогона. После ключа лишних действий нет.",
+      },
+      {
+        id: "apis-webhooks-r3",
+        name: "Signature failure",
+        weight: 25,
+        evidence: "Битая подпись и timestamp вне окна: 0 side effect.",
+      },
+      {
+        id: "apis-webhooks-r4",
+        name: "Клиент страниц",
+        weight: 25,
+        evidence: "Курсор, maxPages, ретрай на 429 и 500, без ретрая на 400.",
+      },
+    ],
+  },
+  sources: [
+    {
+      title: "Node.js Crypto",
+      url: "https://nodejs.org/api/crypto.html",
+      kind: "official-docs",
+      checkedAt: "2026-09-21",
+    },
+  ],
+  contentVersion: "2026.09",
+  lastReviewedAt: "2026-09-21",
+  securityNotes: ["Секрет подписи только в env. Ключ не в query и не в логе. Сравнение подписи constant-time."],
+  privacyNotes: ["Тело webhook может быть чужим письмом. В лог теста кладите event id и статус, не полный payload."],
+  costNotes: ["Ретрай без потолка бьёт чужой лимит и свой. 400 и битую подпись не повторять."],
 });
