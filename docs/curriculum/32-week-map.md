@@ -43,6 +43,7 @@
   3. Tokenizer и embeddings: почему «слово» != токен
   4. Sampling: temperature, top-p, seed, reasoning traces
   5. Hallucinations, multimodality, когда модель врёт уверенно
+  6. Локальная модель: Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing, privacy
 - **Lab:** один и тот же prompt, сетка параметров, таблица качества/стоимости.
 - **Practice:** объяснить в README, почему два ответа разошлись.
 - **Artifact:** отчёт экспериментов + правила выбора параметров.
@@ -176,6 +177,7 @@
   3. Fallback и человек
   4. Цена пачки
   5. Проект AI Office Automation
+  6. Provider routing: timeout, 429 и 5xx на запасной провайдер, 401 без fallback
 - **Lab:** конвейер на фиктивной модели.
 - **Practice:** 20 примеров, инъекции, порог для крона.
 - **Artifact:** **AI Office Automation** v1. Маршрут в коде, письмо клиенту само не уходит.
@@ -458,6 +460,7 @@
   3. Несколько чисел, одна выборка
   4. Порог в прогоне
   5. Граничные входы
+  6. SFT, LoRA, QLoRA, instruction tuning, preference optimization. Fine-tune только если контекст не закрыл разрыв held-out
 - **Lab:** зелёный прогон и красный на сломанной фикстуре.
 - **Practice:** ворота на held-out без ключа провайдера.
 - **Artifact:** скрипт оценки с отчётом и порогом.
@@ -590,6 +593,7 @@
   3. 429 не тишина
   4. Сначала вертикаль
   5. Чужой дежурный читает страницу
+  6. Inference server: vLLM, continuous batching, batching, KV cache, concurrency, throughput, GPU memory
 - **Lab:** мок ограничения показывает текст, не пустой экран.
 - **Practice:** runbook без оркестратора, которого нет.
 - **Artifact:** страница дежурства и фикстура 429.

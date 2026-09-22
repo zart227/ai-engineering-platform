@@ -1,6 +1,6 @@
 services:
   ai-engineering-platform-db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: ai-engineering-platform-db
     restart: unless-stopped
     environment:

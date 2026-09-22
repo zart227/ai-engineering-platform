@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { destroySession, loginUser, registerUser } from "@/server/auth";
+import { safeInternalPath } from "@/server/internal-path";
 
 export async function registerAction(formData: FormData) {
   const result = await registerUser({
@@ -19,7 +20,7 @@ export async function loginAction(formData: FormData) {
     password: String(formData.get("password") ?? ""),
   });
   if (!result.ok) return result;
-  redirect("/");
+  redirect(safeInternalPath(formData.get("next")));
 }
 
 export async function logoutAction() {

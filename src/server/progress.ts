@@ -3,11 +3,33 @@ import { weekComplete, weekParts, weekPercent } from "@course/completion";
 import { prisma } from "@/server/db";
 import { logError } from "@/server/logger";
 
+async function ensureWeekOpened(userId: string, weekSlug: string) {
+  const existing = await prisma.learningEvent.findFirst({
+    where: { userId, weekSlug, type: "week_opened" },
+    select: { id: true },
+  });
+  if (existing) return;
+  await prisma.learningEvent.create({
+    data: { userId, type: "week_opened", weekSlug },
+  });
+}
+
+export async function recordWeekOpened(userId: string, weekSlug: string) {
+  try {
+    await ensureWeekOpened(userId, weekSlug);
+  } catch (error) {
+    logError("week_opened_failed", { userId, weekSlug, error: String(error) });
+  }
+}
+
 export async function recordEvent(
   userId: string,
   type: string,
   extra?: { weekSlug?: string; lessonId?: string; payload?: object }
 ) {
+  if (extra?.weekSlug && type !== "week_opened") {
+    await ensureWeekOpened(userId, extra.weekSlug);
+  }
   await prisma.learningEvent.create({
     data: {
       userId,
@@ -114,6 +136,12 @@ export async function persistWeekPercent(userId: string, weekSlug: string) {
       completedAt: row.complete ? new Date() : null,
     },
   });
+  if (!row.complete) return;
+  const completed = await prisma.learningEvent.findFirst({
+    where: { userId, weekSlug, type: "week_completed" },
+    select: { id: true },
+  });
+  if (!completed) await recordEvent(userId, "week_completed", { weekSlug });
 }
 
 export function coursePercent(rows: ReturnType<typeof summarizeWeeks>) {

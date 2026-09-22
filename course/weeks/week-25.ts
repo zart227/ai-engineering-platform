@@ -202,6 +202,36 @@ export function sameDataset(a: ReportRow, b: ReportRow) {
         ),
       ]
     ),
+    lesson(
+      "eval-l6",
+      "SFT, LoRA, QLoRA и preference optimization",
+      16,
+      [
+        "Назвать SFT, LoRA, QLoRA, instruction tuning и preference optimization",
+        "Оставить правило: fine-tune только при устойчивом разрыве held-out, который контекст не закрывает",
+      ],
+      [
+        p(
+          "Таблица Prompt → Retrieval → Fine-tune остаётся. Fine-tune только когда held-out показывает устойчивый разрыв, который контекст не закрывает. Ниже имена рычагов, не команда обучать веса на этой неделе."
+        ),
+        ul([
+          "SFT, supervised fine-tuning: пары инструкция и ответ, веса учатся повторять этот формат.",
+          "Instruction tuning: тот же класс обучения, корпус из инструкций, не из сырого текста.",
+          "LoRA: обучают маленькие добавки к замороженным весам, а не всю матрицу.",
+          "QLoRA: базовая модель квантована, добавки LoRA учатся поверх. Меньше памяти, та же идея.",
+          "Preference optimization: пары «этот ответ лучше того». Сюда относят методы вроде DPO. Это не SFT и не повод без held-out.",
+        ]),
+        compare(
+          "Когда не учить",
+          "Held-out плохой, потому что нужного абзаца нет в контексте, и вы сразу берёте LoRA.",
+          "Сначала retrieval. SFT, QLoRA или preference optimization, только если тот же held-out всё ещё в разрыве после контекста."
+        ),
+        check(
+          "Чем QLoRA отличается от полного SFT всей сети?",
+          "База квантована и заморожена, учатся маленькие добавки. Памяти меньше. Правило held-out то же."
+        ),
+      ]
+    ),
   ],
   lab: lab({
     id: "eval-lab",
@@ -381,6 +411,19 @@ export function sameDataset(a: ReportRow, b: ReportRow) {
       1,
       "Пять полей и одна выборка. Иначе разница смешивает рычаг и набор."
     ),
+    q(
+      "w25-q9",
+      "conceptual",
+      "Held-out стабильно проваливается, хотя нужный абзац уже в контексте. Какой рычаг уместен следующим?",
+      [
+        "Сразу полный SFT, контекст не смотрели",
+        "Fine-tune: SFT, LoRA или QLoRA, либо preference optimization, потому что контекст разрыв не закрыл",
+        "Убрать held-out, чтобы строка стала зелёной",
+        "Смешать LoRA и другой датасет без регрессионного eval",
+      ],
+      1,
+      "Instruction tuning и preference optimization не заменяют таблицу. Веса трогают после устойчивого разрыва."
+    ),
   ], 70),
   artifact: artifact({
     result: "Скрипт оценки с held-out, отчётом и кодом выхода при провале порога.",
@@ -427,6 +470,7 @@ export function sameDataset(a: ReportRow, b: ReportRow) {
     "Собрать отчёт с полями task success, format compliance, latency, tokens и cost.",
     "Сравнить две конфигурации на одном datasetId по этим числам, без «кажется лучше».",
     "Завершить прогон с кодом 1, когда порог на held-out не достигнут, без ключа для обязательных проверок.",
+    "Назвать SFT, LoRA, QLoRA, instruction tuning и preference optimization и не учить веса, пока контекст закрывает разрыв held-out.",
   ],
   experiments: [
     {

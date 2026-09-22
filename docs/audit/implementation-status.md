@@ -9,7 +9,7 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | -- | ----------- | ------ | -------- | ----- | ------------ | ------ |
 | W0-RECON | R1–R6 read-only audit vs `839f135` | DONE | Этот каталог, контракты агентов | Orchestrator | — | Закрыто |
 | W0-DOCS | Audit control docs | DONE | `docs/audit/*` | Orchestrator | W0-RECON | Закрыто |
-| P0-EXPORT | Полный backup learner state | DONE | `buildExport` пишет formatVersion 2: settings, portfolio, bookmarks, week progress, quiz attempts, learning events. Секретов нет | Agent B | — | Закрыто в Wave 1 |
+| P0-EXPORT | Полный backup learner state | READY_FOR_VERIFICATION | `buildExport` пишет formatVersion 3, включая `RecallReview` (weekSlug, itemIndex, prompt, nextReviewAt, reviewCount). Импорт принимает v2 и v3. v2 расписание не стирает. Roundtrip интервалов 1, 3, 7, 21 дня: `tests/export.test.ts` | Agent B | — | Ждёт проверку оркестратора |
 | P0-IMPORT | Validate → version → migrate → preview → transaction → result | DONE | `migrateExport`, `previewImport`, `$transaction`. v1 не удаляет квизы и события | Agent B | P0-EXPORT | Закрыто в Wave 1 |
 | P0-SECRETS | Не экспортировать password hash и session token | DONE | `buildExport` отдаёт только email/name | — | — | Сохранить инвариант в v2 |
 | P0-IDOR | Portfolio update только своего пользователя | DONE | `updateMany` where `{ id, userId }` | Agent B | — | Закрыто |
@@ -19,7 +19,7 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | P0-DEAD | Подтверждённый мёртвый код | DONE | `compact.ts` удалён. `course/legacy/README.md` помечает архив | Agent A | — | Закрыто |
 | P0-RATELIMIT | In-memory rate limit не production-safe для нескольких инстансов | PARTIAL | `src/server/rate-limit.ts`, только login/register | Wave 6 | Доказанный use case | Не добавлять Redis в Wave 1 |
 | P0-PROXY | Cookie presence = UX gate, сессия проверяется на сервере | DONE | `src/proxy.ts` смотрит cookie; `getSession()` проверяет hash и срок | — | — | Оставить границу явной в доке |
-| P0-DEEPLINK | `?next=` после логина | NOT_STARTED | `proxy.ts` ставит `next`, auth его игнорирует | Wave 2 UX | — | Не в Wave 1, если не ломает data |
+| P0-DEEPLINK | `?next=` после логина | READY_FOR_VERIFICATION | `loginAction` читает `next` и зовёт `safeInternalPath`. Внешний URL, `//` и `\` остаются на `/` | Wave 5.1 | — | Ждёт проверку |
 | C-W1 | Week 1: streaming vs normal, TTFT и total latency, retries в lab | DONE | Lab: stream false/true, TTFT, total, retry 429, без retry 401 | Agent C | — | Закрыто для Wave 1. Финальный проход ещё в C1 |
 | C-W2 | Week 2: RU/EN/JSON/code tokens, temperature, top-p, variance | DONE | Студент измеряет четыре формы, temperature, top-p и пять повторов | Agent C | — | Закрыто для Wave 1 |
 | C-W3 | Week 3: Prompt A vs B на dataset | DONE | Golden set, accuracy и cost в `week-03.ts`. Нет decision card и sources | Agent C | — | Добить card + source, не переписывать |
@@ -32,14 +32,15 @@ Baseline: `origin/main` `839f135` (совпадает с HEAD на старте 
 | C-MCP | MCP threat model | DONE | Week 18: Host → Client → Server, tool shadowing и отказ host по своему списку путей | C5 | GATE 2 | Закрыто |
 | C-BUDGET | AgentBudget | DONE | Week 12: интерфейс в учебном коде, maxCost и toolBudget. Не тип платформы | C3 | GATE 2 | Закрыто |
 | C-DIST | at-most-once / exactly-once illusion названы | DONE | Week 27 и термины глоссария: at-most-once, at-least-once, exactly-once | C8 | GATE 2 | Закрыто |
-| C-MISSING | Local models, serving, fine-tune, routing, privacy taxonomy | DONE | Неделя 2: API и local. Неделя 32: один запрос, пять подряд, таймаут. Неделя 25: prompt, retrieval, fine-tune без обучения. Неделя 10: правило выбора модели. Неделя 24: четыре класса уже были | M1–M5 | GATE 3 | Новых недель нет |
+| C-MISSING | Local models, serving, fine-tune, routing, privacy taxonomy | READY_FOR_VERIFICATION | M1 неделя 2: Ollama, GGUF, quantization, RAM/VRAM, CPU vs GPU, local embeddings, licensing, privacy. M2 неделя 32: inference server, vLLM, continuous batching, KV cache, concurrency, throughput, GPU memory. M3 неделя 25: SFT, LoRA, QLoRA, instruction tuning, preference optimization. M4 неделя 10: fallback provider routing. M5 неделя 24 не ломалась. GATE 4 открыт | M1–M5 | GATE 3 | Ждёт оркестратора |
 | T-CI | PR: typecheck, lint, test, build | DONE | `.github/workflows/ci.yml` | Agent D | — | Закрыто |
 | T-CONTRACT | Unique ids/slugs, refs, no TODO/placeholder | DONE | `tests/curriculum-integrity.test.ts` | Agent D | — | Закрыто |
 | T-EXPORT | Тесты export/import | DONE | `tests/export.test.ts`: v1→v2, секреты, preview. Запись в БД не покрыта интеграционным тестом | Agent B | P0-IMPORT | Схема закрыта |
 | UX-NAV | Sidebar tree, breadcrumbs, mobile week nav | DONE | `WeekNav`: модули, крошки «Курс → модуль → неделя», disclosure ниже lg | Agent G | GATE 1 | Закрыто |
 | UX-NEXT | Где я и что дальше внутри недели | PARTIAL | Dashboard знает current week; вкладки без статуса | Agent G | — | Wave 2 |
-| P1-ANALYTICS | Funnel по LearningEvent | DONE | Дашборд считает свои строки: урок начат, урок завершён, практика или лаба, квиз сдан, артефакт готов. Новых типов нет | Wave 5 | — | Закрыто |
-| P4-MCP | Platform MCP server | NOT_STARTED | Нет | Wave 5 | Курс MCP | Не раньше |
+| P1-ANALYTICS | Funnel по LearningEvent | READY_FOR_VERIFICATION | Единица user-week. Порядок: week_opened → lesson_started → lesson_completed → practice_completed → quiz_passed → artifact_completed → week_completed. Поздний тип не обгоняет предыдущий шаг. Конверсия и отсев между соседними шагами | Wave 5.1 | — | Ждёт проверку |
+| P3-SEARCH | Семантический поиск ученика | READY_FOR_VERIFICATION | pgvector, `CourseChunk`, косинус `<=>`, модель `feature-hash-v1`, 384 измерения. Индекс уроков и глоссария. Страница `/search` | Wave 5.1 | Use case подтверждён | Ждёт проверку |
+| P4-MCP | Platform MCP server | READY_FOR_VERIFICATION | `POST /api/mcp`, ревизия 2026-07-28: `course.search`, `course.lesson`, `user.progress`, `user.notes`. Прогресс и заметки только через `getSession()`, аргумент userId игнорируется | Wave 5.1 | Курс MCP | Ждёт проверку |
 | W6-REDIS | Redis/queue | NOT_APPLICABLE | Use case не доказан. Платформа — один процесс + Postgres | Wave 6 | Измеренная боль | Не ставить зависимость |
 | W7-TUTOR | AI Tutor V1–V4 | NOT_STARTED | Нет rubrics/evals как контракта | Wave 7 | GATE 3+ | Research перед кодом |
 

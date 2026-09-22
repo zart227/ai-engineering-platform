@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 
 type AuthState = { ok: false; error: string } | null;
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, nextPath = "" }: { mode: "login" | "register"; nextPath?: string }) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, pending] = useActionState(
     async (_prev: AuthState, formData: FormData) => action(formData),
@@ -24,6 +24,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         Прогресс, заметки и проект хранятся в PostgreSQL, не только в браузере.
       </p>
       <form action={formAction} className="mt-8 space-y-4">
+        {mode === "login" ? <input type="hidden" name="next" value={nextPath} /> : null}
         {mode === "register" ? (
           <label className="block text-sm" htmlFor="auth-name">
             Имя

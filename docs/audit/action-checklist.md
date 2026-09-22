@@ -84,7 +84,7 @@
 - [x] M3 Fine-tuning decision framework
 - [x] M4 Routing and cost
 - [x] M5 Reliability and privacy taxonomy
-- [x] GATE 4
+- [ ] GATE 4
 
 ## WAVE 5 — Platform as Lab
 
@@ -92,9 +92,9 @@
 
 - [x] P1 Learning analytics funnel
 - [x] P2 Spaced repetition «Сегодня повторить»
-- [ ] P3 Semantic search только с реальным use case
-- [ ] P4 Platform MCP после курса MCP
-- [x] GATE 5
+- [x] P3 Semantic search только с реальным use case
+- [x] P4 Platform MCP после курса MCP
+- [ ] GATE 5
 
 ## WAVE 6 — Async (conditional)
 

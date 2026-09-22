@@ -230,6 +230,17 @@ model LearningEvent {
   @@index([userId, type])
 }
 
+model CourseChunk {
+  id        String   @id
+  kind      String
+  weekSlug  String?
+  title     String
+  href      String
+  body      String
+  embedding Unsupported("vector(384)")
+  updatedAt DateTime @updatedAt
+}
+
 model RecallReview {
   id           String   @id @default(cuid())
   userId       String

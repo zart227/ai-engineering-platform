@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { changePasswordAction, importLearningAction, previewImportAction } from "@/app/actions/learn";
+import { changePasswordAction, importLearningAction, previewImportAction, saveSettingsAction } from "@/app/actions/learn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,6 +20,7 @@ const countLabels: Record<string, string> = {
   weekProgress: "Прогресс недель",
   quizAttempts: "Попытки квизов",
   learningEvents: "События обучения",
+  recallReviews: "Повторения",
 };
 
 type ImportPreview = {
@@ -27,9 +28,10 @@ type ImportPreview = {
   warnings: string[];
 };
 
-export function SettingsForm({ exportJson }: { exportJson: string }) {
+export function SettingsForm({ exportJson, theme }: { exportJson: string; theme: string }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [themeValue, setThemeValue] = useState(theme);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState<unknown>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -37,6 +39,31 @@ export function SettingsForm({ exportJson }: { exportJson: string }) {
 
   return (
     <div className="mt-8 space-y-8">
+      <section>
+        <h2 className="font-heading text-2xl">Тема</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Сохранённая тема этой учётной записи. Системная следует настройке устройства.
+        </p>
+        <label className="mt-3 block text-sm" htmlFor="theme">
+          Оформление
+          <select
+            id="theme"
+            className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm"
+            value={themeValue}
+            onChange={async (event) => {
+              const next = event.target.value;
+              setThemeValue(next);
+              const result = await saveSettingsAction(next);
+              setMessage(result.ok ? "Тема сохранена" : result.error);
+              if (result.ok) router.refresh();
+            }}
+          >
+            <option value="system">Как в системе</option>
+            <option value="light">Светлая</option>
+            <option value="dark">Тёмная</option>
+          </select>
+        </label>
+      </section>
       <section>
         <h2 className="font-heading text-2xl">Пароль</h2>
         <p className="mt-1 text-sm text-muted-foreground">

@@ -30,7 +30,7 @@ Browser → ai-engineering-platform (Next.js :43127)
               → PostgreSQL (ai-engineering-platform-db)
 ```
 
-Modular monolith. Redis, pgvector, очереди, n8n, MCP и AI Tutor появляются, когда у платформы есть реальная задача. Документация: `docs/architecture/PLATFORM.md`.
+Modular monolith. Поиск ученика по материалам идёт через pgvector. MCP платформы: `course.search`, `course.lesson`, `user.progress`, `user.notes`. Redis и очередь не добавлены. Документация: `docs/architecture/PLATFORM.md`.
 
 Карта 32 недель: `docs/curriculum/32-week-map.md`.
 

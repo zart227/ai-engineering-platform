@@ -57,6 +57,18 @@ export const glossary: GlossaryTerm[] = [
   { id: "exactly-once", term: "Exactly-once", definition: "Иллюзия одной доставки от брокера. Её приближают at-least-once и сохранённый ключ.", weekSlug: "event-driven-automation", related: ["idempotency", "at-least-once"] },
   { id: "pii", term: "PII", definition: "Данные, по которым узнают человека: почта, имя, телефон. В лог и портфолио их не кладут.", weekSlug: "ai-security", related: ["audit-log"] },
   { id: "percentile", term: "Percentile", definition: "p50, p95 и p99 по своим замерам задержки. Среднее прячет хвост.", weekSlug: "observability", related: ["trace"] },
+  { id: "ollama", term: "Ollama", definition: "Локальный runtime: качает модель и считает ответ на этой машине. Это не облачный счёт.", weekSlug: "how-llms-work", related: ["gguf", "inference"] },
+  { id: "gguf", term: "GGUF", definition: "Файл квантованных весов, который читают llama.cpp и Ollama.", weekSlug: "how-llms-work", related: ["ollama", "quantization"] },
+  { id: "quantization", term: "Quantization", definition: "Меньшая точность чисел в весах. Модель занимает меньше RAM и VRAM и иначе ошибается.", weekSlug: "how-llms-work", related: ["gguf"] },
+  { id: "sft", term: "SFT", definition: "Supervised fine-tuning: пары инструкция и ответ. Имеет смысл после устойчивого разрыва held-out, который контекст не закрыл.", weekSlug: "evals", related: ["lora", "held-out"] },
+  { id: "lora", term: "LoRA", definition: "Маленькие обучаемые добавки к замороженным весам. Не полное обучение сети.", weekSlug: "evals", related: ["sft", "qlora"] },
+  { id: "qlora", term: "QLoRA", definition: "LoRA поверх квантованной базы. Меньше памяти, то же правило held-out.", weekSlug: "evals", related: ["lora", "quantization"] },
+  { id: "instruction-tuning", term: "Instruction tuning", definition: "Обучение на корпусе инструкций. Родственник SFT, не замена retrieval.", weekSlug: "evals", related: ["sft"] },
+  { id: "preference-optimization", term: "Preference optimization", definition: "Обучение на парах «этот ответ лучше того». Не начинают, пока контекст закрывает разрыв held-out.", weekSlug: "evals", related: ["sft", "held-out"] },
+  { id: "vllm", term: "vLLM", definition: "Inference server: держит модель в GPU memory и ведёт несколько генераций сразу.", weekSlug: "production-ai", related: ["kv-cache", "inference"] },
+  { id: "kv-cache", term: "KV cache", definition: "Ключи и значения attention уже посчитанных токенов. Повтор префикса дешевле, пока кэш помещается в GPU memory.", weekSlug: "production-ai", related: ["vllm"] },
+  { id: "continuous-batching", term: "Continuous batching", definition: "Новый запрос садится в уже идущую пачку генераций. Это работа inference server, не пять вызовов подряд из цикла.", weekSlug: "production-ai", related: ["vllm"] },
+  { id: "provider-routing", term: "Provider routing", definition: "Код выбирает провайдера. Timeout, 429 и 5xx идут в fallback один раз. 401 fallback не вызывает.", weekSlug: "ai-automation", related: ["inference"] },
 ];
 
 export function getGlossaryTerm(id: string) {

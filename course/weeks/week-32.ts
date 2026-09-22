@@ -7,6 +7,7 @@ import {
   decision,
   diagram,
   exercise,
+  h,
   lab,
   lesson,
   p,
@@ -181,6 +182,46 @@ export const week32 = week({
         ),
       ]
     ),
+    lesson(
+      "prod-l6",
+      "Inference server: vLLM, batching и KV cache",
+      16,
+      [
+        "Отличить один запрос от serving",
+        "Назвать continuous batching, KV cache, concurrency, throughput и GPU memory",
+      ],
+      [
+        p(
+          "Пять запросов подряд и короткий timeout измеряют клиента. Это не serving. Inference server принимает много запросов сразу и решает, как делить GPU."
+        ),
+        h("vLLM и continuous batching"),
+        p(
+          "vLLM это inference server. Он держит модель в GPU memory и собирает одновременно идущие генерации. Обычный batching ждёт, пока наберётся пачка, и тогда считает её целиком. Continuous batching подсаживает новый запрос в уже идущую пачку, когда у другого запроса шаг закончился. Так растёт throughput, а не только latency одного вызова."
+        ),
+        ul([
+          "KV cache хранит ключи и значения attention уже посчитанных токенов. Повтор префикса дешевле, пока кэш жив.",
+          "Concurrency это сколько генераций сервер ведёт одновременно. Выше concurrency при той же GPU memory упирается в нехватку кэша.",
+          "GPU memory делят веса и KV cache. Длинный контекст съедает место под чужие запросы.",
+          "Throughput это завершённые запросы за время, не TTFT одного холодного вызова.",
+        ]),
+        callout(
+          "Не путать с лабой",
+          "Шаг «один запрос, пять подряд, короткий timeout» остаётся замером клиента. vLLM, continuous batching и KV cache объясняют, что делает сервер, когда запросов много.",
+          "info"
+        ),
+        check(
+          "Почему пять подряд ещё не continuous batching?",
+          "Они идут по очереди из вашего цикла. Continuous batching смешивает генерации внутри inference server."
+        ),
+        reading([
+          {
+            title: "vLLM",
+            url: "https://docs.vllm.ai/",
+            note: "Inference server, continuous batching и PagedAttention. Сверяйте версию, которую ставите.",
+          },
+        ]),
+      ]
+    ),
   ],
   lab: lab({
     id: "prod-lab",
@@ -295,6 +336,19 @@ export const week32 = week({
     q("w32-q6", "conceptual", "Откуда в таблице маршрута качество, задержка и стоимость?", ["Из своего прогона двух моделей на одном наборе", "Из прайс-листа на сайте провайдера", "Из чужого блога про бенчмарк", "Из длины промпта в символах"], 0, "Чужой прайс не ваш latency и не ваш счёт. Нет usage значит unknown."),
     q("w32-q7", "debugging", "p95 в чеклисте скопирован из статьи. Своего прогона нет. Что поставить?", ["Оставить число, статья свежая", "Умножить на два", "unknown, пока нет своих задержек", "Ноль"], 2, "p95 считают по своим запросам. Чужое число не факт вашего сервиса."),
     q("w32-q8", "scenario", "Провайдер вернул 429. Что попадает в лог, а что вырезают?", ["Ключ в лог, текст человеку пустой", "Полный промпт и Authorization", "Ничего не логируют", "request id, модель и статус. Ключ и Authorization вырезаны. Человек видит fallback"], 3, "Деградация видимая. Секрет в журнал инцидента не кладут."),
+    q(
+      "w32-q9",
+      "conceptual",
+      "Чем inference server отличается от пяти запросов подряд из вашего цикла?",
+      [
+        "Ничем: очередь из пяти вызовов это continuous batching",
+        "Сервер, например vLLM, делит GPU memory между генерациями. Continuous batching, KV cache, concurrency и throughput относятся к нему, а не к одному timeout",
+        "Он нужен, чтобы спрятать ключ в лог",
+        "Он заменяет таблицу quality, latency и cost",
+      ],
+      1,
+      "Пять подряд и короткий timeout остаются замером клиента. Serving это общая GPU memory и пачка генераций."
+    ),
   ]),
   artifact: artifact({
     result: "Runbook, схема контейнеров и фикстура видимого 429.",
@@ -342,6 +396,7 @@ export const week32 = week({
     "Сравнить дешёвую и сильную модель на одном своём наборе: качество, задержка, стоимость.",
     "Показать человеку текст, когда провайдер вернул 429.",
     "Не копировать в таблицу цены и latency с чужого прайса.",
+    "Отличить inference server (vLLM, continuous batching, KV cache, concurrency, throughput, GPU memory) от пяти запросов подряд.",
   ],
   experiments: [
     {
