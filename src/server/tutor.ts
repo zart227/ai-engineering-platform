@@ -9,6 +9,22 @@ export const TUTOR_RATE_LIMIT = 20;
 export const TUTOR_RATE_WINDOW_MS = 15 * 60 * 1000;
 export const TUTOR_QUESTION_MAX = 2000;
 
+/** Minimum solution length so the substring/overlap guards are not vacuous. */
+export const TUTOR_SECRET_MIN_CHARS = 40;
+/** Contiguous normalized window used as a paraphrase-oriented leak signal. */
+export const TUTOR_LEAK_WINDOW_CHARS = 48;
+/** Fraction of content tokens from a secret that must appear in the reply to reject. */
+export const TUTOR_TOKEN_OVERLAP_RATIO = 0.72;
+
+/**
+ * Limitation (H9): these guards catch exact and near-exact leaks (normalized
+ * substring, long contiguous windows, high content-token overlap). They do not
+ * catch synonym-only paraphrases with little lexical overlap. A full semantic
+ * leak detector would need a judge model or embeddings; out of scope for V1.
+ */
+export const TUTOR_LEAK_DETECTOR_LIMITATION =
+  "Conservative lexical guards only: exact/normalized containment, long contiguous windows, and high content-token overlap. Synonym-only paraphrases may pass.";
+
 export const TUTOR_SYSTEM_PROMPT = [
   "Ты тьютор одного урока на платформе.",
   "Отвечай только по учебному тексту этого урока и вопросу студента.",
@@ -23,7 +39,24 @@ export type TutorSession = { user: { id: string } } | null;
 export type TutorWeek = {
   slug: string;
   lessons: Lesson[];
-  practice: { solution: string };
+  practice: { solution: string; hints?: { title: string; text: string }[] };
+  quiz?: {
+    questions: { answer: number; options: string[]; explanation?: string }[];
+  };
+  recall?: { answer: string }[];
+};
+
+export type TutorLeakReason =
+  | "solution"
+  | "check_answer"
+  | "quiz_key"
+  | "recall_answer"
+  | "out_of_scope_lesson";
+
+export type TutorReplyEval = {
+  ok: boolean;
+  reasons: TutorLeakReason[];
+  solutionAbsent: boolean;
 };
 
 type TutorLog = (level: "info" | "warn" | "error", message: string, fields?: Record<string, unknown>) => void;
@@ -75,10 +108,145 @@ export function buildTutorPrompt(lesson: Lesson, question: string) {
   };
 }
 
-export function replyContainsSolution(reply: string, solution: string) {
-  const needle = solution.trim();
+export function normalizeTutorText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function contentTokens(normalized: string) {
+  return normalized
+    .split(/[^a-zа-яё0-9_-]+/i)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
+}
+
+function replyContainsNormalized(reply: string, secret: string) {
+  const needle = normalizeTutorText(secret);
   if (!needle) return false;
-  return reply.includes(needle);
+  return normalizeTutorText(reply).includes(needle);
+}
+
+function replySharesLongWindow(reply: string, secret: string) {
+  const normReply = normalizeTutorText(reply);
+  const normSecret = normalizeTutorText(secret);
+  if (normSecret.length < TUTOR_SECRET_MIN_CHARS) return false;
+  const window = Math.min(TUTOR_LEAK_WINDOW_CHARS, Math.max(TUTOR_SECRET_MIN_CHARS, Math.floor(normSecret.length * 0.45)));
+  if (normSecret.length < window) return false;
+  for (let index = 0; index <= normSecret.length - window; index += 1) {
+    if (normReply.includes(normSecret.slice(index, index + window))) return true;
+  }
+  return false;
+}
+
+function replySharesTokenOverlap(reply: string, secret: string) {
+  const secretTokens = contentTokens(normalizeTutorText(secret));
+  if (secretTokens.length < 6) return false;
+  const replySet = new Set(contentTokens(normalizeTutorText(reply)));
+  let hits = 0;
+  for (const token of secretTokens) {
+    if (replySet.has(token)) hits += 1;
+  }
+  return hits / secretTokens.length >= TUTOR_TOKEN_OVERLAP_RATIO;
+}
+
+const MIN_DISTINCTIVE_SECRET_CHARS = 16;
+
+/** True when the reply appears to leak the secret via exact or paraphrase-oriented overlap. */
+export function replyLeaksSecret(reply: string, secret: string) {
+  const trimmed = secret.trim();
+  if (!trimmed) return false;
+  if (normalizeTutorText(trimmed).length < MIN_DISTINCTIVE_SECRET_CHARS) return false;
+  return (
+    replyContainsNormalized(reply, trimmed) ||
+    replySharesLongWindow(reply, trimmed) ||
+    replySharesTokenOverlap(reply, trimmed)
+  );
+}
+
+export function solutionAbsent(reply: string, solution: string) {
+  return !replyLeaksSecret(reply, solution);
+}
+
+/** Prefer solutionAbsent / replyLeaksSecret; kept for existing call sites. */
+export function replyContainsSolution(reply: string, solution: string) {
+  return replyLeaksSecret(reply, solution);
+}
+
+export function collectTutorForbiddenSecrets(
+  week: TutorWeek,
+  options: { outOfScopeTexts?: string[] } = {},
+) {
+  const solution = week.practice.solution.trim();
+  const checkAnswers: string[] = [];
+  const quizKeys: string[] = [];
+  const recallAnswers: string[] = [];
+
+  for (const lesson of week.lessons) {
+    for (const block of lesson.blocks) {
+      if (block.type === "check" && block.answer.trim()) {
+        checkAnswers.push(block.answer.trim());
+      }
+    }
+  }
+
+  for (const question of week.quiz?.questions ?? []) {
+    const option = question.options[question.answer];
+    if (typeof option === "string" && option.trim()) quizKeys.push(option.trim());
+    if (question.explanation?.trim()) quizKeys.push(question.explanation.trim());
+  }
+
+  for (const card of week.recall ?? []) {
+    if (card.answer.trim()) recallAnswers.push(card.answer.trim());
+  }
+
+  return {
+    solution,
+    checkAnswers,
+    quizKeys,
+    recallAnswers,
+    outOfScopeLesson: (options.outOfScopeTexts ?? []).map((text) => text.trim()).filter(Boolean),
+  };
+}
+
+export function evaluateTutorReply(
+  reply: string,
+  week: TutorWeek,
+  _lessonId: string,
+  options: { outOfScopeTexts?: string[] } = {},
+): TutorReplyEval {
+  const secrets = collectTutorForbiddenSecrets(week, options);
+  const reasons: TutorLeakReason[] = [];
+
+  if (replyLeaksSecret(reply, secrets.solution)) reasons.push("solution");
+  for (const answer of secrets.checkAnswers) {
+    if (replyLeaksSecret(reply, answer)) {
+      reasons.push("check_answer");
+      break;
+    }
+  }
+  for (const key of secrets.quizKeys) {
+    if (replyLeaksSecret(reply, key)) {
+      reasons.push("quiz_key");
+      break;
+    }
+  }
+  for (const answer of secrets.recallAnswers) {
+    if (replyLeaksSecret(reply, answer)) {
+      reasons.push("recall_answer");
+      break;
+    }
+  }
+  for (const text of secrets.outOfScopeLesson) {
+    if (replyLeaksSecret(reply, text)) {
+      reasons.push("out_of_scope_lesson");
+      break;
+    }
+  }
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    solutionAbsent: !reasons.includes("solution"),
+  };
 }
 
 function ownerId(session: TutorSession) {
@@ -117,6 +285,25 @@ function logFields(input: { userId: string; weekSlug?: string; lessonId?: string
   };
 }
 
+function asTutorWeek(week: ReturnType<typeof getWeek> | TutorWeek | undefined): TutorWeek | undefined {
+  if (!week) return undefined;
+  return {
+    slug: week.slug,
+    lessons: week.lessons,
+    practice: { solution: week.practice.solution, hints: week.practice.hints },
+    quiz: week.quiz
+      ? {
+          questions: week.quiz.questions.map((question) => ({
+            answer: question.answer,
+            options: question.options,
+            explanation: question.explanation,
+          })),
+        }
+      : undefined,
+    recall: week.recall?.map((card) => ({ answer: card.answer })),
+  };
+}
+
 export async function answerTutor(input: {
   session: TutorSession;
   body: unknown;
@@ -137,7 +324,8 @@ export async function answerTutor(input: {
     return { status: 400, body: { ok: false, error: "bad_request" } };
   }
 
-  const week = (input.loadWeek ?? ((slug: string) => getWeek(slug)))(parsed.weekSlug);
+  const rawWeek = (input.loadWeek ?? ((slug: string) => asTutorWeek(getWeek(slug))))(parsed.weekSlug);
+  const week = rawWeek ? asTutorWeek(rawWeek) : undefined;
   const lesson = week?.lessons.find((item) => item.id === parsed.lessonId);
   if (!week || !lesson) {
     return { status: 404, body: { ok: false, error: "not_found" } };
@@ -171,7 +359,8 @@ export async function answerTutor(input: {
     return { status: 502, body: { ok: false, error: "provider_error" } };
   }
 
-  if (replyContainsSolution(reply, week.practice.solution)) {
+  const evaluation = evaluateTutorReply(reply, week, parsed.lessonId);
+  if (!evaluation.ok) {
     log(
       "warn",
       "tutor_reply_rejected",
