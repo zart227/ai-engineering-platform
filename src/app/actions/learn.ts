@@ -3,6 +3,11 @@
 import { getWeek } from "@course";
 import { scoreQuiz } from "@course/completion";
 import { requireUser } from "@/server/auth";
+import {
+  assessSelfCheck,
+  weekRequiresArtifactRubric,
+  type CriterionSelfCheckInput,
+} from "@/server/artifact-assessment";
 import { prisma } from "@/server/db";
 import { ExportFormatError, importExport, migrateExport, previewImport } from "@/server/export";
 import { recordEvent, safePersistWeek } from "@/server/progress";
@@ -233,16 +238,46 @@ export async function saveArtifactAction(input: {
 }) {
   const validated = validateWeekSlug(input.weekSlug);
   if (!validated.ok) return validated;
-  const completion = validateArtifactCompletion(input.completed, {
+  const fields = {
     notes: input.notes,
     githubUrl: input.githubUrl,
     demoUrl: input.demoUrl,
-  });
-  if (!completion.ok) return completion;
+  };
+  const basic = validateArtifactCompletion(input.completed, fields);
+  if (!basic.ok) return basic;
+
+  const rubricRequired = weekRequiresArtifactRubric(validated.week);
+  if (input.completed && rubricRequired) {
+    const user = await requireUser();
+    const assessment = await prisma.artifactAssessment.findUnique({
+      where: { userId_weekSlug: { userId: user.id, weekSlug: input.weekSlug } },
+      select: { passed: true },
+    });
+    const rubricGate = validateArtifactCompletion(input.completed, fields, {
+      rubricRequired: true,
+      rubricPassed: Boolean(assessment?.passed),
+    });
+    if (!rubricGate.ok) return rubricGate;
+    return persistArtifactProgress(user.id, input);
+  }
+
   const user = await requireUser();
+  return persistArtifactProgress(user.id, input);
+}
+
+async function persistArtifactProgress(
+  userId: string,
+  input: {
+    weekSlug: string;
+    notes: string;
+    githubUrl: string;
+    demoUrl: string;
+    completed: boolean;
+  }
+) {
   try {
     await prisma.artifactProgress.upsert({
-      where: { userId_weekSlug: { userId: user.id, weekSlug: input.weekSlug } },
+      where: { userId_weekSlug: { userId, weekSlug: input.weekSlug } },
       update: {
         notes: input.notes,
         githubUrl: input.githubUrl,
@@ -250,7 +285,7 @@ export async function saveArtifactAction(input: {
         completed: input.completed,
       },
       create: {
-        userId: user.id,
+        userId,
         weekSlug: input.weekSlug,
         notes: input.notes,
         githubUrl: input.githubUrl,
@@ -259,12 +294,84 @@ export async function saveArtifactAction(input: {
       },
     });
     if (input.completed) {
-      await recordEvent(user.id, "artifact_completed", { weekSlug: input.weekSlug });
+      await recordEvent(userId, "artifact_completed", { weekSlug: input.weekSlug });
     }
-    await safePersistWeek(user.id, input.weekSlug);
+    await safePersistWeek(userId, input.weekSlug);
     return { ok: true as const };
   } catch {
     return { ok: false as const, error: "Не удалось сохранить артефакт." };
+  }
+}
+
+export async function saveArtifactAssessmentAction(input: {
+  weekSlug: string;
+  criteria: CriterionSelfCheckInput[];
+}) {
+  const validated = validateWeekSlug(input.weekSlug);
+  if (!validated.ok) return validated;
+  const assessed = assessSelfCheck(input.weekSlug, input.criteria);
+  if (!assessed.ok) return assessed;
+  const user = await requireUser();
+  try {
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.artifactAssessment.findUnique({
+        where: { userId_weekSlug: { userId: user.id, weekSlug: input.weekSlug } },
+        select: { id: true },
+      });
+      const assessment = existing
+        ? await tx.artifactAssessment.update({
+            where: { id: existing.id },
+            data: {
+              source: assessed.source,
+              score: assessed.score,
+              passed: assessed.passed,
+              assessedAt: now,
+            },
+          })
+        : await tx.artifactAssessment.create({
+            data: {
+              userId: user.id,
+              weekSlug: input.weekSlug,
+              source: assessed.source,
+              score: assessed.score,
+              passed: assessed.passed,
+              assessedAt: now,
+            },
+          });
+
+      await tx.rubricCriterionResult.deleteMany({ where: { assessmentId: assessment.id } });
+      if (assessed.criteria.length > 0) {
+        await tx.rubricCriterionResult.createMany({
+          data: assessed.criteria.map((row) => ({
+            assessmentId: assessment.id,
+            criterionId: row.criterionId,
+            met: row.met,
+            evidence: row.evidence,
+            weight: row.weight,
+          })),
+        });
+      }
+
+      if (!assessed.passed) {
+        await tx.artifactProgress.updateMany({
+          where: { userId: user.id, weekSlug: input.weekSlug, completed: true },
+          data: { completed: false },
+        });
+      }
+    });
+    await recordEvent(user.id, assessed.passed ? "artifact_rubric_passed" : "artifact_rubric_saved", {
+      weekSlug: input.weekSlug,
+      payload: { score: assessed.score, passed: assessed.passed },
+    });
+    await safePersistWeek(user.id, input.weekSlug);
+    return {
+      ok: true as const,
+      score: assessed.score,
+      passed: assessed.passed,
+    };
+  } catch {
+    return { ok: false as const, error: "Не удалось сохранить самооценку рубрики." };
   }
 }
 

@@ -1,6 +1,7 @@
 import { weeks } from "@course";
 import { weekComplete, weekParts, weekPercent } from "@course/completion";
 import { cache } from "react";
+import { isRubricSatisfiedForCompletion } from "@/server/artifact-assessment";
 import { prisma } from "@/server/db";
 import { logError } from "@/server/logger";
 
@@ -9,6 +10,7 @@ export type ProgressSummaryInput = {
   labs: { labId: string; completedAt: Date | null }[];
   exercises: { exerciseId: string; completedAt: Date | null }[];
   artifacts: { weekSlug: string; completed: boolean }[];
+  assessments: { weekSlug: string; passed: boolean }[];
   quizzes: Map<string, { passed: boolean }>;
 };
 
@@ -59,7 +61,7 @@ export async function recordEvent(
 }
 
 async function loadCourseProgressData(userId: string): Promise<ProgressSummaryInput> {
-  const [lessons, labs, exercises, artifacts, quizzes] = await Promise.all([
+  const [lessons, labs, exercises, artifacts, assessments, quizzes] = await Promise.all([
     prisma.lessonProgress.findMany({
       where: { userId },
       select: { lessonId: true, completedAt: true },
@@ -76,6 +78,10 @@ async function loadCourseProgressData(userId: string): Promise<ProgressSummaryIn
       where: { userId },
       select: { weekSlug: true, completed: true },
     }),
+    prisma.artifactAssessment.findMany({
+      where: { userId },
+      select: { weekSlug: true, passed: true },
+    }),
     prisma.quizAttempt.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -88,6 +94,7 @@ async function loadCourseProgressData(userId: string): Promise<ProgressSummaryIn
     labs,
     exercises,
     artifacts,
+    assessments,
     quizzes: latestQuizByWeek(quizzes),
   };
 }
@@ -101,6 +108,7 @@ async function loadLearningStateData(userId: string) {
     labs,
     exercises,
     artifacts,
+    assessments,
     quizzes,
     answers,
     notes,
@@ -112,6 +120,10 @@ async function loadLearningStateData(userId: string) {
     prisma.labProgress.findMany({ where: { userId } }),
     prisma.exerciseProgress.findMany({ where: { userId } }),
     prisma.artifactProgress.findMany({ where: { userId } }),
+    prisma.artifactAssessment.findMany({
+      where: { userId },
+      include: { criteria: true },
+    }),
     prisma.quizAttempt.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -128,6 +140,7 @@ async function loadLearningStateData(userId: string) {
     labs,
     exercises,
     artifacts,
+    assessments,
     quizzes: latestQuizByWeek(quizzes),
     allQuizzes: quizzes,
     answers,
@@ -153,17 +166,25 @@ export function summarizeWeeks(state: ProgressSummaryInput) {
   const practiceDone = new Set(
     state.exercises.filter((item) => item.completedAt).map((item) => item.exerciseId)
   );
-  const artifactDone = new Set(
-    state.artifacts.filter((item) => item.completed).map((item) => item.weekSlug)
+  const artifactCompleted = new Map(
+    state.artifacts.map((item) => [item.weekSlug, item.completed] as const)
+  );
+  const assessmentPassed = new Map(
+    state.assessments.map((item) => [item.weekSlug, item.passed] as const)
   );
 
   return weeks.map((week) => {
     const quiz = state.quizzes.get(week.slug);
+    const artifactDone = isRubricSatisfiedForCompletion({
+      week,
+      artifactCompleted: Boolean(artifactCompleted.get(week.slug)),
+      assessmentPassed: Boolean(assessmentPassed.get(week.slug)),
+    });
     const parts = weekParts(week, {
       completedLessons,
       labDone: labDone.has(week.lab.id),
       practiceDone: practiceDone.has(week.practice.id),
-      artifactDone: artifactDone.has(week.slug),
+      artifactDone,
       quizPassed: Boolean(quiz?.passed),
     });
     return {
