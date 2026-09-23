@@ -13,6 +13,12 @@ import { ExportFormatError, importExport, migrateExport, previewImport } from "@
 import { recordEvent, safePersistWeek } from "@/server/progress";
 import { changePassword } from "@/server/auth";
 import {
+  canUnlockNextHint,
+  canUnlockSolution,
+  normalizeProgressionState,
+  shouldCountAttempt,
+} from "@/server/practice-progression";
+import {
   validateArtifactCompletion,
   validateLabCompletion,
   validateLabInWeek,
@@ -147,8 +153,15 @@ export async function savePracticeAnswerAction(input: {
   githubUrl?: string;
   resultUrl?: string;
 }) {
+  const validated = validatePracticeInWeek(input.weekSlug, input.exerciseId);
+  if (!validated.ok) return validated;
   const user = await requireUser();
   try {
+    const previous = await prisma.exerciseAnswer.findUnique({
+      where: { userId_exerciseId: { userId: user.id, exerciseId: input.exerciseId } },
+      select: { body: true },
+    });
+    const counted = shouldCountAttempt(previous?.body, input.body);
     await prisma.exerciseAnswer.upsert({
       where: { userId_exerciseId: { userId: user.id, exerciseId: input.exerciseId } },
       update: {
@@ -166,26 +179,96 @@ export async function savePracticeAnswerAction(input: {
         resultUrl: input.resultUrl ?? "",
       },
     });
-    return { ok: true as const };
+    if (counted) {
+      const progress = await prisma.exerciseProgress.findUnique({
+        where: { userId_exerciseId: { userId: user.id, exerciseId: input.exerciseId } },
+      });
+      const normalized = normalizeProgressionState({
+        hintsUsed: progress?.hintsUsed ?? 0,
+        solutionViewed: progress?.solutionViewed ?? false,
+        attemptCount: progress?.attemptCount ?? 0,
+        attemptCountAtLastHint: progress?.attemptCountAtLastHint ?? 0,
+      });
+      const nextAttempt = normalized.attemptCount + 1;
+      await prisma.exerciseProgress.upsert({
+        where: { userId_exerciseId: { userId: user.id, exerciseId: input.exerciseId } },
+        update: {
+          weekSlug: input.weekSlug,
+          attemptCount: nextAttempt,
+          lastAttemptAt: new Date(),
+          attemptCountAtLastHint: normalized.attemptCountAtLastHint,
+          hintsUsed: normalized.hintsUsed,
+          solutionViewed: normalized.solutionViewed,
+        },
+        create: {
+          userId: user.id,
+          exerciseId: input.exerciseId,
+          weekSlug: input.weekSlug,
+          attemptCount: 1,
+          lastAttemptAt: new Date(),
+          attemptCountAtLastHint: 0,
+        },
+      });
+      return { ok: true as const, attemptCounted: true as const, attemptCount: nextAttempt };
+    }
+    return { ok: true as const, attemptCounted: false as const };
   } catch {
     return { ok: false as const, error: "Не удалось сохранить ответ." };
   }
 }
 
 export async function markHintAction(exerciseId: string, weekSlug: string) {
+  const validated = validatePracticeInWeek(weekSlug, exerciseId);
+  if (!validated.ok) return validated;
   const user = await requireUser();
+  const hintTotal = validated.week.practice.hints.length;
   const current = await prisma.exerciseProgress.findUnique({
     where: { userId_exerciseId: { userId: user.id, exerciseId } },
   });
+  const state = normalizeProgressionState({
+    hintsUsed: current?.hintsUsed ?? 0,
+    solutionViewed: current?.solutionViewed ?? false,
+    attemptCount: current?.attemptCount ?? 0,
+    attemptCountAtLastHint: current?.attemptCountAtLastHint ?? 0,
+  });
+  if (!canUnlockNextHint(state, hintTotal)) {
+    return {
+      ok: false as const,
+      error: "Сначала сохраните новую попытку решения, затем откройте следующую подсказку.",
+      hintsUsed: state.hintsUsed,
+    };
+  }
+  const nextHints = state.hintsUsed + 1;
+  const hint = validated.week.practice.hints[state.hintsUsed];
+  if (!hint) {
+    return { ok: false as const, error: "Подсказка не найдена.", hintsUsed: state.hintsUsed };
+  }
   await prisma.exerciseProgress.upsert({
     where: { userId_exerciseId: { userId: user.id, exerciseId } },
-    update: { hintsUsed: { increment: 1 } },
-    create: { userId: user.id, exerciseId, weekSlug, hintsUsed: 1 },
+    update: {
+      weekSlug,
+      hintsUsed: nextHints,
+      attemptCount: state.attemptCount,
+      attemptCountAtLastHint: state.attemptCount,
+    },
+    create: {
+      userId: user.id,
+      exerciseId,
+      weekSlug,
+      hintsUsed: nextHints,
+      attemptCount: state.attemptCount,
+      attemptCountAtLastHint: state.attemptCount,
+    },
   });
   await recordEvent(user.id, "hint_requested", {
     weekSlug,
-    payload: { n: (current?.hintsUsed ?? 0) + 1 },
+    payload: { n: nextHints },
   });
+  return {
+    ok: true as const,
+    hintsUsed: nextHints,
+    hint: { title: hint.title, text: hint.text },
+  };
 }
 
 export async function markSolutionAction(exerciseId: string, weekSlug: string) {
@@ -194,10 +277,43 @@ export async function markSolutionAction(exerciseId: string, weekSlug: string) {
   if (!week || week.practice.id !== exerciseId) {
     return { ok: false as const, error: "Упражнение не найдено." };
   }
+  const current = await prisma.exerciseProgress.findUnique({
+    where: { userId_exerciseId: { userId: user.id, exerciseId } },
+  });
+  const state = normalizeProgressionState({
+    hintsUsed: current?.hintsUsed ?? 0,
+    solutionViewed: current?.solutionViewed ?? false,
+    attemptCount: current?.attemptCount ?? 0,
+    attemptCountAtLastHint: current?.attemptCountAtLastHint ?? 0,
+  });
+  const hintTotal = week.practice.hints.length;
+  if (!canUnlockSolution(state, hintTotal)) {
+    return {
+      ok: false as const,
+      error:
+        hintTotal > 0
+          ? "Сначала откройте все подсказки по порядку попыток."
+          : "Сначала сохраните попытку решения.",
+    };
+  }
   await prisma.exerciseProgress.upsert({
     where: { userId_exerciseId: { userId: user.id, exerciseId } },
-    update: { solutionViewed: true },
-    create: { userId: user.id, exerciseId, weekSlug, solutionViewed: true },
+    update: {
+      weekSlug,
+      solutionViewed: true,
+      attemptCount: state.attemptCount,
+      attemptCountAtLastHint: state.attemptCountAtLastHint,
+      hintsUsed: state.hintsUsed,
+    },
+    create: {
+      userId: user.id,
+      exerciseId,
+      weekSlug,
+      solutionViewed: true,
+      attemptCount: state.attemptCount,
+      attemptCountAtLastHint: state.attemptCountAtLastHint,
+      hintsUsed: state.hintsUsed,
+    },
   });
   await recordEvent(user.id, "solution_viewed", { weekSlug });
   return { ok: true as const, solution: week.practice.solution };

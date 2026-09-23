@@ -71,6 +71,7 @@ export type WeekClientState = {
   practiceGithub: string;
   practiceResult: string;
   hintsUsed: number;
+  solutionViewed: boolean;
   note: string;
   quizPassed: boolean;
   lastQuizScore: number | null;
@@ -189,6 +190,7 @@ export function WeekWorkspace({ week, initial }: { week: WeekClientPayload; init
                 github={state.practiceGithub}
                 result={state.practiceResult}
                 hintsUsed={state.hintsUsed}
+                solutionViewed={state.solutionViewed}
                 onToggle={async (value) => {
                   await togglePracticeAction(week.practice.id, week.slug, value);
                   setState((prev) => ({ ...prev, practiceDone: value }));
@@ -202,8 +204,18 @@ export function WeekWorkspace({ week, initial }: { week: WeekClientPayload; init
                     githubUrl: next.github,
                     resultUrl: next.result,
                   });
+                  if (result.ok) {
+                    setState((prev) => ({
+                      ...prev,
+                      practiceBody: next.body,
+                      practiceGithub: next.github,
+                      practiceResult: next.result,
+                    }));
+                  }
                   return result;
                 }}
+                onHintsUsed={(hintsUsed) => setState((prev) => ({ ...prev, hintsUsed }))}
+                onSolutionViewed={() => setState((prev) => ({ ...prev, solutionViewed: true }))}
               />
             ) : null}
             {tab === "prompts" ? (
@@ -528,8 +540,11 @@ function PracticePanel({
   github,
   result,
   hintsUsed,
+  solutionViewed,
   onToggle,
   onSave,
+  onHintsUsed,
+  onSolutionViewed,
 }: {
   week: WeekClientPayload;
   done: boolean;
@@ -537,15 +552,20 @@ function PracticePanel({
   github: string;
   result: string;
   hintsUsed: number;
+  solutionViewed: boolean;
   onToggle: (value: boolean) => Promise<void>;
   onSave: (next: { body: string; github: string; result: string }) => Promise<{ ok: boolean }>;
+  onHintsUsed: (hintsUsed: number) => void;
+  onSolutionViewed: () => void;
 }) {
   const exercise = week.practice;
   const [githubUrl, setGithub] = useState(github);
   const [resultUrl, setResult] = useState(result);
+  const [unlockedHints, setUnlockedHints] = useState(exercise.hints);
   const [openHint, setOpenHint] = useState(hintsUsed);
-  const [showSolution, setShowSolution] = useState(false);
+  const [showSolution, setShowSolution] = useState(solutionViewed);
   const [solution, setSolution] = useState<string | null>(null);
+  const [gateError, setGateError] = useState("");
 
   return (
     <div className="mt-6 space-y-5" data-panel="practice">
@@ -581,18 +601,31 @@ function PracticePanel({
         />
       </label>
       <div className="space-y-2">
-        {exercise.hints.slice(0, openHint).map((hint) => (
+        {unlockedHints.map((hint) => (
           <p key={hint.title} className="rounded-xl bg-muted px-3 py-2 text-sm leading-6">
             <span className="font-medium">{hint.title}. </span>
             {hint.text}
           </p>
         ))}
-        {openHint < exercise.hints.length ? (
+        {openHint < exercise.hintsTotal ? (
           <Button
             variant="outline"
-            onClick={() => {
-              setOpenHint((value) => value + 1);
-              void markHintAction(exercise.id, week.slug);
+            onClick={async () => {
+              setGateError("");
+              const result = await markHintAction(exercise.id, week.slug);
+              if (!result.ok) {
+                setGateError(result.error ?? "Не удалось открыть подсказку.");
+                return;
+              }
+              if (result.hint) {
+                setUnlockedHints((prev) =>
+                  prev.some((item) => item.title === result.hint!.title)
+                    ? prev
+                    : [...prev, result.hint!]
+                );
+              }
+              setOpenHint(result.hintsUsed);
+              onHintsUsed(result.hintsUsed);
             }}
           >
             Подсказка {openHint + 1}
@@ -603,10 +636,15 @@ function PracticePanel({
         <Button
           variant="ghost"
           onClick={async () => {
+            setGateError("");
             const result = await markSolutionAction(exercise.id, week.slug);
-            if (!result.ok) return;
+            if (!result.ok) {
+              setGateError(result.error ?? "Не удалось открыть решение.");
+              return;
+            }
             setSolution(result.solution);
             setShowSolution(true);
+            onSolutionViewed();
           }}
         >
           Показать решение
@@ -615,6 +653,7 @@ function PracticePanel({
           <p className="mt-3 text-sm leading-6 text-muted-foreground">{solution}</p>
         ) : null}
       </div>
+      {gateError ? <p className="text-sm text-destructive">{gateError}</p> : null}
       <DoneButton checked={done} onChange={(value) => onToggle(value)}>
         Практика сделана
       </DoneButton>
