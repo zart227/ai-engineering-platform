@@ -62,17 +62,60 @@ describe("semantic course search", () => {
     const originalFindUnique = prisma.courseChunk.findUnique;
     const originalTransaction = prisma.$transaction;
     let transactionCalls = 0;
+    let deleteManyCalls = 0;
     prisma.courseChunk.findUnique = (async () => ({ body: "stale-stamp" })) as unknown as typeof prisma.courseChunk.findUnique;
-    prisma.$transaction = (async (callback: (tx: { $executeRaw: () => Promise<number> }) => Promise<void>) => {
+    prisma.$transaction = (async (callback: (tx: { $executeRaw: () => Promise<number>; courseChunk: { deleteMany: () => Promise<number> } }) => Promise<void>) => {
       transactionCalls += 1;
       await callback({
         $executeRaw: async () => 1,
+        courseChunk: {
+          deleteMany: async () => {
+            deleteManyCalls += 1;
+            return 1;
+          },
+        },
       });
     }) as unknown as typeof prisma.$transaction;
     try {
       const result = await ensureCourseIndex();
       assert.equal(result, stamp);
       assert.equal(transactionCalls, 1);
+      assert.equal(deleteManyCalls, 1);
+    } finally {
+      prisma.courseChunk.findUnique = originalFindUnique;
+      prisma.$transaction = originalTransaction;
+    }
+  });
+
+  it("deletes stale chunk ids during rebuild", async () => {
+    const stamp = expectedCourseIndexStamp();
+    const descriptors = buildCourseChunkDescriptors();
+    const originalFindUnique = prisma.courseChunk.findUnique;
+    const originalTransaction = prisma.$transaction;
+    let deletedWhere: { id: { notIn: string[] } } | undefined;
+    prisma.courseChunk.findUnique = (async () => ({ body: "stale-stamp" })) as unknown as typeof prisma.courseChunk.findUnique;
+    prisma.$transaction = (async (callback: (tx: { $executeRaw: () => Promise<number>; courseChunk: { deleteMany: (args: { where: { id: { notIn: string[] } } }) => Promise<number> } }) => Promise<void>) => {
+      await callback({
+        $executeRaw: async () => 1,
+        courseChunk: {
+          deleteMany: async (args) => {
+            deletedWhere = args.where;
+            return 1;
+          },
+        },
+      });
+    }) as unknown as typeof prisma.$transaction;
+    try {
+      await ensureCourseIndex();
+      assert.ok(deletedWhere);
+      const keepIds = new Set(deletedWhere!.id.notIn);
+      assert.equal(keepIds.has("__index_stamp__"), true);
+      for (const descriptor of descriptors) {
+        assert.equal(keepIds.has(descriptor.id), true, `rebuild should keep ${descriptor.id}`);
+      }
+      assert.equal(keepIds.has("lesson:removed-lesson"), false);
+      assert.equal(deletedWhere!.id.notIn.length, descriptors.length + 1);
+      assert.equal(stamp.length > 0, true);
     } finally {
       prisma.courseChunk.findUnique = originalFindUnique;
       prisma.$transaction = originalTransaction;

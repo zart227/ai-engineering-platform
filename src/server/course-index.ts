@@ -1,7 +1,7 @@
 import { weeks } from "@course";
 import { glossary } from "@course/glossary";
-import type { ContentBlock } from "@course/types";
 import { EMBEDDING_MODEL, embedText } from "@/server/embeddings";
+import { serializeLessonForIndex } from "@/server/student-visible-course";
 
 export type CourseChunkDescriptor = {
   id: string;
@@ -17,19 +17,11 @@ export type CourseChunk = CourseChunkDescriptor & {
   embedding: number[];
 };
 
-function blockText(block: ContentBlock) {
-  if (block.type === "ul" || block.type === "ol") return block.items.join(" ");
-  if (block.type === "reading") return block.items.map((item) => `${item.title} ${item.note ?? ""}`).join(" ");
-  if (block.type === "compare") return `${block.title} ${block.bad} ${block.good}`;
-  if (block.type === "check") return `${block.question} ${block.answer}`;
-  if ("text" in block && typeof block.text === "string") return block.text;
-  return "";
-}
-
 export function buildCourseChunkDescriptors(): CourseChunkDescriptor[] {
   const lessons = weeks.flatMap((week) =>
     week.lessons.map((lesson) => {
-      const body = [week.title, lesson.title, ...lesson.blocks.map(blockText)].join("\n").slice(0, 4000);
+      const lessonText = serializeLessonForIndex(lesson);
+      const body = [week.title, lessonText].join("\n").slice(0, 4000);
       const embedSource = [lesson.title, lesson.title, ...lesson.objectives, body.slice(0, 900)].join("\n");
       return {
         id: `lesson:${lesson.id}`,
