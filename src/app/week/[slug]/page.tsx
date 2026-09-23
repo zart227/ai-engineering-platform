@@ -61,7 +61,7 @@ export default async function WeekPage({
   return (
     <WeekWorkspace
       key={week.slug}
-      week={toWeekClientPayload(week)}
+      week={toWeekClientPayload(week, { hintsUnlocked: exerciseProgress?.hintsUsed ?? 0 })}
       initial={{
         completedLessons: state.lessons
           .filter((item) => item.weekSlug === week.slug && item.completedAt)
@@ -93,6 +93,7 @@ export default async function WeekPage({
         practiceGithub: answer?.githubUrl ?? "",
         practiceResult: answer?.resultUrl ?? "",
         hintsUsed: exerciseProgress?.hintsUsed ?? 0,
+        solutionViewed: Boolean(exerciseProgress?.solutionViewed),
         note: note?.body ?? "",
         quizPassed: Boolean(quiz?.passed),
         lastQuizScore: quiz?.score ?? null,

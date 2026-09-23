@@ -134,6 +134,8 @@ export const exportSchema = z.object({
       completed: z.boolean(),
       hintsUsed: z.number().optional(),
       solutionViewed: z.boolean().optional(),
+      attemptCount: z.number().optional(),
+      attemptCountAtLastHint: z.number().optional(),
     })
   ),
   bookmarks: z.array(
@@ -220,6 +222,8 @@ export const exportSchemaV2 = z
           completed: z.boolean(),
           hintsUsed: z.number().optional(),
           solutionViewed: z.boolean().optional(),
+          attemptCount: z.number().optional(),
+          attemptCountAtLastHint: z.number().optional(),
         })
         .strip()
     ),
@@ -979,6 +983,8 @@ async function persistImport(
         completedAt: exercise.completed ? new Date() : null,
         hintsUsed: exercise.hintsUsed ?? 0,
         solutionViewed: exercise.solutionViewed ?? false,
+        attemptCount: exercise.attemptCount ?? 0,
+        attemptCountAtLastHint: exercise.attemptCountAtLastHint ?? 0,
       })),
     });
   }
@@ -1235,6 +1241,8 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
       completed: Boolean(item.completedAt),
       hintsUsed: item.hintsUsed,
       solutionViewed: item.solutionViewed,
+      attemptCount: item.attemptCount,
+      attemptCountAtLastHint: item.attemptCountAtLastHint,
     })),
     answers: user.exerciseAnswers.map((item) => ({
       exerciseId: item.exerciseId,

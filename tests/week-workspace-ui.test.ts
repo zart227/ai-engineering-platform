@@ -17,6 +17,19 @@ describe("week workspace UI contract", () => {
     const practice = ui.slice(ui.indexOf("function PracticePanel"), ui.indexOf("function ArtifactPanel"));
     assert.match(practice, /hintsUsed/);
     assert.match(practice, /useState\(hintsUsed\)/);
+    assert.match(practice, /markHintAction/);
+    assert.match(practice, /gateError/);
+  });
+
+  it("only sends unlocked practice hints in the client week payload", () => {
+    const week = weeks.find((item) => item.practice.hints.length >= 2);
+    assert.ok(week);
+    const locked = toWeekClientPayload(week);
+    assert.equal(locked.practice.hints.length, 0);
+    assert.equal(locked.practice.hintsTotal, week.practice.hints.length);
+    const unlocked = toWeekClientPayload(week, { hintsUnlocked: 1 });
+    assert.equal(unlocked.practice.hints.length, 1);
+    assert.equal(unlocked.practice.hints[0]?.text, week.practice.hints[0]?.text);
   });
 
   it("surfaces GATE 4 learningObjectives and artifactRubric in overview", () => {

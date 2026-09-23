@@ -151,15 +151,18 @@ model LabProgress {
 }
 
 model ExerciseProgress {
-  id             String    @id @default(cuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exerciseId     String
-  weekSlug       String
-  startedAt      DateTime  @default(now())
-  completedAt    DateTime?
-  hintsUsed      Int       @default(0)
-  solutionViewed Boolean   @default(false)
+  id                     String    @id @default(cuid())
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId             String
+  weekSlug               String
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  hintsUsed              Int       @default(0)
+  solutionViewed         Boolean   @default(false)
+  attemptCount           Int       @default(0)
+  lastAttemptAt          DateTime?
+  attemptCountAtLastHint Int       @default(0)
 
   @@unique([userId, exerciseId])
 }
