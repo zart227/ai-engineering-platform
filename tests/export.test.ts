@@ -1,16 +1,29 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { week01 } from "../course/weeks/week-01";
+import { week02 } from "../course/weeks/week-02";
 import {
   ExportFormatError,
+  clampWeekProgressPercent,
+  deriveWeekProgressRows,
   exportSchema,
   exportSchemaV2,
   exportSchemaV3,
+  IMPORT_STALE_ID_POLICY,
   importExport,
   importReplacesRecall,
   migrateExport,
+  parseExport,
   previewImport,
   resolveImportedQuizAttempt,
+  sanitizeImportSemantics,
 } from "../src/server/export";
+
+const W1 = week01.slug;
+const W1_LESSON = week01.lessons[0].id;
+const W1_LAB = week01.lab.id;
+const W1_PRACTICE = week01.practice.id;
+const W2_LESSON = week02.lessons[0].id;
 
 const fullFixture = {
   formatVersion: 2 as const,
@@ -45,37 +58,39 @@ const fullFixture = {
       githubUrl: "",
       demoUrl: "",
       readme: "# hi",
-      weekSlug: "foundations",
+      weekSlug: W1,
     },
   ],
   notes: [
     {
       key: "n1",
       body: "hello",
-      weekSlug: "foundations",
-      lessonId: "l1",
+      weekSlug: W1,
+      lessonId: W1_LESSON,
       moduleId: "m01",
       tags: ["ai"],
     },
   ],
-  bookmarks: [{ targetType: "lesson", targetId: "l1", title: "L", href: "/week/foundations" }],
-  lessons: [{ lessonId: "l1", weekSlug: "foundations", completed: true }],
-  labs: [{ labId: "lab1", weekSlug: "foundations", completed: false }],
+  bookmarks: [{ targetType: "lesson", targetId: W1_LESSON, title: "L", href: `/week/${W1}` }],
+  lessons: [{ lessonId: W1_LESSON, weekSlug: W1, completed: true }],
+  labs: [{ labId: W1_LAB, weekSlug: W1, completed: false }],
   exercises: [
     {
-      exerciseId: "e1",
-      weekSlug: "foundations",
+      exerciseId: W1_PRACTICE,
+      weekSlug: W1,
       completed: true,
       hintsUsed: 1,
       solutionViewed: false,
     },
   ],
-  answers: [{ exerciseId: "e1", weekSlug: "foundations", body: "ans", githubUrl: "", resultUrl: "" }],
-  artifacts: [{ weekSlug: "foundations", completed: true, githubUrl: "", demoUrl: "", notes: "" }],
-  weekProgress: [{ weekSlug: "foundations", percent: 80, completed: false }],
+  answers: [
+    { exerciseId: W1_PRACTICE, weekSlug: W1, body: "ans", githubUrl: "", resultUrl: "" },
+  ],
+  artifacts: [{ weekSlug: W1, completed: true, githubUrl: "", demoUrl: "", notes: "" }],
+  weekProgress: [{ weekSlug: W1, percent: 80, completed: false }],
   quizAttempts: [
     {
-      weekSlug: "foundations",
+      weekSlug: W1,
       answers: [0, 1, 2],
       score: 2,
       passed: false,
@@ -85,8 +100,8 @@ const fullFixture = {
   learningEvents: [
     {
       type: "lesson_completed",
-      weekSlug: "foundations",
-      lessonId: "l1",
+      weekSlug: W1,
+      lessonId: W1_LESSON,
       payload: { ok: true },
       createdAt: "2026-09-21T12:00:00.000Z",
     },
@@ -188,29 +203,30 @@ describe("migrateExport", () => {
 
 describe("previewImport", () => {
   it("counts entities and warns that quizzes and events are replaced", () => {
-    const preview = previewImport(migrateExport(fullFixture), fullFixture);
-    assert.deepEqual(preview.counts, {
-      capstone: 1,
-      settings: 1,
-      portfolio: 1,
-      notes: 1,
-      bookmarks: 1,
-      lessons: 1,
-      labs: 1,
-      exercises: 1,
-      answers: 1,
-      artifacts: 1,
-      weekProgress: 1,
-      quizAttempts: 1,
-      learningEvents: 1,
-      recallReviews: 0,
-    });
+    const sanitized = sanitizeImportSemantics(migrateExport(fullFixture));
+    const preview = previewImport(sanitized.data, fullFixture, sanitized.warnings);
+    assert.equal(preview.counts.capstone, 1);
+    assert.equal(preview.counts.settings, 1);
+    assert.equal(preview.counts.portfolio, 1);
+    assert.equal(preview.counts.notes, 1);
+    assert.equal(preview.counts.bookmarks, 1);
+    assert.equal(preview.counts.lessons, 1);
+    assert.equal(preview.counts.labs, 1);
+    assert.equal(preview.counts.exercises, 1);
+    assert.equal(preview.counts.answers, 1);
+    assert.equal(preview.counts.artifacts, 1);
+    assert.equal(preview.counts.weekProgress >= 1, true);
+    assert.equal(preview.counts.quizAttempts, 1);
+    assert.equal(preview.counts.learningEvents, 1);
+    assert.equal(preview.counts.recallReviews, 0);
     assert.match(preview.warnings.join(" "), /замен/i);
+    assert.match(preview.warnings.join(" "), /пересчитывается/);
   });
 
   it("warns when secrets and unknown keys are stripped", () => {
     const raw = { ...minimalV1, passwordHash: "super-secret-hash", extraField: true };
-    const preview = previewImport(migrateExport(raw), raw);
+    const sanitized = sanitizeImportSemantics(migrateExport(raw));
+    const preview = previewImport(sanitized.data, raw, sanitized.warnings);
     const text = preview.warnings.join(" ");
     assert.match(text, /секрет/i);
     assert.match(text, /неизвестн/i);
@@ -328,6 +344,11 @@ function createImportDb(initialRecall: RecallCard[], throwOn?: string) {
                 calls.push(`${name}.upsert`);
                 if (throwOn === name) throw new Error("boom");
               },
+              findMany: async () => {
+                calls.push(`${name}.findMany`);
+                if (throwOn === name) throw new Error("boom");
+                return [];
+              },
               deleteMany: async () => {
                 calls.push(`${name}.deleteMany`);
                 if (throwOn === name) throw new Error("boom");
@@ -368,6 +389,7 @@ describe("importExport bookmark href", () => {
               }
               return {
                 upsert: async () => ({ count: 0 }),
+                findMany: async () => [],
                 deleteMany: async () => ({ count: 0 }),
                 createMany: async ({
                   data,
@@ -395,7 +417,7 @@ describe("importExport bookmark href", () => {
     const payload = {
       ...minimalV1,
       bookmarks: [
-        { targetType: "lesson", targetId: "safe", title: "Safe", href: "/week/foundations" },
+        { targetType: "lesson", targetId: "safe", title: "Safe", href: `/week/${W1}` },
         { targetType: "lesson", targetId: "js", title: "XSS", href: "javascript:alert(1)" },
         { targetType: "lesson", targetId: "proto", title: "Proto", href: "//evil" },
         {
@@ -410,13 +432,13 @@ describe("importExport bookmark href", () => {
     const result = await importExport("user-1", payload, db);
     assert.equal(result.ok, true);
     assert.deepEqual(stored, [
-      { targetId: "safe", href: "/week/foundations" },
+      { targetId: "safe", href: `/week/${W1}` },
       { targetId: "ext", href: "https://example.com/docs" },
     ]);
   });
 });
 
-type LearnerRow = { id: string };
+type LearnerRow = { id: string; weekSlug?: string; percent?: number; completedAt?: Date | null };
 
 const RESTORE_MODELS = [
   "note",
@@ -452,9 +474,18 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
       state[name] = [];
       return { count: 0 };
     },
-    createMany: async ({ data }: { data: Array<{ id?: string }> }) => {
+    createMany: async ({
+      data,
+    }: {
+      data: Array<{ id?: string; weekSlug?: string; percent?: number; completedAt?: Date | null }>;
+    }) => {
       calls.push(`${name}.createMany`);
-      state[name] = data.map((row, index) => ({ id: row.id ?? `${name}-${index}` }));
+      state[name] = data.map((row, index) => ({
+        id: row.id ?? `${name}-${index}`,
+        weekSlug: row.weekSlug,
+        percent: row.percent,
+        completedAt: row.completedAt ?? null,
+      }));
       return { count: data.length };
     },
     upsert: async () => {
@@ -499,6 +530,10 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
               name === "recallReview"
             ) {
               return {
+                findMany: async () => {
+                  calls.push(`${name}.findMany`);
+                  return [];
+                },
                 deleteMany: async () => {
                   calls.push(`${name}.deleteMany`);
                   return { count: 0 };
@@ -535,16 +570,16 @@ describe("importExport learner restore", () => {
 
     const payload = {
       ...fullFixture,
-      notes: [{ key: "only", body: "from-file", weekSlug: "foundations", lessonId: null, tags: [] }],
+      notes: [{ key: "only", body: "from-file", weekSlug: W1, lessonId: null, tags: [] }],
       bookmarks: [
-        { targetType: "lesson", targetId: "only", title: "Only", href: "/week/foundations" },
+        { targetType: "lesson", targetId: "only", title: "Only", href: `/week/${W1}` },
       ],
-      lessons: [{ lessonId: "only-lesson", weekSlug: "foundations", completed: true }],
-      labs: [{ labId: "only-lab", weekSlug: "foundations", completed: false }],
+      lessons: [{ lessonId: W1_LESSON, weekSlug: W1, completed: true }],
+      labs: [{ labId: W1_LAB, weekSlug: W1, completed: false }],
       exercises: [
         {
-          exerciseId: "only-exercise",
-          weekSlug: "foundations",
+          exerciseId: W1_PRACTICE,
+          weekSlug: W1,
           completed: true,
           hintsUsed: 0,
           solutionViewed: false,
@@ -552,8 +587,8 @@ describe("importExport learner restore", () => {
       ],
       answers: [
         {
-          exerciseId: "only-exercise",
-          weekSlug: "foundations",
+          exerciseId: W1_PRACTICE,
+          weekSlug: W1,
           body: "answer",
           githubUrl: "",
           resultUrl: "",
@@ -561,14 +596,15 @@ describe("importExport learner restore", () => {
       ],
       artifacts: [
         {
-          weekSlug: "foundations",
+          weekSlug: W1,
           completed: false,
           githubUrl: "",
           demoUrl: "",
           notes: "",
         },
       ],
-      weekProgress: [{ weekSlug: "foundations", percent: 42, completed: false }],
+      weekProgress: [{ weekSlug: W1, percent: 42, completed: false }],
+      quizAttempts: [],
     };
 
     const result = await importExport("user-1", payload, db);
@@ -580,7 +616,9 @@ describe("importExport learner restore", () => {
     assert.equal(db.state.exerciseProgress.length, 1);
     assert.equal(db.state.exerciseAnswer.length, 1);
     assert.equal(db.state.artifactProgress.length, 1);
-    assert.equal(db.state.weekProgress.length, 1);
+    assert.equal(db.state.weekProgress.length >= 1, true);
+    assert.equal(db.state.weekProgress[0]?.weekSlug, W1);
+    assert.notEqual(db.state.weekProgress[0]?.percent, 42);
     assert.equal(db.calls.includes("note.deleteMany"), true);
     assert.equal(db.calls.includes("bookmark.deleteMany"), true);
     assert.equal(db.calls.includes("lessonProgress.deleteMany"), true);
@@ -606,6 +644,8 @@ describe("importExport learner restore", () => {
       answers: [],
       artifacts: [],
       weekProgress: [],
+      quizAttempts: [],
+      learningEvents: [],
     };
 
     const result = await importExport("user-1", payload, db);
@@ -686,6 +726,10 @@ function createCapstoneImportDb(initial: CapstoneSnapshot | null) {
               name === "recallReview"
             ) {
               return {
+                findMany: async () => {
+                  calls.push(`${name}.findMany`);
+                  return [];
+                },
                 deleteMany: async () => {
                   calls.push(`${name}.deleteMany`);
                   return { count: 0 };
@@ -782,7 +826,7 @@ describe("importExport portfolio restore", () => {
           githubUrl: "",
           demoUrl: "",
           readme: "# hi",
-          weekSlug: "environment-llm-api",
+          weekSlug: W1,
         },
       ],
     };
@@ -896,6 +940,10 @@ function createQuizImportDb(initial: StoredQuizAttempt[] = []) {
             }
             if (name === "quizAttempt") {
               return {
+                findMany: async () => {
+                  calls.push(`${name}.findMany`);
+                  return stored.map((row) => ({ weekSlug: row.weekSlug, passed: row.passed }));
+                },
                 deleteMany: async () => {
                   calls.push(`${name}.deleteMany`);
                   stored.length = 0;
@@ -914,6 +962,10 @@ function createQuizImportDb(initial: StoredQuizAttempt[] = []) {
             }
             if (name === "learningEvent" || name === "recallReview") {
               return {
+                findMany: async () => {
+                  calls.push(`${name}.findMany`);
+                  return [];
+                },
                 deleteMany: async () => {
                   calls.push(`${name}.deleteMany`);
                   return { count: 0 };
@@ -1008,5 +1060,153 @@ describe("importExport schedule and rollback", () => {
     assert.equal(db.calls.includes("capstoneProject.deleteMany"), true);
     assert.equal(db.calls.includes("capstoneProject.create"), true);
     assert.equal(db.calls.includes("capstoneProject.upsert"), false);
+  });
+});
+
+describe("H7 import semantic integrity", () => {
+  it("documents warning-skip as the stale curriculum id policy", () => {
+    assert.equal(IMPORT_STALE_ID_POLICY, "warning-skip");
+  });
+
+  it("clamps weekProgress.percent into 0..100", () => {
+    assert.equal(clampWeekProgressPercent(-10), 0);
+    assert.equal(clampWeekProgressPercent(150), 100);
+    assert.equal(clampWeekProgressPercent(42.9), 42);
+    assert.equal(clampWeekProgressPercent(Number.NaN), 0);
+    const migrated = migrateExport({
+      ...fullFixture,
+      weekProgress: [{ weekSlug: W1, percent: 999, completed: true }],
+    });
+    assert.equal(migrated.weekProgress[0]?.percent, 100);
+  });
+
+  it("rejects invalid theme and locale enums", () => {
+    assert.throws(
+      () => migrateExport({ ...fullFixture, settings: { theme: "neon", locale: "ru" } }),
+      ExportFormatError
+    );
+    assert.throws(
+      () => migrateExport({ ...fullFixture, settings: { theme: "dark", locale: "xx" } }),
+      ExportFormatError
+    );
+    assert.equal(exportSchemaV2.safeParse(fullFixture).success, true);
+  });
+
+  it("skips stale curriculum ids with a warning and keeps valid rows", () => {
+    const raw = {
+      ...fullFixture,
+      lessons: [
+        { lessonId: W1_LESSON, weekSlug: W1, completed: true },
+        { lessonId: "ghost-lesson", weekSlug: W1, completed: true },
+        { lessonId: W2_LESSON, weekSlug: W1, completed: true },
+      ],
+      labs: [
+        { labId: W1_LAB, weekSlug: W1, completed: true },
+        { labId: "ghost-lab", weekSlug: W1, completed: true },
+      ],
+      exercises: [
+        { exerciseId: W1_PRACTICE, weekSlug: W1, completed: true },
+        { exerciseId: "ghost-ex", weekSlug: W1, completed: true },
+      ],
+      answers: [
+        { exerciseId: W1_PRACTICE, weekSlug: W1, body: "ok", githubUrl: "", resultUrl: "" },
+        { exerciseId: "ghost-ex", weekSlug: "foundations", body: "bad", githubUrl: "", resultUrl: "" },
+      ],
+      artifacts: [
+        { weekSlug: W1, completed: true, githubUrl: "", demoUrl: "", notes: "" },
+        { weekSlug: "foundations", completed: true, githubUrl: "", demoUrl: "", notes: "" },
+      ],
+      notes: [
+        {
+          key: "keep",
+          body: "body",
+          weekSlug: "foundations",
+          lessonId: "ghost",
+          moduleId: null,
+          tags: [],
+        },
+      ],
+      portfolio: [
+        {
+          ...fullFixture.portfolio[0],
+          weekSlug: "renamed-old-week",
+        },
+      ],
+    };
+    const sanitized = sanitizeImportSemantics(migrateExport(raw));
+    assert.equal(sanitized.data.lessons.length, 1);
+    assert.equal(sanitized.data.labs.length, 1);
+    assert.equal(sanitized.data.exercises.length, 1);
+    assert.equal(sanitized.data.answers.length, 1);
+    assert.equal(sanitized.data.artifacts.length, 1);
+    assert.equal(sanitized.data.weekProgress.length, 0);
+    assert.equal(sanitized.data.notes[0]?.weekSlug, null);
+    assert.equal(sanitized.data.notes[0]?.lessonId, null);
+    assert.equal(sanitized.data.portfolio[0]?.weekSlug, null);
+    assert.equal(sanitized.skipped.lessons, 2);
+    assert.equal(sanitized.skipped.labs, 1);
+    assert.match(sanitized.warnings.join(" "), /warning \+ skip/i);
+    assert.match(sanitized.warnings.join(" "), /пересчитывается/);
+  });
+
+  it("rejects a malicious backup with forged theme at parse time", () => {
+    const parsed = parseExport({
+      ...fullFixture,
+      settings: { theme: "javascript:alert(1)", locale: "ru" },
+      weekProgress: [{ weekSlug: W1, percent: -50, completed: true }],
+    });
+    assert.equal(parsed.ok, false);
+  });
+
+  it("ignores forged weekProgress percent and recomputes from canonical rows", async () => {
+    const db = createRestoreImportDb({
+      weekProgress: [{ id: "stale", weekSlug: W1, percent: 100 }],
+    });
+    const payload = {
+      ...fullFixture,
+      lessons: [{ lessonId: W1_LESSON, weekSlug: W1, completed: true }],
+      labs: [],
+      exercises: [],
+      answers: [],
+      artifacts: [],
+      quizAttempts: [],
+      weekProgress: [{ weekSlug: W1, percent: 100, completed: true }],
+    };
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.state.weekProgress.length, 1);
+    assert.equal(db.state.weekProgress[0]?.weekSlug, W1);
+    const derived = deriveWeekProgressRows({
+      lessons: [{ lessonId: W1_LESSON, completedAt: new Date() }],
+      labs: [],
+      exercises: [],
+      artifacts: [],
+      quizzes: new Map(),
+    });
+    assert.equal(db.state.weekProgress[0]?.percent, derived[0]?.percent);
+    assert.notEqual(db.state.weekProgress[0]?.percent, 100);
+    assert.equal(db.state.weekProgress[0]?.completedAt == null, true);
+  });
+
+  it("skips stale progress rows on import and still restores valid ones", async () => {
+    const db = createRestoreImportDb({});
+    const payload = {
+      ...fullFixture,
+      lessons: [
+        { lessonId: W1_LESSON, weekSlug: W1, completed: true },
+        { lessonId: "missing", weekSlug: "foundations", completed: true },
+      ],
+      labs: [{ labId: "missing-lab", weekSlug: "foundations", completed: true }],
+      exercises: [],
+      answers: [],
+      artifacts: [],
+      quizAttempts: [],
+      weekProgress: [{ weekSlug: "foundations", percent: 100, completed: true }],
+    };
+    const result = await importExport("user-1", payload, db);
+    assert.equal(result.ok, true);
+    assert.equal(db.state.lessonProgress.length, 1);
+    assert.equal(db.state.labProgress.length, 0);
+    assert.equal(db.state.weekProgress[0]?.weekSlug, W1);
   });
 });

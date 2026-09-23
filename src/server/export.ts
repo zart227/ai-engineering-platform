@@ -4,8 +4,36 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeBookmarkHrefForImport } from "@/server/bookmark-href";
 import { prisma } from "@/server/db";
+import { summarizeWeeks, type ProgressSummaryInput } from "@/server/progress";
+import {
+  validateLabInWeek,
+  validateLessonInWeek,
+  validatePracticeInWeek,
+  validateWeekSlug,
+} from "@/server/week-progress-validation";
 
 const EXPORT_ERROR = "Файл не похож на экспорт ai-engineering-platform.";
+
+/**
+ * H7 policy for removed/renamed curriculum ids:
+ * warning + skip — drop invalid progress/quiz/recall rows (or clear bad note/portfolio refs),
+ * keep the rest of the import, never hard-fail the whole file for a stale id.
+ */
+export const IMPORT_STALE_ID_POLICY = "warning-skip" as const;
+
+const THEME_VALUES = ["system", "light", "dark"] as const;
+const LOCALE_VALUES = ["ru", "en"] as const;
+
+const themeEnum = z.enum(THEME_VALUES);
+const localeEnum = z.enum(LOCALE_VALUES);
+
+/** Clamp weekProgress.percent into the inclusive 0..100 integer range. */
+export function clampWeekProgressPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, Math.trunc(value)));
+}
+
+const weekProgressPercentSchema = z.number().transform(clampWeekProgressPercent);
 
 /** Thrown when a parsed JSON value is not a v1, v2, or v3 export document. */
 export class ExportFormatError extends Error {
@@ -116,7 +144,12 @@ export const exportSchema = z.object({
       href: z.string(),
     })
   ),
-  settings: z.object({ theme: z.string().optional(), locale: z.string().optional() }).optional(),
+  settings: z
+    .object({
+      theme: themeEnum.optional(),
+      locale: localeEnum.optional(),
+    })
+    .optional(),
 });
 
 export const exportSchemaV2 = z
@@ -131,8 +164,8 @@ export const exportSchemaV2 = z
       .strip(),
     settings: z
       .object({
-        theme: z.string(),
-        locale: z.string(),
+        theme: themeEnum,
+        locale: localeEnum,
       })
       .strip()
       .nullable(),
@@ -216,7 +249,7 @@ export const exportSchemaV2 = z
       z
         .object({
           weekSlug: z.string(),
-          percent: z.number().int(),
+          percent: weekProgressPercentSchema,
           completed: z.boolean(),
         })
         .strip()
@@ -343,6 +376,12 @@ const KEEP_RECALL_WARNING =
 const REPLACE_LEARNER_STATE_WARNING =
   "Заметки, закладки, прогресс обучения, капстоун и проекты портфолио будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
 
+const STALE_CURRICULUM_WARNING =
+  "Записи с неизвестными или устаревшими weekSlug/lessonId/labId/exerciseId пропущены; ссылки в заметках и портфолио обнулены. Политика: warning + skip.";
+
+const WEEK_PROGRESS_RECOMPUTE_WARNING =
+  "Процент прогресса недель из файла не сохраняется: после импорта он пересчитывается из канонических уроков, лабораторий, упражнений, артефактов и квизов.";
+
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
   return isRecord(raw) && (raw.formatVersion === 2 || raw.formatVersion === 3);
@@ -424,12 +463,217 @@ export function migrateExport(raw: unknown): ExportPayloadV3 {
   throw new ExportFormatError();
 }
 
+function latestQuizPassedByWeek(
+  quizzes: { weekSlug: string; passed: boolean }[]
+): Map<string, { passed: boolean }> {
+  const latest = new Map<string, { passed: boolean }>();
+  for (const attempt of quizzes) {
+    if (!latest.has(attempt.weekSlug)) latest.set(attempt.weekSlug, { passed: attempt.passed });
+  }
+  return latest;
+}
+
+export type ImportSkipCounts = {
+  lessons: number;
+  labs: number;
+  exercises: number;
+  answers: number;
+  artifacts: number;
+  weekProgress: number;
+  quizAttempts: number;
+  learningEvents: number;
+  recallReviews: number;
+  noteRefs: number;
+  portfolioRefs: number;
+};
+
+/**
+ * Drop or null curriculum refs that no longer exist. Does not reject the whole backup.
+ * Imported weekProgress rows are cleared here — persistImport recomputes them.
+ */
+export function sanitizeImportSemantics(data: ExportPayloadV3): {
+  data: ExportPayloadV3;
+  skipped: ImportSkipCounts;
+  warnings: string[];
+} {
+  const skipped: ImportSkipCounts = {
+    lessons: 0,
+    labs: 0,
+    exercises: 0,
+    answers: 0,
+    artifacts: 0,
+    weekProgress: 0,
+    quizAttempts: 0,
+    learningEvents: 0,
+    recallReviews: 0,
+    noteRefs: 0,
+    portfolioRefs: 0,
+  };
+
+  const lessons = data.lessons.filter((row) => {
+    if (validateLessonInWeek(row.weekSlug, row.lessonId).ok) return true;
+    skipped.lessons += 1;
+    return false;
+  });
+  const labs = data.labs.filter((row) => {
+    if (validateLabInWeek(row.weekSlug, row.labId).ok) return true;
+    skipped.labs += 1;
+    return false;
+  });
+  const exercises = data.exercises.filter((row) => {
+    if (validatePracticeInWeek(row.weekSlug, row.exerciseId).ok) return true;
+    skipped.exercises += 1;
+    return false;
+  });
+  const answers = data.answers.filter((row) => {
+    if (validatePracticeInWeek(row.weekSlug, row.exerciseId).ok) return true;
+    skipped.answers += 1;
+    return false;
+  });
+  const artifacts = data.artifacts.filter((row) => {
+    if (validateWeekSlug(row.weekSlug).ok) return true;
+    skipped.artifacts += 1;
+    return false;
+  });
+  const quizAttempts = data.quizAttempts.filter((row) => {
+    if (validateWeekSlug(row.weekSlug).ok) return true;
+    skipped.quizAttempts += 1;
+    return false;
+  });
+  const recallReviews = data.recallReviews.filter((row) => {
+    if (validateWeekSlug(row.weekSlug).ok) return true;
+    skipped.recallReviews += 1;
+    return false;
+  });
+
+  skipped.weekProgress = data.weekProgress.length;
+
+  const notes = data.notes.map((note) => {
+    let weekSlug = note.weekSlug ?? null;
+    let lessonId = note.lessonId ?? null;
+    let cleared = false;
+    if (weekSlug && !validateWeekSlug(weekSlug).ok) {
+      weekSlug = null;
+      lessonId = null;
+      cleared = true;
+    } else if (lessonId) {
+      if (!weekSlug || !validateLessonInWeek(weekSlug, lessonId).ok) {
+        lessonId = null;
+        cleared = true;
+      }
+    }
+    if (cleared) skipped.noteRefs += 1;
+    return { ...note, weekSlug, lessonId };
+  });
+
+  const portfolio = data.portfolio.map((item) => {
+    if (item.weekSlug == null) return item;
+    if (validateWeekSlug(item.weekSlug).ok) return item;
+    skipped.portfolioRefs += 1;
+    return { ...item, weekSlug: null };
+  });
+
+  const learningEvents = data.learningEvents.map((event) => {
+    let weekSlug = event.weekSlug;
+    let lessonId = event.lessonId;
+    let changed = false;
+    if (weekSlug && !validateWeekSlug(weekSlug).ok) {
+      weekSlug = null;
+      lessonId = null;
+      changed = true;
+    } else if (lessonId) {
+      if (!weekSlug || !validateLessonInWeek(weekSlug, lessonId).ok) {
+        lessonId = null;
+        changed = true;
+      }
+    }
+    if (changed) skipped.learningEvents += 1;
+    return { ...event, weekSlug, lessonId };
+  });
+
+  const totalSkipped =
+    skipped.lessons +
+    skipped.labs +
+    skipped.exercises +
+    skipped.answers +
+    skipped.artifacts +
+    skipped.quizAttempts +
+    skipped.recallReviews +
+    skipped.noteRefs +
+    skipped.portfolioRefs +
+    skipped.learningEvents;
+
+  const warnings: string[] = [WEEK_PROGRESS_RECOMPUTE_WARNING];
+  if (totalSkipped > 0 || skipped.weekProgress > 0) {
+    if (totalSkipped > 0) warnings.unshift(STALE_CURRICULUM_WARNING);
+  }
+
+  return {
+    data: {
+      ...data,
+      lessons,
+      labs,
+      exercises,
+      answers,
+      artifacts,
+      notes,
+      portfolio,
+      quizAttempts,
+      recallReviews,
+      learningEvents,
+      weekProgress: [],
+    },
+    skipped,
+    warnings,
+  };
+}
+
+/** Build derived WeekProgress rows from canonical progress + quiz state (H7). */
+export function deriveWeekProgressRows(state: ProgressSummaryInput): {
+  weekSlug: string;
+  percent: number;
+  completed: boolean;
+}[] {
+  const rows = summarizeWeeks(state);
+  return rows
+    .filter((row) => {
+      const hasLesson = state.lessons.some((item) =>
+        row.week.lessons.some((lesson) => lesson.id === item.lessonId)
+      );
+      const hasLab = state.labs.some((item) => item.labId === row.week.lab.id);
+      const hasExercise = state.exercises.some(
+        (item) => item.exerciseId === row.week.practice.id
+      );
+      const hasArtifact = state.artifacts.some((item) => item.weekSlug === row.week.slug);
+      const hasQuiz = state.quizzes.has(row.week.slug);
+      return (
+        hasLesson ||
+        hasLab ||
+        hasExercise ||
+        hasArtifact ||
+        hasQuiz ||
+        row.percent > 0 ||
+        row.complete
+      );
+    })
+    .map((row) => ({
+      weekSlug: row.week.slug,
+      percent: clampWeekProgressPercent(row.percent),
+      completed: row.complete,
+    }));
+}
+
 export function parseExport(
   raw: unknown
 ): { ok: true; data: ExportPayloadV3; warnings: string[] } | { ok: false; error: string } {
   try {
-    const data = migrateExport(raw);
-    return { ok: true, data, warnings: previewImport(data, raw).warnings };
+    const migrated = migrateExport(raw);
+    const sanitized = sanitizeImportSemantics(migrated);
+    return {
+      ok: true,
+      data: sanitized.data,
+      warnings: previewImport(sanitized.data, raw, sanitized.warnings).warnings,
+    };
   } catch (error) {
     if (error instanceof ExportFormatError) return { ok: false, error: error.message };
     throw error;
@@ -464,10 +708,43 @@ function countCapstone(capstone: ExportPayloadV2["capstone"]): number {
   return Object.values(capstone).some((value) => typeof value === "string") ? 1 : 0;
 }
 
+function progressStateFromExport(data: ExportPayloadV3): ProgressSummaryInput {
+  const quizRows = data.quizAttempts.map((item) => {
+    const resolved = resolveImportedQuizAttempt({
+      weekSlug: item.weekSlug,
+      answers: item.answers,
+      score: item.score,
+      passed: item.passed,
+    });
+    return { weekSlug: item.weekSlug, passed: resolved.passed };
+  });
+  return {
+    lessons: data.lessons.map((lesson) => ({
+      lessonId: lesson.lessonId,
+      completedAt: lesson.completed ? new Date(0) : null,
+    })),
+    labs: data.labs.map((lab) => ({
+      labId: lab.labId,
+      completedAt: lab.completed ? new Date(0) : null,
+    })),
+    exercises: data.exercises.map((exercise) => ({
+      exerciseId: exercise.exerciseId,
+      completedAt: exercise.completed ? new Date(0) : null,
+    })),
+    artifacts: data.artifacts.map((artifact) => ({
+      weekSlug: artifact.weekSlug,
+      completed: artifact.completed,
+    })),
+    quizzes: latestQuizPassedByWeek(quizRows),
+  };
+}
+
 export function previewImport(
   data: ExportPayloadV3,
-  raw?: unknown
+  raw?: unknown,
+  extraWarnings: string[] = []
 ): { counts: ImportCounts; warnings: string[] } {
+  const derivedWeekProgress = deriveWeekProgressRows(progressStateFromExport(data));
   return {
     counts: {
       capstone: countCapstone(data.capstone),
@@ -480,7 +757,7 @@ export function previewImport(
       exercises: data.exercises.length,
       answers: data.answers.length,
       artifacts: data.artifacts.length,
-      weekProgress: data.weekProgress.length,
+      weekProgress: derivedWeekProgress.length,
       quizAttempts: data.quizAttempts.length,
       learningEvents: data.learningEvents.length,
       recallReviews: data.recallReviews.length,
@@ -489,6 +766,7 @@ export function previewImport(
       REPLACE_LEARNER_STATE_WARNING,
       importReplacesHistory(raw) ? REPLACE_WARNING : KEEP_HISTORY_WARNING,
       importReplacesRecall(raw) ? REPLACE_RECALL_WARNING : KEEP_RECALL_WARNING,
+      ...extraWarnings,
       ...collectStripWarnings(raw),
     ],
   };
@@ -659,38 +937,32 @@ async function persistImport(
       })),
     });
   }
-  await tx.weekProgress.deleteMany({ where: { userId } });
-  if (data.weekProgress.length > 0) {
-    await tx.weekProgress.createMany({
-      data: data.weekProgress.map((week) => ({
-        userId,
-        weekSlug: week.weekSlug,
-        percent: week.percent,
-        completedAt: week.completed ? new Date() : null,
-      })),
-    });
-  }
+
+  let quizRowsForProgress: { weekSlug: string; passed: boolean }[] = [];
   if (replaceHistory) {
     await tx.quizAttempt.deleteMany({ where: { userId } });
     if (data.quizAttempts.length > 0) {
-      await tx.quizAttempt.createMany({
-        data: data.quizAttempts.map((item) => {
-          const resolved = resolveImportedQuizAttempt({
-            weekSlug: item.weekSlug,
-            answers: item.answers,
-            score: item.score,
-            passed: item.passed,
-          });
-          return {
-            userId,
-            weekSlug: item.weekSlug,
-            answers: resolved.answers,
-            score: resolved.score,
-            passed: resolved.passed,
-            createdAt: new Date(item.createdAt),
-          };
-        }),
+      const resolvedAttempts = data.quizAttempts.map((item) => {
+        const resolved = resolveImportedQuizAttempt({
+          weekSlug: item.weekSlug,
+          answers: item.answers,
+          score: item.score,
+          passed: item.passed,
+        });
+        return {
+          userId,
+          weekSlug: item.weekSlug,
+          answers: resolved.answers,
+          score: resolved.score,
+          passed: resolved.passed,
+          createdAt: new Date(item.createdAt),
+        };
       });
+      quizRowsForProgress = resolvedAttempts.map((item) => ({
+        weekSlug: item.weekSlug,
+        passed: item.passed,
+      }));
+      await tx.quizAttempt.createMany({ data: resolvedAttempts });
     }
     await tx.learningEvent.deleteMany({ where: { userId } });
     if (data.learningEvents.length > 0) {
@@ -705,7 +977,46 @@ async function persistImport(
         })),
       });
     }
+  } else {
+    quizRowsForProgress = await tx.quizAttempt.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { weekSlug: true, passed: true },
+    });
   }
+
+  const progressState: ProgressSummaryInput = {
+    lessons: data.lessons.map((lesson) => ({
+      lessonId: lesson.lessonId,
+      completedAt: lesson.completed ? new Date(0) : null,
+    })),
+    labs: data.labs.map((lab) => ({
+      labId: lab.labId,
+      completedAt: lab.completed ? new Date(0) : null,
+    })),
+    exercises: data.exercises.map((exercise) => ({
+      exerciseId: exercise.exerciseId,
+      completedAt: exercise.completed ? new Date(0) : null,
+    })),
+    artifacts: data.artifacts.map((artifact) => ({
+      weekSlug: artifact.weekSlug,
+      completed: artifact.completed,
+    })),
+    quizzes: latestQuizPassedByWeek(quizRowsForProgress),
+  };
+  const derivedWeekProgress = deriveWeekProgressRows(progressState);
+  await tx.weekProgress.deleteMany({ where: { userId } });
+  if (derivedWeekProgress.length > 0) {
+    await tx.weekProgress.createMany({
+      data: derivedWeekProgress.map((week) => ({
+        userId,
+        weekSlug: week.weekSlug,
+        percent: week.percent,
+        completedAt: week.completed ? new Date() : null,
+      })),
+    });
+  }
+
   if (replaceRecall) {
     await tx.recallReview.deleteMany({ where: { userId } });
     if (data.recallReviews.length > 0) {
