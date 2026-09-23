@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import type { Lesson } from "../course/types";
 import {
   HEAVY_TASKS,
+  OLLAMA_DEFAULT_MAX_OUTPUT_TOKENS,
   OLLAMA_DEFAULT_MODEL,
+  OPENAI_DEFAULT_MAX_OUTPUT_TOKENS,
   OPENAI_DEFAULT_MODEL,
   ROUTINE_TASKS,
   createOllamaClient,
@@ -24,13 +26,13 @@ import {
   type TutorSession,
 } from "../src/server/tutor";
 
-const SOLUTION = "PRACTICE-SOLUTION-TOKEN-9f3a";
+const SOLUTION = "PRACTICE-SOLUTION-TOKEN-9f3a-long-enough-for-leak-guards";
 const HINT = "NEXT-HINT-TOKEN-walk-the-input";
-const QUIZ = "QUIZ-ANSWER-TOKEN-option-c";
-const QUIZ_EXPLANATION = "QUIZ-EXPLANATION-TOKEN";
-const RECALL = "RECALL-ANSWER-TOKEN";
+const QUIZ = "QUIZ-ANSWER-TOKEN-option-c-long";
+const QUIZ_EXPLANATION = "QUIZ-EXPLANATION-TOKEN-detail";
+const RECALL = "RECALL-ANSWER-TOKEN-detail";
 const CHECK_QUESTION = "CHECK-QUESTION-TOKEN";
-const CHECK_ANSWER = "CHECK-ANSWER-TOKEN";
+const CHECK_ANSWER = "CHECK-ANSWER-TOKEN-secret";
 const TEACHING = "TEACHING-TEXT-TOKEN embeddings map tokens to vectors.";
 const OTHER_LESSON = "OTHER-LESSON-TOKEN";
 const OTHER_WEEK = "OTHER-WEEK-TOKEN";
@@ -168,6 +170,17 @@ describe("tutor route", () => {
     assert.equal(`${sent.system}\n${sent.user}`.includes(SOLUTION), false);
     assert.equal(sent.user.includes(HINT), false);
     assert.equal(sent.user.includes(TEACHING), true);
+  });
+
+  it("rejects replies that leak check answers or quiz keys", async () => {
+    const check = await ask({ reply: `Ответ проверки: ${CHECK_ANSWER}` });
+    assert.equal((await check.result).status, 422);
+
+    const quiz = await ask({ reply: `Ключ квиза: ${QUIZ}` });
+    assert.equal((await quiz.result).status, 422);
+
+    const explanation = await ask({ reply: `Потому что ${QUIZ_EXPLANATION}` });
+    assert.equal((await explanation.result).status, 422);
   });
 
   it("requires a session owner and ignores a cookie string", async () => {
@@ -324,7 +337,7 @@ describe("llm task router", () => {
       { role: "system", content: "system text" },
       { role: "user", content: "user text" },
     ]);
-    assert.deepEqual(ollamaBody.options, { temperature: 0.3 });
+    assert.deepEqual(ollamaBody.options, { temperature: 0.3, num_predict: OLLAMA_DEFAULT_MAX_OUTPUT_TOKENS });
     assert.equal(ollamaBody.stream, false);
 
     const openai = createOpenAIClient({ OPENAI_API_KEY: "sk-test-openai" }, fetchImpl);
@@ -338,8 +351,20 @@ describe("llm task router", () => {
     assert.equal(openaiBody.instructions, "instructions");
     assert.deepEqual(openaiBody.input, [{ role: "user", content: "heavy input" }]);
     assert.equal(openaiBody.temperature, 0.7);
+    assert.equal(openaiBody.max_output_tokens, OPENAI_DEFAULT_MAX_OUTPUT_TOKENS);
     assert.equal("messages" in openaiBody, false);
     assert.equal(ollamaHeaders.has("cookie"), false);
+  });
+
+  it("fails closed when max output token env values are invalid", () => {
+    assert.equal(
+      createOllamaClient({ OLLAMA_API_KEY: "ollama-test-key", OLLAMA_MAX_OUTPUT_TOKENS: "0" }),
+      null,
+    );
+    assert.equal(
+      createOpenAIClient({ OPENAI_API_KEY: "sk-test-openai", OPENAI_MAX_OUTPUT_TOKENS: "-5" }),
+      null,
+    );
   });
 
   it("reads OpenAI text from output content when output_text is absent", async () => {
