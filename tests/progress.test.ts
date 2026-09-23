@@ -15,6 +15,7 @@ describe("progress summary", () => {
       labs: [{ labId: firstWeek.lab.id, completedAt: new Date() }],
       exercises: [{ exerciseId: firstWeek.practice.id, completedAt: new Date() }],
       artifacts: [{ weekSlug: firstWeek.slug, completed: true }],
+      assessments: [{ weekSlug: firstWeek.slug, passed: true }],
       quizzes: new Map([[firstWeek.slug, { passed: true }]]),
     });
 
@@ -24,6 +25,25 @@ describe("progress summary", () => {
     assert.equal(first.complete, true);
     assert.equal(first.percent, 100);
     assert.ok(coursePercent(rows) > 0);
+  });
+
+  it("does not complete artifact pillar without rubric pass", () => {
+    const firstWeek = weeks[0];
+    const rows = summarizeWeeks({
+      lessons: firstWeek.lessons.map((lesson) => ({
+        lessonId: lesson.id,
+        completedAt: new Date(),
+      })),
+      labs: [{ labId: firstWeek.lab.id, completedAt: new Date() }],
+      exercises: [{ exerciseId: firstWeek.practice.id, completedAt: new Date() }],
+      artifacts: [{ weekSlug: firstWeek.slug, completed: true }],
+      assessments: [{ weekSlug: firstWeek.slug, passed: false }],
+      quizzes: new Map([[firstWeek.slug, { passed: true }]]),
+    });
+    const first = rows.find((row) => row.week.slug === firstWeek.slug);
+    assert.ok(first);
+    assert.equal(first.parts.artifact, false);
+    assert.equal(first.complete, false);
   });
 
   it("weekProgressForSlug returns one week row for persist path", () => {
@@ -36,6 +56,7 @@ describe("progress summary", () => {
       labs: [],
       exercises: [],
       artifacts: [],
+      assessments: [],
       quizzes: new Map(),
     };
 
@@ -53,6 +74,7 @@ describe("progress summary", () => {
       labs: [{ labId: week.lab.id, completedAt: new Date() }],
       exercises: [{ exerciseId: week.practice.id, completedAt: new Date() }],
       artifacts: [{ weekSlug: week.slug, completed: true }],
+      assessments: [{ weekSlug: week.slug, passed: true }],
       quizzes: new Map(),
     });
 

@@ -35,7 +35,7 @@ export function clampWeekProgressPercent(value: number): number {
 
 const weekProgressPercentSchema = z.number().transform(clampWeekProgressPercent);
 
-/** Thrown when a parsed JSON value is not a v1, v2, or v3 export document. */
+/** Thrown when a parsed JSON value is not a v1–v4 export document. */
 export class ExportFormatError extends Error {
   constructor() {
     super(EXPORT_ERROR);
@@ -297,10 +297,39 @@ export const exportSchemaV3 = exportSchemaV2
   })
   .strip();
 
+const rubricCriterionResultSchema = z
+  .object({
+    criterionId: z.string(),
+    met: z.boolean(),
+    evidence: z.string(),
+    weight: z.number().int().positive(),
+  })
+  .strip();
+
+const artifactAssessmentSchema = z
+  .object({
+    weekSlug: z.string(),
+    source: z.enum(["self_check", "policy_approved"]),
+    score: z.number().int().nonnegative(),
+    passed: z.boolean(),
+    assessedAt: timestamp.nullable(),
+    criteria: z.array(rubricCriterionResultSchema),
+  })
+  .strip();
+
+export const exportSchemaV4 = exportSchemaV3
+  .omit({ formatVersion: true })
+  .extend({
+    formatVersion: z.literal(4),
+    artifactAssessments: z.array(artifactAssessmentSchema),
+  })
+  .strip();
+
 export type ExportPayloadV1 = z.infer<typeof exportSchema>;
 export type ExportPayloadV2 = z.infer<typeof exportSchemaV2>;
 export type ExportPayloadV3 = z.infer<typeof exportSchemaV3>;
-export type ExportPayload = ExportPayloadV3;
+export type ExportPayloadV4 = z.infer<typeof exportSchemaV4>;
+export type ExportPayload = ExportPayloadV4;
 
 export type ImportCounts = {
   capstone: number;
@@ -317,6 +346,7 @@ export type ImportCounts = {
   quizAttempts: number;
   learningEvents: number;
   recallReviews: number;
+  artifactAssessments: number;
 };
 
 const SECRET_KEYS = new Set(["passwordHash", "tokenHash", "session", "token", "ip", "userAgent"]);
@@ -356,6 +386,7 @@ const V2_ROOT = new Set([
 ]);
 
 const V3_ROOT = new Set([...V2_ROOT, "recallReviews"]);
+const V4_ROOT = new Set([...V3_ROOT, "artifactAssessments"]);
 
 const USER_KEYS = new Set(["email", "name"]);
 const SETTINGS_KEYS = new Set(["theme", "locale"]);
@@ -368,10 +399,16 @@ const KEEP_HISTORY_WARNING =
   "Файл версии 1 не содержит попытки квизов и события обучения. Они останутся как есть.";
 
 const REPLACE_RECALL_WARNING =
-  "Расписание повторений будет полностью заменено файлом версии 3. Карточки, которых нет в файле, удалятся. Если повторений в файле ноль, текущее расписание стирается целиком.";
+  "Расписание повторений будет полностью заменено файлом версии 3+. Карточки, которых нет в файле, удалятся. Если повторений в файле ноль, текущее расписание стирается целиком.";
 
 const KEEP_RECALL_WARNING =
   "Файл версии 1 или 2 не заменяет расписание повторений. Текущие карточки останутся.";
+
+const REPLACE_ASSESSMENT_WARNING =
+  "Самооценки рубрики артефакта будут полностью заменены файлом версии 4. Если оценок в файле ноль, текущие записи стираются.";
+
+const KEEP_ASSESSMENT_WARNING =
+  "Файл версии 1–3 не заменяет самооценки рубрики. Текущие оценки останутся.";
 
 const REPLACE_LEARNER_STATE_WARNING =
   "Заметки, закладки, прогресс обучения, капстоун и проекты портфолио будут полностью заменены данными из файла. Записи, которых нет в файле, удалятся.";
@@ -384,12 +421,17 @@ const WEEK_PROGRESS_RECOMPUTE_WARNING =
 
 /** v1 files never stored quiz attempts or learning events, so importing one must not delete them. */
 export function importReplacesHistory(raw: unknown): boolean {
-  return isRecord(raw) && (raw.formatVersion === 2 || raw.formatVersion === 3);
+  return isRecord(raw) && (raw.formatVersion === 2 || raw.formatVersion === 3 || raw.formatVersion === 4);
 }
 
-/** Only v3 carries RecallReview. v1 and v2 must not wipe the schedule. */
+/** Only v3+ carries RecallReview. v1 and v2 must not wipe the schedule. */
 export function importReplacesRecall(raw: unknown): boolean {
-  return isRecord(raw) && raw.formatVersion === 3;
+  return isRecord(raw) && (raw.formatVersion === 3 || raw.formatVersion === 4);
+}
+
+/** Only v4 carries ArtifactAssessment. Older exports must not wipe assessments. */
+export function importReplacesAssessments(raw: unknown): boolean {
+  return isRecord(raw) && raw.formatVersion === 4;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -443,22 +485,31 @@ function v2ToV3(data: ExportPayloadV2): ExportPayloadV3 {
   return exportSchemaV3.parse({ ...data, formatVersion: 3, recallReviews: [] });
 }
 
-export function migrateExport(raw: unknown): ExportPayloadV3 {
+function v3ToV4(data: ExportPayloadV3): ExportPayloadV4 {
+  return exportSchemaV4.parse({ ...data, formatVersion: 4, artifactAssessments: [] });
+}
+
+export function migrateExport(raw: unknown): ExportPayloadV4 {
   if (!isRecord(raw)) throw new ExportFormatError();
+  if (raw.formatVersion === 4) {
+    const parsed = exportSchemaV4.safeParse(raw);
+    if (!parsed.success) throw new ExportFormatError();
+    return parsed.data;
+  }
   if (raw.formatVersion === 3) {
     const parsed = exportSchemaV3.safeParse(raw);
     if (!parsed.success) throw new ExportFormatError();
-    return parsed.data;
+    return v3ToV4(parsed.data);
   }
   if (raw.formatVersion === 2) {
     const parsed = exportSchemaV2.safeParse(raw);
     if (!parsed.success) throw new ExportFormatError();
-    return v2ToV3(parsed.data);
+    return v3ToV4(v2ToV3(parsed.data));
   }
   if (raw.version === 1 && !("formatVersion" in raw)) {
     const parsed = exportSchema.safeParse(raw);
     if (!parsed.success) throw new ExportFormatError();
-    return v2ToV3(v1ToV2(parsed.data));
+    return v3ToV4(v2ToV3(v1ToV2(parsed.data)));
   }
   throw new ExportFormatError();
 }
@@ -483,6 +534,7 @@ export type ImportSkipCounts = {
   quizAttempts: number;
   learningEvents: number;
   recallReviews: number;
+  artifactAssessments: number;
   noteRefs: number;
   portfolioRefs: number;
 };
@@ -491,8 +543,8 @@ export type ImportSkipCounts = {
  * Drop or null curriculum refs that no longer exist. Does not reject the whole backup.
  * Imported weekProgress rows are cleared here — persistImport recomputes them.
  */
-export function sanitizeImportSemantics(data: ExportPayloadV3): {
-  data: ExportPayloadV3;
+export function sanitizeImportSemantics(data: ExportPayloadV4): {
+  data: ExportPayloadV4;
   skipped: ImportSkipCounts;
   warnings: string[];
 } {
@@ -506,6 +558,7 @@ export function sanitizeImportSemantics(data: ExportPayloadV3): {
     quizAttempts: 0,
     learningEvents: 0,
     recallReviews: 0,
+    artifactAssessments: 0,
     noteRefs: 0,
     portfolioRefs: 0,
   };
@@ -543,6 +596,11 @@ export function sanitizeImportSemantics(data: ExportPayloadV3): {
   const recallReviews = data.recallReviews.filter((row) => {
     if (validateWeekSlug(row.weekSlug).ok) return true;
     skipped.recallReviews += 1;
+    return false;
+  });
+  const artifactAssessments = data.artifactAssessments.filter((row) => {
+    if (validateWeekSlug(row.weekSlug).ok) return true;
+    skipped.artifactAssessments += 1;
     return false;
   });
 
@@ -599,14 +657,13 @@ export function sanitizeImportSemantics(data: ExportPayloadV3): {
     skipped.artifacts +
     skipped.quizAttempts +
     skipped.recallReviews +
+    skipped.artifactAssessments +
     skipped.noteRefs +
     skipped.portfolioRefs +
     skipped.learningEvents;
 
   const warnings: string[] = [WEEK_PROGRESS_RECOMPUTE_WARNING];
-  if (totalSkipped > 0 || skipped.weekProgress > 0) {
-    if (totalSkipped > 0) warnings.unshift(STALE_CURRICULUM_WARNING);
-  }
+  if (totalSkipped > 0) warnings.unshift(STALE_CURRICULUM_WARNING);
 
   return {
     data: {
@@ -621,6 +678,7 @@ export function sanitizeImportSemantics(data: ExportPayloadV3): {
       quizAttempts,
       recallReviews,
       learningEvents,
+      artifactAssessments,
       weekProgress: [],
     },
     skipped,
@@ -665,7 +723,7 @@ export function deriveWeekProgressRows(state: ProgressSummaryInput): {
 
 export function parseExport(
   raw: unknown
-): { ok: true; data: ExportPayloadV3; warnings: string[] } | { ok: false; error: string } {
+): { ok: true; data: ExportPayloadV4; warnings: string[] } | { ok: false; error: string } {
   try {
     const migrated = migrateExport(raw);
     const sanitized = sanitizeImportSemantics(migrated);
@@ -693,7 +751,13 @@ function collectStripWarnings(raw: unknown): string[] {
   if (!isRecord(raw)) return [];
   const flags = { secrets: false, unknown: false };
   const root =
-    raw.formatVersion === 3 ? V3_ROOT : raw.formatVersion === 2 ? V2_ROOT : V1_ROOT;
+    raw.formatVersion === 4
+      ? V4_ROOT
+      : raw.formatVersion === 3
+        ? V3_ROOT
+        : raw.formatVersion === 2
+          ? V2_ROOT
+          : V1_ROOT;
   noteStrippedKeys(raw, root, flags);
   noteStrippedKeys(raw.user, USER_KEYS, flags);
   noteStrippedKeys(raw.settings, SETTINGS_KEYS, flags);
@@ -708,7 +772,7 @@ function countCapstone(capstone: ExportPayloadV2["capstone"]): number {
   return Object.values(capstone).some((value) => typeof value === "string") ? 1 : 0;
 }
 
-function progressStateFromExport(data: ExportPayloadV3): ProgressSummaryInput {
+function progressStateFromExport(data: ExportPayloadV4): ProgressSummaryInput {
   const quizRows = data.quizAttempts.map((item) => {
     const resolved = resolveImportedQuizAttempt({
       weekSlug: item.weekSlug,
@@ -735,12 +799,16 @@ function progressStateFromExport(data: ExportPayloadV3): ProgressSummaryInput {
       weekSlug: artifact.weekSlug,
       completed: artifact.completed,
     })),
+    assessments: data.artifactAssessments.map((item) => ({
+      weekSlug: item.weekSlug,
+      passed: item.passed,
+    })),
     quizzes: latestQuizPassedByWeek(quizRows),
   };
 }
 
 export function previewImport(
-  data: ExportPayloadV3,
+  data: ExportPayloadV4,
   raw?: unknown,
   extraWarnings: string[] = []
 ): { counts: ImportCounts; warnings: string[] } {
@@ -761,11 +829,13 @@ export function previewImport(
       quizAttempts: data.quizAttempts.length,
       learningEvents: data.learningEvents.length,
       recallReviews: data.recallReviews.length,
+      artifactAssessments: data.artifactAssessments.length,
     },
     warnings: [
       REPLACE_LEARNER_STATE_WARNING,
       importReplacesHistory(raw) ? REPLACE_WARNING : KEEP_HISTORY_WARNING,
       importReplacesRecall(raw) ? REPLACE_RECALL_WARNING : KEEP_RECALL_WARNING,
+      importReplacesAssessments(raw) ? REPLACE_ASSESSMENT_WARNING : KEEP_ASSESSMENT_WARNING,
       ...extraWarnings,
       ...collectStripWarnings(raw),
     ],
@@ -811,9 +881,10 @@ export function resolveImportedQuizAttempt(input: {
 async function persistImport(
   tx: Prisma.TransactionClient,
   userId: string,
-  data: ExportPayloadV3,
+  data: ExportPayloadV4,
   replaceHistory: boolean,
-  replaceRecall: boolean
+  replaceRecall: boolean,
+  replaceAssessments: boolean
 ) {
   const capstone = pickCapstone(data.capstone);
   await tx.capstoneProject.deleteMany({ where: { userId } });
@@ -939,6 +1010,7 @@ async function persistImport(
   }
 
   let quizRowsForProgress: { weekSlug: string; passed: boolean }[] = [];
+  let assessmentRowsForProgress: { weekSlug: string; passed: boolean }[] = [];
   if (replaceHistory) {
     await tx.quizAttempt.deleteMany({ where: { userId } });
     if (data.quizAttempts.length > 0) {
@@ -985,6 +1057,18 @@ async function persistImport(
     });
   }
 
+  if (replaceAssessments) {
+    assessmentRowsForProgress = data.artifactAssessments.map((item) => ({
+      weekSlug: item.weekSlug,
+      passed: item.passed,
+    }));
+  } else {
+    assessmentRowsForProgress = await tx.artifactAssessment.findMany({
+      where: { userId },
+      select: { weekSlug: true, passed: true },
+    });
+  }
+
   const progressState: ProgressSummaryInput = {
     lessons: data.lessons.map((lesson) => ({
       lessonId: lesson.lessonId,
@@ -1002,6 +1086,7 @@ async function persistImport(
       weekSlug: artifact.weekSlug,
       completed: artifact.completed,
     })),
+    assessments: assessmentRowsForProgress,
     quizzes: latestQuizPassedByWeek(quizRowsForProgress),
   };
   const derivedWeekProgress = deriveWeekProgressRows(progressState);
@@ -1032,6 +1117,29 @@ async function persistImport(
       });
     }
   }
+  if (replaceAssessments) {
+    await tx.artifactAssessment.deleteMany({ where: { userId } });
+    for (const item of data.artifactAssessments) {
+      await tx.artifactAssessment.create({
+        data: {
+          userId,
+          weekSlug: item.weekSlug,
+          source: item.source,
+          score: item.score,
+          passed: item.passed,
+          assessedAt: item.assessedAt ? new Date(item.assessedAt) : null,
+          criteria: {
+            create: item.criteria.map((criterion) => ({
+              criterionId: criterion.criterionId,
+              met: criterion.met,
+              evidence: criterion.evidence,
+              weight: criterion.weight,
+            })),
+          },
+        },
+      });
+    }
+  }
 }
 
 export async function buildExport(userId: string): Promise<ExportPayload> {
@@ -1050,6 +1158,10 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
       exerciseProgress: true,
       exerciseAnswers: true,
       artifactProgress: true,
+      artifactAssessments: {
+        include: { criteria: { orderBy: { criterionId: "asc" } } },
+        orderBy: { weekSlug: "asc" },
+      },
       weekProgress: true,
       quizAttempts: { orderBy: { createdAt: "asc" } },
       learningEvents: { orderBy: { createdAt: "asc" } },
@@ -1057,8 +1169,8 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
     },
   });
 
-  return exportSchemaV3.parse({
-    formatVersion: 3,
+  return exportSchemaV4.parse({
+    formatVersion: 4,
     exportedAt: new Date().toISOString(),
     user: { email: user.email, name: user.name },
     settings: user.settings ? { theme: user.settings.theme, locale: user.settings.locale } : null,
@@ -1164,6 +1276,19 @@ export async function buildExport(userId: string): Promise<ExportPayload> {
       nextReviewAt: item.nextReviewAt.toISOString(),
       reviewCount: item.reviewCount,
     })),
+    artifactAssessments: user.artifactAssessments.map((item) => ({
+      weekSlug: item.weekSlug,
+      source: item.source === "policy_approved" ? "policy_approved" : "self_check",
+      score: item.score,
+      passed: item.passed,
+      assessedAt: item.assessedAt ? item.assessedAt.toISOString() : null,
+      criteria: item.criteria.map((criterion) => ({
+        criterionId: criterion.criterionId,
+        met: criterion.met,
+        evidence: criterion.evidence,
+        weight: criterion.weight,
+      })),
+    })),
   });
 }
 
@@ -1182,7 +1307,8 @@ export async function importExport(userId: string, raw: unknown, db: ImportDb = 
         userId,
         parsed.data,
         importReplacesHistory(raw),
-        importReplacesRecall(raw)
+        importReplacesRecall(raw),
+        importReplacesAssessments(raw)
       );
     });
   } catch {

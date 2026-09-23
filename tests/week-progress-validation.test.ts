@@ -143,4 +143,33 @@ describe("week progress validation", () => {
     });
     assert.deepEqual(result, { ok: true });
   });
+
+  it("rejects artifact completion when rubric is required and not passed", () => {
+    const result = validateArtifactCompletion(
+      true,
+      {
+        notes: "",
+        githubUrl: "https://github.com/example/repo",
+        demoUrl: "",
+      },
+      { rubricRequired: true, rubricPassed: false }
+    );
+    assert.deepEqual(result, {
+      ok: false,
+      error: "Сначала пройдите самооценку по рубрике артефакта.",
+    });
+  });
+
+  it("allows artifact completion when rubric is required and passed", () => {
+    const result = validateArtifactCompletion(
+      true,
+      {
+        notes: "",
+        githubUrl: "https://github.com/example/repo",
+        demoUrl: "",
+      },
+      { rubricRequired: true, rubricPassed: true }
+    );
+    assert.deepEqual(result, { ok: true });
+  });
 });

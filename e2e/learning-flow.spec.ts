@@ -79,6 +79,22 @@ async function completeWeekOneLearning(page: Page) {
   await expect(page.getByText("Сохранено")).toBeVisible();
   await page.getByLabel("GitHub").fill(ARTIFACT_GITHUB);
   await page.getByLabel("GitHub").blur();
+
+  const rubricPanel = page.locator('[data-panel="artifact-rubric"]');
+  await expect(rubricPanel).toBeVisible();
+  const criterionBoxes = rubricPanel.getByRole("checkbox");
+  const criterionCount = await criterionBoxes.count();
+  for (let index = 0; index < criterionCount; index += 1) {
+    await criterionBoxes.nth(index).check();
+  }
+  const evidenceFields = rubricPanel.getByLabel(/Доказательство:/);
+  const evidenceCount = await evidenceFields.count();
+  for (let index = 0; index < evidenceCount; index += 1) {
+    await evidenceFields.nth(index).fill(`E2E evidence for criterion ${index + 1} with enough text`);
+  }
+  await page.getByRole("button", { name: "Сохранить самооценку" }).click();
+  await expect(page.getByText(/Рубрика пройдена/)).toBeVisible();
+
   await page.getByRole("button", { name: /Артефакт готов/ }).click();
 
   await expect(page.getByText("100%").first()).toBeVisible();

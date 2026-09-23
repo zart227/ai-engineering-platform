@@ -34,10 +34,14 @@ export const OLLAMA_DEFAULT_BASE_URL = "https://ollama.com";
 export const OLLAMA_DEFAULT_MODEL = "minimax-m2.5";
 export const OLLAMA_DEFAULT_TIMEOUT_SECONDS = 120;
 export const OLLAMA_TEMPERATURE = 0.3;
+/** Cap completion length for routine Ollama calls (tutor_v1 and siblings). */
+export const OLLAMA_DEFAULT_MAX_OUTPUT_TOKENS = 512;
 
 export const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
 export const OPENAI_DEFAULT_TIMEOUT_SECONDS = 30;
 export const OPENAI_TEMPERATURE = 0.7;
+/** Cap completion length for heavy OpenAI Responses calls. */
+export const OPENAI_DEFAULT_MAX_OUTPUT_TOKENS = 1024;
 
 export type LlmEnv = Record<string, string | undefined>;
 
@@ -67,6 +71,13 @@ function readTimeout(raw: string | undefined, fallback: number) {
   if (raw === undefined || raw.trim() === "") return fallback;
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function readMaxOutputTokens(raw: string | undefined, fallback: number) {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) return null;
   return value;
 }
 
@@ -106,8 +117,9 @@ export function createOllamaClient(env: LlmEnv, fetchImpl: FetchLike = fetch): L
   const apiKey = requiredSecret(env.OLLAMA_API_KEY);
   const host = ollamaHost(env.OLLAMA_BASE_URL);
   const timeoutSeconds = readTimeout(env.OLLAMA_TIMEOUT_SECONDS, OLLAMA_DEFAULT_TIMEOUT_SECONDS);
+  const maxOutputTokens = readMaxOutputTokens(env.OLLAMA_MAX_OUTPUT_TOKENS, OLLAMA_DEFAULT_MAX_OUTPUT_TOKENS);
   const model = env.OLLAMA_MODEL?.trim() || OLLAMA_DEFAULT_MODEL;
-  if (!apiKey || !host || timeoutSeconds === null || !model) return null;
+  if (!apiKey || !host || timeoutSeconds === null || maxOutputTokens === null || !model) return null;
 
   return {
     provider: "ollama",
@@ -124,7 +136,10 @@ export function createOllamaClient(env: LlmEnv, fetchImpl: FetchLike = fetch): L
             { role: "system", content: system },
             { role: "user", content: user },
           ],
-          options: { temperature: OLLAMA_TEMPERATURE },
+          options: {
+            temperature: OLLAMA_TEMPERATURE,
+            num_predict: maxOutputTokens,
+          },
           stream: false,
         }),
         signal: AbortSignal.timeout(timeoutSeconds * 1000),
@@ -143,8 +158,9 @@ export function createOllamaClient(env: LlmEnv, fetchImpl: FetchLike = fetch): L
 export function createOpenAIClient(env: LlmEnv, fetchImpl: FetchLike = fetch): LlmClient | null {
   const apiKey = requiredSecret(env.OPENAI_API_KEY);
   const timeoutSeconds = readTimeout(env.OPENAI_TIMEOUT_SECONDS, OPENAI_DEFAULT_TIMEOUT_SECONDS);
+  const maxOutputTokens = readMaxOutputTokens(env.OPENAI_MAX_OUTPUT_TOKENS, OPENAI_DEFAULT_MAX_OUTPUT_TOKENS);
   const model = env.OPENAI_MODEL?.trim() || OPENAI_DEFAULT_MODEL;
-  if (!apiKey || timeoutSeconds === null || !model) return null;
+  if (!apiKey || timeoutSeconds === null || maxOutputTokens === null || !model) return null;
 
   return {
     provider: "openai",
@@ -160,6 +176,7 @@ export function createOpenAIClient(env: LlmEnv, fetchImpl: FetchLike = fetch): L
           instructions: system,
           input: [{ role: "user", content: user }],
           temperature: OPENAI_TEMPERATURE,
+          max_output_tokens: maxOutputTokens,
         }),
         signal: AbortSignal.timeout(timeoutSeconds * 1000),
       });

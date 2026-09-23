@@ -11,6 +11,7 @@ import {
   exportSchemaV3,
   IMPORT_STALE_ID_POLICY,
   importExport,
+  importReplacesAssessments,
   importReplacesRecall,
   migrateExport,
   parseExport,
@@ -139,10 +140,11 @@ describe("export schema v2", () => {
 });
 
 describe("migrateExport", () => {
-  it("maps a minimal v1 export onto v2 and fills missing collections", () => {
+  it("maps a minimal v1 export onto v4 and fills missing collections", () => {
     const migrated = migrateExport(minimalV1);
-    assert.equal(migrated.formatVersion, 3);
+    assert.equal(migrated.formatVersion, 4);
     assert.deepEqual(migrated.recallReviews, []);
+    assert.deepEqual(migrated.artifactAssessments, []);
     assert.equal(migrated.exportedAt, minimalV1.exportedAt);
     assert.deepEqual(migrated.user, { email: "ada@example.com", name: "Ada" });
     assert.equal(migrated.settings, null);
@@ -160,8 +162,9 @@ describe("migrateExport", () => {
       ...fullFixture,
       portfolio: [{ ...fullFixture.portfolio[0], id: "db-id" }],
     });
-    assert.equal(migrated.formatVersion, 3);
+    assert.equal(migrated.formatVersion, 4);
     assert.deepEqual(migrated.recallReviews, []);
+    assert.deepEqual(migrated.artifactAssessments, []);
     assert.equal(migrated.portfolio.length, 1);
     assert.equal("id" in migrated.portfolio[0], false);
     assert.equal(migrated.notes[0]?.moduleId, "m01");
@@ -219,6 +222,7 @@ describe("previewImport", () => {
     assert.equal(preview.counts.quizAttempts, 1);
     assert.equal(preview.counts.learningEvents, 1);
     assert.equal(preview.counts.recallReviews, 0);
+    assert.equal(preview.counts.artifactAssessments, 0);
     assert.match(preview.warnings.join(" "), /замен/i);
     assert.match(preview.warnings.join(" "), /пересчитывается/);
   });
@@ -236,7 +240,7 @@ describe("previewImport", () => {
 });
 
 describe("recall review roundtrip", () => {
-  it("keeps 1, 3, 7 and 21 day schedules in formatVersion 3", () => {
+  it("keeps 1, 3, 7 and 21 day schedules when migrating formatVersion 3 to 4", () => {
     const now = Date.parse("2026-09-22T00:00:00.000Z");
     const days = [1, 3, 7, 21];
     const recallReviews = days.map((day, index) => ({
@@ -248,8 +252,9 @@ describe("recall review roundtrip", () => {
     }));
     const raw = { ...fullFixture, formatVersion: 3 as const, recallReviews };
     const migrated = migrateExport(raw);
-    assert.equal(migrated.formatVersion, 3);
+    assert.equal(migrated.formatVersion, 4);
     assert.equal(exportSchemaV3.safeParse(raw).success, true);
+    assert.deepEqual(migrated.artifactAssessments, []);
     assert.deepEqual(
       migrated.recallReviews.map((item) => item.reviewCount),
       [1, 2, 3, 4]
@@ -266,8 +271,9 @@ describe("recall review roundtrip", () => {
 
   it("accepts v2 and does not invent recall rows", () => {
     const migrated = migrateExport(fullFixture);
-    assert.equal(migrated.formatVersion, 3);
+    assert.equal(migrated.formatVersion, 4);
     assert.deepEqual(migrated.recallReviews, []);
+    assert.deepEqual(migrated.artifactAssessments, []);
   });
 
   it("warns that a v3 file replaces the schedule, including a wipe at count 0", () => {
@@ -284,6 +290,45 @@ describe("recall review roundtrip", () => {
     const preview = previewImport(migrateExport(fullFixture), fullFixture);
     assert.match(preview.warnings.join(" "), /Текущие карточки останутся/);
     assert.equal(importReplacesRecall(fullFixture), false);
+  });
+
+  it("tells a v3 preview that artifact assessments stay", () => {
+    const raw = { ...fullFixture, formatVersion: 3 as const, recallReviews: [] as const };
+    const preview = previewImport(migrateExport(raw), raw);
+    assert.equal(importReplacesAssessments(raw), false);
+    assert.match(preview.warnings.join(" "), /не заменяет самооценки рубрики/);
+  });
+
+  it("warns that a v4 file replaces artifact assessments", () => {
+    const raw = {
+      ...fullFixture,
+      formatVersion: 4 as const,
+      recallReviews: [] as const,
+      artifactAssessments: [
+        {
+          weekSlug: "environment-llm-api",
+          source: "self_check" as const,
+          score: 100,
+          passed: true,
+          assessedAt: "2026-09-23T00:00:00.000Z",
+          criteria: [
+            {
+              criterionId: "environment-llm-api-r1",
+              met: true,
+              evidence: "README без ключей и .env в gitignore",
+              weight: 25,
+            },
+          ],
+        },
+      ],
+    };
+    const migrated = migrateExport(raw);
+    assert.equal(migrated.formatVersion, 4);
+    assert.equal(migrated.artifactAssessments.length, 1);
+    assert.equal(importReplacesAssessments(raw), true);
+    const preview = previewImport(migrated, raw);
+    assert.equal(preview.counts.artifactAssessments, 1);
+    assert.match(preview.warnings.join(" "), /Самооценки рубрики артефакта будут полностью заменены/);
   });
 });
 
@@ -527,7 +572,8 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
             if (
               name === "quizAttempt" ||
               name === "learningEvent" ||
-              name === "recallReview"
+              name === "recallReview" ||
+              name === "artifactAssessment"
             ) {
               return {
                 findMany: async () => {
@@ -541,6 +587,9 @@ function createRestoreImportDb(initial: Partial<Record<RestoreModel, LearnerRow[
                 createMany: async () => {
                   calls.push(`${name}.createMany`);
                   return { count: 0 };
+                },
+                create: async () => {
+                  calls.push(`${name}.create`);
                 },
               };
             }
@@ -723,7 +772,8 @@ function createCapstoneImportDb(initial: CapstoneSnapshot | null) {
             if (
               name === "quizAttempt" ||
               name === "learningEvent" ||
-              name === "recallReview"
+              name === "recallReview" ||
+              name === "artifactAssessment"
             ) {
               return {
                 findMany: async () => {
@@ -737,6 +787,9 @@ function createCapstoneImportDb(initial: CapstoneSnapshot | null) {
                 createMany: async () => {
                   calls.push(`${name}.createMany`);
                   return { count: 0 };
+                },
+                create: async () => {
+                  calls.push(`${name}.create`);
                 },
               };
             }
@@ -960,7 +1013,7 @@ function createQuizImportDb(initial: StoredQuizAttempt[] = []) {
                 },
               };
             }
-            if (name === "learningEvent" || name === "recallReview") {
+            if (name === "learningEvent" || name === "recallReview" || name === "artifactAssessment") {
               return {
                 findMany: async () => {
                   calls.push(`${name}.findMany`);
@@ -973,6 +1026,9 @@ function createQuizImportDb(initial: StoredQuizAttempt[] = []) {
                 createMany: async () => {
                   calls.push(`${name}.createMany`);
                   return { count: 0 };
+                },
+                create: async () => {
+                  calls.push(`${name}.create`);
                 },
               };
             }
@@ -1181,6 +1237,7 @@ describe("H7 import semantic integrity", () => {
       labs: [],
       exercises: [],
       artifacts: [],
+      assessments: [],
       quizzes: new Map(),
     });
     assert.equal(db.state.weekProgress[0]?.percent, derived[0]?.percent);

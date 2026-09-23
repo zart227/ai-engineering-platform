@@ -112,11 +112,18 @@ export function validatePracticeAnswerFields(
 
 export function validateArtifactCompletion(
   completed: boolean,
-  fields: ArtifactCompletionFields
+  fields: ArtifactCompletionFields,
+  options?: { rubricRequired?: boolean; rubricPassed?: boolean }
 ): ValidationError | CompletionSuccess {
   if (!completed) return { ok: true };
   if (!fields.githubUrl.trim()) {
     return { ok: false, error: "Укажите ссылку на репозиторий." };
+  }
+  if (options?.rubricRequired && !options.rubricPassed) {
+    return {
+      ok: false,
+      error: "Сначала пройдите самооценку по рубрике артефакта.",
+    };
   }
   return { ok: true };
 }

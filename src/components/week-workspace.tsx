@@ -22,6 +22,7 @@ import {
   markSolutionAction,
   revealRecallAnswerAction,
   saveArtifactAction,
+  saveArtifactAssessmentAction,
   saveNoteAction,
   savePracticeAnswerAction,
   submitQuizAction,
@@ -43,6 +44,20 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 
+export type ArtifactAssessmentClientState = {
+  score: number;
+  passed: boolean;
+  source: "self_check" | "policy_approved";
+  criteria: Array<{
+    criterionId: string;
+    name: string;
+    weight: number;
+    expectedEvidence: string;
+    met: boolean;
+    evidence: string;
+  }>;
+};
+
 export type WeekClientState = {
   completedLessons: string[];
   labDone: boolean;
@@ -51,6 +66,7 @@ export type WeekClientState = {
   artifactNotes: string;
   githubUrl: string;
   demoUrl: string;
+  artifactAssessment: ArtifactAssessmentClientState | null;
   practiceBody: string;
   practiceGithub: string;
   practiceResult: string;
@@ -103,7 +119,7 @@ export function WeekWorkspace({ week, initial }: { week: WeekClientPayload; init
               <div className="h-full rounded-full bg-primary" style={{ width: `${state.percent}%` }} />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              100% только если есть уроки, лаба, практика, квиз и артефакт.
+              100% только если есть уроки, лаба, практика, квиз, артефакт и зачёт по рубрике.
             </p>
           </div>
 
@@ -219,6 +235,41 @@ export function WeekWorkspace({ week, initial }: { week: WeekClientPayload; init
                   const result = await saveArtifactAction({ weekSlug: week.slug, ...next });
                   if (result.ok) {
                     setState((prev) => ({ ...prev, ...next, artifactDone: next.completed }));
+                    router.refresh();
+                  }
+                  return result;
+                }}
+                onSaveAssessment={async (criteria) => {
+                  const result = await saveArtifactAssessmentAction({
+                    weekSlug: week.slug,
+                    criteria,
+                  });
+                  if (result.ok) {
+                    setState((prev) => {
+                      const current = prev.artifactAssessment;
+                      if (!current) {
+                        return {
+                          ...prev,
+                          artifactDone: result.passed ? prev.artifactDone : false,
+                        };
+                      }
+                      return {
+                        ...prev,
+                        artifactDone: result.passed ? prev.artifactDone : false,
+                        artifactAssessment: {
+                          ...current,
+                          score: result.score,
+                          passed: result.passed,
+                          source: "self_check",
+                          criteria: current.criteria.map((item) => {
+                            const next = criteria.find((row) => row.criterionId === item.criterionId);
+                            return next
+                              ? { ...item, met: next.met, evidence: next.evidence }
+                              : item;
+                          }),
+                        },
+                      };
+                    });
                     router.refresh();
                   }
                   return result;
@@ -575,6 +626,7 @@ function ArtifactPanel({
   week,
   state,
   onSave,
+  onSaveAssessment,
 }: {
   week: WeekClientPayload;
   state: WeekClientState;
@@ -583,11 +635,22 @@ function ArtifactPanel({
     githubUrl: string;
     demoUrl: string;
     completed: boolean;
-  }) => Promise<{ ok: boolean }>;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  onSaveAssessment: (
+    criteria: Array<{ criterionId: string; met: boolean; evidence: string }>
+  ) => Promise<{ ok: boolean; score?: number; passed?: boolean; error?: string }>;
 }) {
   const [githubUrl, setGithub] = useState(state.githubUrl);
   const [demoUrl, setDemo] = useState(state.demoUrl);
   const [notes, setNotes] = useState(state.artifactNotes);
+  const [criteria, setCriteria] = useState(
+    () => state.artifactAssessment?.criteria.map((item) => ({ ...item })) ?? []
+  );
+  const [assessmentMessage, setAssessmentMessage] = useState("");
+  const [artifactError, setArtifactError] = useState("");
+  const rubricPassed = Boolean(state.artifactAssessment?.passed);
+  const score = state.artifactAssessment?.score ?? 0;
+  const isPolicyApproved = state.artifactAssessment?.source === "policy_approved";
 
   return (
     <div className="mt-6 space-y-5" data-panel="artifact">
@@ -633,12 +696,114 @@ function ArtifactPanel({
               onBlur={() => onSave({ notes, githubUrl, demoUrl, completed: state.artifactDone })}
             />
           </label>
+
+          {criteria.length > 0 ? (
+            <div className="space-y-4 border-t border-border pt-4" data-panel="artifact-rubric">
+              <div>
+                <p className="text-sm font-medium">Самооценка по рубрике</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Отметьте критерии и опишите доказательство. ИИ-проверка в V1 не используется.
+                </p>
+              </div>
+              {criteria.map((item, index) => (
+                <div key={item.criterionId} className="space-y-2 rounded-xl border border-border p-3">
+                  <label className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={item.met}
+                      aria-label={`Критерий выполнен: ${item.name}`}
+                      onChange={(event) => {
+                        const met = event.target.checked;
+                        setCriteria((prev) =>
+                          prev.map((row, rowIndex) =>
+                            rowIndex === index ? { ...row, met } : row
+                          )
+                        );
+                      }}
+                    />
+                    <span>
+                      <span className="font-medium text-foreground">{item.name}</span>
+                      <span className="text-muted-foreground"> · {item.weight}%</span>
+                      <span className="mt-1 block text-muted-foreground">{item.expectedEvidence}</span>
+                    </span>
+                  </label>
+                  <label className="block text-sm">
+                    Доказательство
+                    <textarea
+                      className="mt-1 min-h-20 w-full rounded-lg border border-input bg-card px-2.5 py-2 text-sm"
+                      value={item.evidence}
+                      aria-label={`Доказательство: ${item.name}`}
+                      placeholder="Что именно видно в репозитории, README или логе"
+                      onChange={(event) => {
+                        const evidence = event.target.value;
+                        setCriteria((prev) =>
+                          prev.map((row, rowIndex) =>
+                            rowIndex === index ? { ...row, evidence } : row
+                          )
+                        );
+                      }}
+                    />
+                  </label>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    setAssessmentMessage("");
+                    const result = await onSaveAssessment(
+                      criteria.map((item) => ({
+                        criterionId: item.criterionId,
+                        met: item.met,
+                        evidence: item.evidence,
+                      }))
+                    );
+                    if (!result.ok) {
+                      setAssessmentMessage(result.error ?? "Не удалось сохранить самооценку.");
+                      return;
+                    }
+                    setAssessmentMessage(
+                      result.passed
+                        ? `Рубрика пройдена · ${result.score}%`
+                        : `Рубрика не пройдена · ${result.score}%`
+                    );
+                  }}
+                >
+                  Сохранить самооценку
+                </Button>
+                <p className="text-sm text-muted-foreground" data-testid="artifact-rubric-result">
+                  {isPolicyApproved
+                    ? "Зачёт по политике (legacy)."
+                    : rubricPassed
+                      ? `Зачёт · ${score}%`
+                      : `Пока ${score}% · нужен зачёт по всем критериям`}
+                </p>
+              </div>
+              {assessmentMessage ? (
+                <p className="text-sm text-muted-foreground">{assessmentMessage}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           <DoneButton
             checked={state.artifactDone}
-            onChange={(value) => onSave({ notes, githubUrl, demoUrl, completed: value })}
+            onChange={async (value) => {
+              setArtifactError("");
+              const result = await onSave({
+                notes,
+                githubUrl,
+                demoUrl,
+                completed: value,
+              });
+              if (!result.ok) {
+                setArtifactError(result.error ?? "Не удалось сохранить артефакт.");
+              }
+            }}
           >
-            Артефакт готов. Без этого неделя не 100%.
+            Артефакт готов. Нужны репозиторий и зачёт по рубрике.
           </DoneButton>
+          {artifactError ? <p className="text-sm text-destructive">{artifactError}</p> : null}
         </CardContent>
       </Card>
     </div>
