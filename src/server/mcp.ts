@@ -1,6 +1,7 @@
 import { getWeek } from "@course";
 import { buildCourseChunks } from "@/server/course-index";
 import { wrapCourseLessonPayload, wrapUserNotesPayload } from "@/server/mcp-boundary";
+import { serializeLessonBlocks } from "@/server/student-visible-course";
 import { rankChunks, type SearchHit } from "@/server/semantic-search";
 
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
@@ -132,11 +133,9 @@ function lessonText(weekSlug: string, lessonId?: string) {
   if (!week) return null;
   const lesson = lessonId ? week.lessons.find((item) => item.id === lessonId) : week.lessons[0];
   if (!lesson) return null;
-  const blocks = lesson.blocks
-    .map((block) => ("text" in block && typeof block.text === "string" ? block.text : ""))
-    .filter(Boolean)
-    .join("\n\n");
-  return { weekSlug: week.slug, title: week.title, lessonId: lesson.id, lessonTitle: lesson.title, text: blocks };
+  // H1 student-safe serializer: theory + check.question; never check.answer / solutions.
+  const text = serializeLessonBlocks(lesson.blocks);
+  return { weekSlug: week.slug, title: week.title, lessonId: lesson.id, lessonTitle: lesson.title, text };
 }
 
 export function defaultMcpDeps(): McpDeps {
